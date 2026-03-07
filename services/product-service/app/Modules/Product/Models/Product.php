@@ -5,52 +5,77 @@ namespace App\Modules\Product\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
 class Product extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'products';
-
     protected $fillable = [
         'name',
-        'description',
         'sku',
+        'description',
         'price',
         'category',
         'status',
+        'weight',
+        'dimensions',
         'metadata',
-        'created_by',
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
-        'metadata' => 'array',
+        'price'      => 'decimal:2',
+        'weight'     => 'decimal:3',
+        'dimensions' => 'array',
+        'metadata'   => 'array',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];
 
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_INACTIVE = 'inactive';
-    public const STATUS_DISCONTINUED = 'discontinued';
+    const STATUS_ACTIVE   = 'active';
+    const STATUS_INACTIVE = 'inactive';
+    const STATUS_DRAFT    = 'draft';
 
-    public const STATUSES = [self::STATUS_ACTIVE, self::STATUS_INACTIVE, self::STATUS_DISCONTINUED];
-
-    public function scopeActive($query)
+    /**
+     * Scope for active products.
+     */
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_ACTIVE);
     }
 
-    public function scopeByCategory($query, string $category)
+    /**
+     * Scope for filtering by category.
+     */
+    public function scopeInCategory(Builder $query, string $category): Builder
     {
         return $query->where('category', $category);
     }
 
-    public function scopeSearch($query, string $search)
+    /**
+     * Scope for full-text search.
+     */
+    public function scopeSearch(Builder $query, string $search): Builder
     {
-        return $query->where(function ($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('description', 'like', "%{$search}%")
-              ->orWhere('sku', 'like', "%{$search}%");
+        return $query->where(function (Builder $q) use ($search) {
+            $q->where('name', 'LIKE', "%{$search}%")
+              ->orWhere('description', 'LIKE', "%{$search}%")
+              ->orWhere('sku', 'LIKE', "%{$search}%");
         });
+    }
+
+    /**
+     * Scope for price range filtering.
+     */
+    public function scopePriceRange(Builder $query, ?float $min, ?float $max): Builder
+    {
+        if ($min !== null) {
+            $query->where('price', '>=', $min);
+        }
+        if ($max !== null) {
+            $query->where('price', '<=', $max);
+        }
+        return $query;
     }
 }

@@ -2,143 +2,149 @@
 
 namespace App\Modules\Order\Services;
 
-use App\Modules\Order\DTOs\CreateOrderDTO;
-use App\Modules\Order\DTOs\OrderItemDTO;
-use App\Modules\Order\Events\OrderCancelled;
+use App\Modules\Order\DTOs\OrderDTO;
 use App\Modules\Order\Events\OrderCreated;
-use App\Modules\Order\Events\OrderStatusChanged;
-use App\Modules\Order\Events\OrderUpdated;
+use App\Modules\Order\Events\OrderCancelled;
 use App\Modules\Order\Models\Order;
 use App\Modules\Order\Repositories\Interfaces\OrderRepositoryInterface;
-use App\Modules\Order\Services\Interfaces\OrderServiceInterface;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Modules\Saga\OrderCreationSaga;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
-class OrderService implements OrderServiceInterface
+class OrderService
 {
     public function __construct(
-        private OrderRepositoryInterface $orderRepository,
+        private readonly OrderRepositoryInterface $orderRepository
     ) {}
 
-    public function listOrders(array $filters, int $perPage = 15): LengthAwarePaginator
+    public function listOrders(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return $this->orderRepository->paginate($filters, $perPage);
+        return $this->orderRepository->findAll($filters, $perPage);
     }
 
     public function getOrder(int $id): Order
     {
         $order = $this->orderRepository->findById($id);
+
         if (!$order) {
-            throw new ModelNotFoundException("Order not found with ID: {$id}");
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
+                "Order with ID {$id} not found."
+            );
         }
+
         return $order;
     }
 
-    public function createOrder(CreateOrderDTO $dto): Order
+    /**
+     * Create an order using the Saga pattern for distributed transaction management.
+     * Coordinates with Inventory Service to reserve stock.
+     */
+    public function createOrder(OrderDTO $dto): Order
     {
         return DB::transaction(function () use ($dto) {
-            $orderNumber = $this->generateOrderNumber();
+            // Step 1: Create the order record
+            $order = $this->orderRepository->create($dto);
 
-            $itemDTOs = array_map(
-                fn (array $item) => OrderItemDTO::fromArray($item),
-                $dto->items
+            Log::info('Order created, starting saga', ['order_id' => $order->id]);
+
+            // Step 2: Execute the OrderCreationSaga
+            $saga = new OrderCreationSaga(
+                inventoryServiceUrl: config('services.inventory.url'),
+                serviceToken:        $this->getServiceToken()
             );
 
-            $totalAmount = array_reduce(
-                $itemDTOs,
-                fn (float $carry, OrderItemDTO $item) => $carry + $item->getTotalPrice(),
-                0.0
-            );
+            try {
+                $order = $saga->execute($order);
+                Event::dispatch(new OrderCreated($order));
+                return $order;
 
-            $order = $this->orderRepository->create([
-                'order_number' => $orderNumber,
-                'user_id' => $dto->userId,
-                'status' => Order::STATUS_PENDING,
-                'total_amount' => $totalAmount,
-                'shipping_address' => $dto->shippingAddress,
-                'notes' => $dto->notes,
-                'metadata' => $dto->metadata,
-            ]);
+            } catch (\Exception $e) {
+                Log::error('Order saga failed', [
+                    'order_id' => $order->id,
+                    'error'    => $e->getMessage(),
+                ]);
+                throw $e;
+            }
+        });
+    }
 
-            foreach ($itemDTOs as $itemDTO) {
-                $order->items()->create($itemDTO->toArray());
+    /**
+     * Cancel an order with compensating transactions.
+     */
+    public function cancelOrder(int $id, string $reason = ''): Order
+    {
+        return DB::transaction(function () use ($id, $reason) {
+            $order = $this->orderRepository->findById($id);
+
+            if (!$order) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
+                    "Order with ID {$id} not found."
+                );
             }
 
-            $order->load('items');
+            if (!in_array($order->status, [Order::STATUS_PENDING, Order::STATUS_CONFIRMED])) {
+                throw new \DomainException(
+                    "Cannot cancel order with status '{$order->status}'."
+                );
+            }
 
-            Event::dispatch(new OrderCreated($order));
+            // Release inventory reservations (compensating transaction)
+            $this->releaseInventoryReservations($order);
 
+            $order = $this->orderRepository->cancel($id, $reason);
+            Event::dispatch(new OrderCancelled($order, $reason));
+
+            Log::info('Order cancelled', ['order_id' => $id]);
             return $order;
         });
     }
 
-    public function updateOrder(int $id, array $data): Order
-    {
-        return DB::transaction(function () use ($id, $data) {
-            $order = $this->getOrder($id);
-
-            $allowedFields = ['notes', 'metadata', 'shipping_address'];
-            $filteredData = array_intersect_key($data, array_flip($allowedFields));
-
-            $updated = $this->orderRepository->update($id, $filteredData);
-
-            Event::dispatch(new OrderUpdated($updated));
-
-            return $updated;
-        });
-    }
-
-    public function deleteOrder(int $id): void
-    {
-        DB::transaction(function () use ($id) {
-            $this->getOrder($id);
-            $this->orderRepository->delete($id);
-        });
-    }
-
-    public function updateStatus(int $id, string $status): Order
+    public function updateOrderStatus(int $id, string $status): Order
     {
         return DB::transaction(function () use ($id, $status) {
-            $order = $this->getOrder($id);
-
-            if (!in_array($status, Order::STATUSES)) {
-                throw new \InvalidArgumentException("Invalid status: {$status}");
-            }
-
-            $previousStatus = $order->status;
-            $updated = $this->orderRepository->updateStatus($id, $status);
-
-            Event::dispatch(new OrderStatusChanged($updated, $previousStatus, $status));
-
-            return $updated;
+            return $this->orderRepository->updateStatus($id, $status);
         });
     }
 
-    public function cancelOrder(int $id): Order
+    /**
+     * Release inventory reservations for an order (compensating transaction).
+     */
+    private function releaseInventoryReservations(Order $order): void
     {
-        return DB::transaction(function () use ($id) {
-            $order = $this->getOrder($id);
+        $sagaState = $order->saga_state ?? [];
 
-            if (!$order->isCancellable()) {
-                throw new \InvalidArgumentException(
-                    "Order cannot be cancelled. Current status: {$order->status}"
-                );
+        if (empty($sagaState['inventory_reserved'])) {
+            return;
+        }
+
+        $reservedItems = $sagaState['reserved_items'] ?? [];
+
+        foreach ($reservedItems as $item) {
+            try {
+                $serviceToken = $this->getServiceToken();
+                $inventoryUrl = config('services.inventory.url');
+
+                \Illuminate\Support\Facades\Http::withToken($serviceToken)
+                    ->post("{$inventoryUrl}/internal/v1/inventory/product/{$item['product_id']}/release", [
+                        'quantity' => $item['quantity'],
+                    ]);
+
+                Log::info('Inventory reservation released', $item);
+            } catch (\Exception $e) {
+                Log::error('Failed to release inventory reservation', [
+                    'item'  => $item,
+                    'error' => $e->getMessage(),
+                ]);
             }
-
-            $updated = $this->orderRepository->updateStatus($id, Order::STATUS_CANCELLED);
-
-            // Saga compensating transaction: notify inventory to release reserved stock
-            Event::dispatch(new OrderCancelled($updated));
-
-            return $updated;
-        });
+        }
     }
 
-    private function generateOrderNumber(): string
+    private function getServiceToken(): string
     {
-        return 'ORD-' . strtoupper(Str::random(8)) . '-' . now()->format('Ymd');
+        // In a real implementation, this would fetch a service-to-service token from Keycloak
+        // using the client credentials flow
+        return config('keycloak.service_token', '');
     }
 }

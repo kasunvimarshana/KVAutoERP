@@ -3,35 +3,48 @@
 namespace App\Modules\Webhook\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Webhook\Models\WebhookSubscription;
+use App\Services\WebhookService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
 {
-    public function receive(Request $request): JsonResponse
+    public function __construct(
+        private readonly WebhookService $webhookService
+    ) {}
+
+    public function index(Request $request): JsonResponse
     {
-        $signature = $request->header('X-Webhook-Signature');
-        $secret = config('services.webhook.secret');
-
-        if ($secret) {
-            $expectedSignature = 'sha256=' . hash_hmac('sha256', $request->getContent(), $secret);
-            if (!hash_equals($expectedSignature, (string) $signature)) {
-                return response()->json(['message' => 'Invalid webhook signature.'], 401);
-            }
-        }
-
-        $payload = $request->all();
-        Log::info('Webhook received', ['event' => $payload['event'] ?? 'unknown', 'payload' => $payload]);
-
-        $this->processWebhook($payload);
-
-        return response()->json(['message' => 'Webhook processed successfully.', 'received_at' => now()->toISOString()]);
+        $webhooks = WebhookSubscription::where('is_active', true)->get();
+        return response()->json(['data' => $webhooks]);
     }
 
-    private function processWebhook(array $payload): void
+    public function register(Request $request): JsonResponse
     {
-        $event = $payload['event'] ?? '';
-        Log::info("Processing webhook event: {$event}", $payload);
+        $request->validate([
+            'url'         => ['required', 'url'],
+            'events'      => ['required', 'array', 'min:1'],
+            'events.*'    => ['required', 'string'],
+            'secret'      => ['required', 'string', 'min:16'],
+            'description' => ['sometimes', 'string'],
+        ]);
+
+        $subscription = $this->webhookService->register(
+            url:         $request->input('url'),
+            events:      $request->input('events'),
+            secret:      $request->input('secret'),
+            description: $request->input('description')
+        );
+
+        return response()->json(['data' => $subscription], 201);
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        $subscription = WebhookSubscription::findOrFail($id);
+        $subscription->update(['is_active' => false]);
+
+        return response()->json(null, 204);
     }
 }

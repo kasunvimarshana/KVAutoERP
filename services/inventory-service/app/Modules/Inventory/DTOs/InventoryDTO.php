@@ -7,42 +7,42 @@ class InventoryDTO
     public function __construct(
         public readonly int $productId,
         public readonly string $productSku,
-        public readonly string $productName,
-        public readonly int $quantity = 0,
+        public readonly int $quantity,
         public readonly int $reservedQuantity = 0,
-        public readonly int $minimumQuantity = 10,
-        public readonly ?string $location = null,
-        public readonly string $status = 'available',
-        public readonly ?array $metadata = null,
+        public readonly ?string $warehouseLocation = null,
+        public readonly int $reorderLevel = 10,
+        public readonly int $reorderQuantity = 50,
+        public readonly ?float $unitCost = null,
+        public readonly ?string $notes = null,
     ) {}
 
-    public static function fromArray(array $data): self
+    public static function fromRequest(array $data): self
     {
         return new self(
-            productId: (int) $data['product_id'],
-            productSku: $data['product_sku'],
-            productName: $data['product_name'],
-            quantity: (int) ($data['quantity'] ?? 0),
-            reservedQuantity: (int) ($data['reserved_quantity'] ?? 0),
-            minimumQuantity: (int) ($data['minimum_quantity'] ?? 10),
-            location: $data['location'] ?? null,
-            status: $data['status'] ?? 'available',
-            metadata: $data['metadata'] ?? null,
+            productId:         (int) $data['product_id'],
+            productSku:        $data['product_sku'],
+            quantity:          (int) $data['quantity'],
+            reservedQuantity:  (int) ($data['reserved_quantity'] ?? 0),
+            warehouseLocation: $data['warehouse_location'] ?? null,
+            reorderLevel:      (int) ($data['reorder_level'] ?? 10),
+            reorderQuantity:   (int) ($data['reorder_quantity'] ?? 50),
+            unitCost:          isset($data['unit_cost']) ? (float) $data['unit_cost'] : null,
+            notes:             $data['notes'] ?? null,
         );
     }
 
     public function toArray(): array
     {
-        return [
-            'product_id' => $this->productId,
-            'product_sku' => $this->productSku,
-            'product_name' => $this->productName,
-            'quantity' => $this->quantity,
-            'reserved_quantity' => $this->reservedQuantity,
-            'minimum_quantity' => $this->minimumQuantity,
-            'location' => $this->location,
-            'status' => $this->status,
-            'metadata' => $this->metadata,
-        ];
+        return array_filter([
+            'product_id'         => $this->productId,
+            'product_sku'        => $this->productSku,
+            'quantity'           => $this->quantity,
+            'reserved_quantity'  => $this->reservedQuantity,
+            'warehouse_location' => $this->warehouseLocation,
+            'reorder_level'      => $this->reorderLevel,
+            'reorder_quantity'   => $this->reorderQuantity,
+            'unit_cost'          => $this->unitCost,
+            'notes'              => $this->notes,
+        ], fn ($v) => $v !== null);
     }
 }

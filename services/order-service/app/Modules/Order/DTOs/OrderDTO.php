@@ -5,38 +5,35 @@ namespace App\Modules\Order\DTOs;
 class OrderDTO
 {
     public function __construct(
-        public readonly string $userId,
-        public readonly string $status,
-        public readonly float $totalAmount,
-        public readonly ?string $orderNumber = null,
-        public readonly ?array $shippingAddress = null,
+        public readonly int $userId,
+        public readonly array $items,
+        public readonly array $shippingAddress,
+        public readonly ?array $billingAddress = null,
+        public readonly string $currency = 'USD',
         public readonly ?string $notes = null,
-        public readonly ?array $metadata = null,
     ) {}
 
-    public static function fromArray(array $data): self
+    public static function fromRequest(array $data): self
     {
         return new self(
-            userId: $data['user_id'],
-            status: $data['status'] ?? 'pending',
-            totalAmount: (float) ($data['total_amount'] ?? 0),
-            orderNumber: $data['order_number'] ?? null,
-            shippingAddress: $data['shipping_address'] ?? null,
-            notes: $data['notes'] ?? null,
-            metadata: $data['metadata'] ?? null,
+            userId:          (int) $data['user_id'],
+            items:           $data['items'],
+            shippingAddress: $data['shipping_address'],
+            billingAddress:  $data['billing_address'] ?? null,
+            currency:        $data['currency'] ?? 'USD',
+            notes:           $data['notes'] ?? null,
         );
     }
 
     public function toArray(): array
     {
-        return [
-            'user_id' => $this->userId,
-            'status' => $this->status,
-            'total_amount' => $this->totalAmount,
-            'order_number' => $this->orderNumber,
+        return array_filter([
+            'user_id'          => $this->userId,
+            'items'            => $this->items,
             'shipping_address' => $this->shippingAddress,
-            'notes' => $this->notes,
-            'metadata' => $this->metadata,
-        ];
+            'billing_address'  => $this->billingAddress,
+            'currency'         => $this->currency,
+            'notes'            => $this->notes,
+        ], fn ($v) => $v !== null);
     }
 }

@@ -14,12 +14,15 @@ class UpdateInventoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'quantity' => 'sometimes|integer|min:0',
-            'reserved_quantity' => 'sometimes|integer|min:0',
-            'minimum_quantity' => 'sometimes|integer|min:0',
-            'location' => 'nullable|string|max:255',
-            'status' => 'nullable|string|in:available,low_stock,out_of_stock,reserved',
-            'metadata' => 'nullable|array',
+            'product_id'         => ['sometimes', 'required', 'integer', 'min:1'],
+            'product_sku'        => ['sometimes', 'required', 'string', 'max:100'],
+            'quantity'           => ['sometimes', 'required', 'integer', 'min:0'],
+            'reserved_quantity'  => ['sometimes', 'integer', 'min:0'],
+            'warehouse_location' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'reorder_level'      => ['sometimes', 'integer', 'min:0'],
+            'reorder_quantity'   => ['sometimes', 'integer', 'min:1'],
+            'unit_cost'          => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'notes'              => ['sometimes', 'nullable', 'string'],
         ];
     }
 }

@@ -3,12 +3,16 @@
 namespace App\Modules\Product\Events;
 
 use App\Modules\Product\Models\Product;
+use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 class ProductUpdated
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public readonly Product $product) {}
+    public function __construct(
+        public readonly Product $product,
+        public readonly array $changedAttributes = []
+    ) {}
 }

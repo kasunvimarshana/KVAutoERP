@@ -6,35 +6,41 @@ class WebhookPayloadDTO
 {
     public function __construct(
         public readonly string $event,
-        public readonly string $service,
-        public readonly array $data,
+        public readonly array $payload,
         public readonly string $timestamp,
-        public readonly string $version = '1.0',
+        public readonly string $webhookId,
+        public readonly string $signature
     ) {}
 
-    public static function create(string $event, string $service, array $data): self
+    public static function create(string $event, array $payload, string $secret): self
     {
+        $webhookId = uniqid('wh_', true);
+        $timestamp = now()->toISOString();
+        $body      = json_encode([
+            'event'      => $event,
+            'payload'    => $payload,
+            'timestamp'  => $timestamp,
+            'webhook_id' => $webhookId,
+        ]);
+        $signature = hash_hmac('sha256', $body, $secret);
+
         return new self(
-            event: $event,
-            service: $service,
-            data: $data,
-            timestamp: now()->toISOString(),
+            event:     $event,
+            payload:   $payload,
+            timestamp: $timestamp,
+            webhookId: $webhookId,
+            signature: $signature
         );
     }
 
     public function toArray(): array
     {
         return [
-            'event' => $this->event,
-            'service' => $this->service,
-            'data' => $this->data,
-            'timestamp' => $this->timestamp,
-            'version' => $this->version,
+            'event'      => $this->event,
+            'payload'    => $this->payload,
+            'timestamp'  => $this->timestamp,
+            'webhook_id' => $this->webhookId,
+            'signature'  => $this->signature,
         ];
-    }
-
-    public function toJson(): string
-    {
-        return json_encode($this->toArray());
     }
 }

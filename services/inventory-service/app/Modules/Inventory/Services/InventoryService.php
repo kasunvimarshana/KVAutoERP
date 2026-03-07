@@ -3,120 +3,167 @@
 namespace App\Modules\Inventory\Services;
 
 use App\Modules\Inventory\DTOs\InventoryDTO;
-use App\Modules\Inventory\DTOs\StockAdjustmentDTO;
 use App\Modules\Inventory\Events\InventoryUpdated;
-use App\Modules\Inventory\Events\StockReserved;
-use App\Modules\Inventory\Events\StockReleased;
-use App\Modules\Inventory\Models\InventoryItem;
+use App\Modules\Inventory\Events\LowStockAlert;
+use App\Modules\Inventory\Models\Inventory;
 use App\Modules\Inventory\Repositories\Interfaces\InventoryRepositoryInterface;
-use App\Modules\Inventory\Services\Interfaces\InventoryServiceInterface;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 
-class InventoryService implements InventoryServiceInterface
+class InventoryService
 {
     public function __construct(
-        private InventoryRepositoryInterface $inventoryRepository,
+        private readonly InventoryRepositoryInterface $inventoryRepository
     ) {}
 
-    public function listInventory(array $filters, int $perPage = 15): LengthAwarePaginator
+    public function listInventory(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return $this->inventoryRepository->paginate($filters, $perPage);
+        return $this->inventoryRepository->findAll($filters, $perPage);
     }
 
-    public function getInventoryItem(int $id): InventoryItem
+    public function getInventory(int $id): Inventory
     {
-        $item = $this->inventoryRepository->findById($id);
-        if (!$item) {
-            throw new ModelNotFoundException("Inventory item not found with ID: {$id}");
+        $inventory = $this->inventoryRepository->findById($id);
+
+        if (!$inventory) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
+                "Inventory record with ID {$id} not found."
+            );
         }
-        return $item;
+
+        return $inventory;
     }
 
-    public function createInventoryItem(InventoryDTO $dto): InventoryItem
+    public function getInventoryByProductId(int $productId): ?Inventory
+    {
+        return $this->inventoryRepository->findByProductId($productId);
+    }
+
+    public function createInventory(InventoryDTO $dto): Inventory
     {
         return DB::transaction(function () use ($dto) {
             $existing = $this->inventoryRepository->findByProductId($dto->productId);
             if ($existing) {
-                throw new \InvalidArgumentException("Inventory item already exists for product ID: {$dto->productId}");
+                throw new \InvalidArgumentException(
+                    "Inventory record for product ID {$dto->productId} already exists."
+                );
             }
 
-            $item = $this->inventoryRepository->create($dto);
-            Event::dispatch(new InventoryUpdated($item, 'created'));
-            return $item;
+            $inventory = $this->inventoryRepository->create($dto);
+            Log::info('Inventory created', ['inventory_id' => $inventory->id, 'product_id' => $dto->productId]);
+
+            return $inventory;
         });
     }
 
-    public function updateInventoryItem(int $id, array $data): InventoryItem
+    public function updateInventory(int $id, InventoryDTO $dto): Inventory
     {
-        return DB::transaction(function () use ($id, $data) {
-            $this->getInventoryItem($id);
-            $updated = $this->inventoryRepository->update($id, $data);
-            Event::dispatch(new InventoryUpdated($updated, 'updated'));
-            return $updated;
+        return DB::transaction(function () use ($id, $dto) {
+            $inventory = $this->inventoryRepository->update($id, $dto);
+            Log::info('Inventory updated', ['inventory_id' => $inventory->id]);
+
+            Event::dispatch(new InventoryUpdated($inventory, 0, 'manual'));
+            $this->checkLowStock($inventory);
+
+            return $inventory;
         });
     }
 
-    public function deleteInventoryItem(int $id): void
+    /**
+     * Adjust inventory quantity (positive = add, negative = subtract).
+     * Supports the Saga pattern compensating transaction.
+     */
+    public function adjustQuantity(int $productId, int $delta, string $reason = 'adjustment'): Inventory
     {
-        DB::transaction(function () use ($id) {
-            $this->getInventoryItem($id);
-            $this->inventoryRepository->delete($id);
-        });
-    }
+        return DB::transaction(function () use ($productId, $delta, $reason) {
+            $inventory = $this->inventoryRepository->findByProductId($productId);
 
-    public function adjustStock(StockAdjustmentDTO $dto): InventoryItem
-    {
-        return DB::transaction(function () use ($dto) {
-            $this->getInventoryItem($dto->inventoryItemId);
-
-            $quantityChange = $dto->type === 'add' ? abs($dto->quantity) : -abs($dto->quantity);
-
-            $updated = $this->inventoryRepository->adjustStock($dto->inventoryItemId, $quantityChange);
-
-            Event::dispatch(new InventoryUpdated($updated, 'stock_adjusted', [
-                'type' => $dto->type,
-                'quantity' => $dto->quantity,
-                'reason' => $dto->reason,
-                'reference' => $dto->reference,
-            ]));
-
-            return $updated;
-        });
-    }
-
-    public function reserveStock(int $inventoryId, int $quantity): bool
-    {
-        return DB::transaction(function () use ($inventoryId, $quantity) {
-            $item = $this->getInventoryItem($inventoryId);
-            $result = $this->inventoryRepository->reserveStock($inventoryId, $quantity);
-
-            if ($result) {
-                Event::dispatch(new StockReserved($item->fresh(), $quantity));
+            if (!$inventory) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
+                    "No inventory record found for product ID {$productId}."
+                );
             }
 
+            $previousQuantity = $inventory->quantity;
+
+            if ($delta < 0 && $inventory->available_quantity < abs($delta)) {
+                throw new \DomainException(
+                    "Insufficient stock. Available: {$inventory->available_quantity}, Requested: " . abs($delta)
+                );
+            }
+
+            $inventory = $this->inventoryRepository->adjustQuantity($inventory->id, $delta);
+
+            Log::info('Inventory quantity adjusted', [
+                'product_id' => $productId,
+                'delta'      => $delta,
+                'reason'     => $reason,
+                'new_qty'    => $inventory->quantity,
+            ]);
+
+            Event::dispatch(new InventoryUpdated($inventory, $previousQuantity, $reason));
+            $this->checkLowStock($inventory);
+
+            return $inventory;
+        });
+    }
+
+    /**
+     * Reserve inventory for an order (part of Saga transaction).
+     */
+    public function reserveStock(int $productId, int $quantity): bool
+    {
+        return DB::transaction(function () use ($productId, $quantity) {
+            $result = $this->inventoryRepository->reserveQuantity($productId, $quantity);
+
+            if (!$result) {
+                throw new \DomainException(
+                    "Cannot reserve {$quantity} units for product ID {$productId}: insufficient stock."
+                );
+            }
+
+            Log::info('Stock reserved', ['product_id' => $productId, 'quantity' => $quantity]);
             return $result;
         });
     }
 
-    public function releaseStock(int $inventoryId, int $quantity): bool
+    /**
+     * Release reserved inventory (compensating transaction in Saga).
+     */
+    public function releaseReservation(int $productId, int $quantity): bool
     {
-        return DB::transaction(function () use ($inventoryId, $quantity) {
-            $item = $this->getInventoryItem($inventoryId);
-            $result = $this->inventoryRepository->releaseStock($inventoryId, $quantity);
-
-            if ($result) {
-                Event::dispatch(new StockReleased($item->fresh(), $quantity));
-            }
-
+        return DB::transaction(function () use ($productId, $quantity) {
+            $result = $this->inventoryRepository->releaseReservation($productId, $quantity);
+            Log::info('Reservation released', ['product_id' => $productId, 'quantity' => $quantity]);
             return $result;
         });
     }
 
-    public function getInventoryByProduct(int $productId): ?InventoryItem
+    public function deleteInventory(int $id): bool
     {
-        return $this->inventoryRepository->findByProductId($productId);
+        return DB::transaction(function () use ($id) {
+            $inventory = $this->inventoryRepository->findById($id);
+            if (!$inventory) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
+                    "Inventory record with ID {$id} not found."
+                );
+            }
+            return $this->inventoryRepository->delete($id);
+        });
+    }
+
+    private function checkLowStock(Inventory $inventory): void
+    {
+        if ($inventory->needsReorder()) {
+            Event::dispatch(new LowStockAlert(
+                inventoryId:       $inventory->id,
+                productId:         $inventory->product_id,
+                productSku:        $inventory->product_sku,
+                availableQuantity: $inventory->available_quantity,
+                reorderLevel:      $inventory->reorder_level
+            ));
+        }
     }
 }

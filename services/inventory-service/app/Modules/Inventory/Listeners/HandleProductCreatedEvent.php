@@ -2,44 +2,39 @@
 
 namespace App\Modules\Inventory\Listeners;
 
-use App\Modules\Inventory\DTOs\InventoryDTO;
-use App\Modules\Inventory\Repositories\Interfaces\InventoryRepositoryInterface;
+use App\Modules\Inventory\Services\InventoryService;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Handles ProductCreated events from the Product Service via RabbitMQ.
+ * Currently logs the event for audit purposes.
+ * Extend this listener to auto-initialize inventory when a product is created.
+ */
 class HandleProductCreatedEvent
 {
-    public function __construct(private InventoryRepositoryInterface $inventoryRepository) {}
+    public function __construct(
+        private readonly InventoryService $inventoryService
+    ) {}
 
-    public function handle(array $eventData): void
+    public function handle(array $event): void
     {
-        try {
-            $productData = $eventData['data'] ?? [];
-            $productId = $productData['id'] ?? null;
-            $productSku = $productData['sku'] ?? null;
+        $productId  = $event['product_id'] ?? null;
+        $productSku = $event['sku'] ?? 'unknown';
 
-            if (!$productId || !$productSku) {
-                Log::warning('Invalid ProductCreated event data', $eventData);
-                return;
-            }
+        Log::info('ProductCreated event received in Inventory Service', [
+            'product_id'  => $productId,
+            'product_sku' => $productSku,
+            'timestamp'   => $event['timestamp'] ?? null,
+        ]);
 
-            $existing = $this->inventoryRepository->findByProductId($productId);
-            if ($existing) {
-                Log::info("Inventory already exists for product {$productId}");
-                return;
-            }
-
-            $dto = InventoryDTO::fromArray([
-                'product_id' => $productId,
-                'product_sku' => $productSku,
-                'product_name' => $productData['name'] ?? 'Unknown',
-                'quantity' => 0,
-                'status' => 'out_of_stock',
-            ]);
-
-            $this->inventoryRepository->create($dto);
-            Log::info("Created inventory item for product {$productId}");
-        } catch (\Exception $e) {
-            Log::error('Failed to handle ProductCreated event: ' . $e->getMessage());
-        }
+        // Auto-initialization of inventory can be added here if desired.
+        // For example:
+        // if ($productId) {
+        //     $this->inventoryService->createInventory(new InventoryDTO(
+        //         productId:  $productId,
+        //         productSku: $productSku,
+        //         quantity:   0,
+        //     ));
+        // }
     }
 }

@@ -8,79 +8,142 @@ use App\Modules\Product\Events\ProductDeleted;
 use App\Modules\Product\Events\ProductUpdated;
 use App\Modules\Product\Models\Product;
 use App\Modules\Product\Repositories\Interfaces\ProductRepositoryInterface;
-use App\Modules\Product\Services\Interfaces\ProductServiceInterface;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 
-class ProductService implements ProductServiceInterface
+class ProductService
 {
     public function __construct(
-        private ProductRepositoryInterface $productRepository,
+        private readonly ProductRepositoryInterface $productRepository
     ) {}
 
-    public function listProducts(array $filters, int $perPage = 15): LengthAwarePaginator
+    /**
+     * List products with filtering, searching, sorting, and pagination.
+     */
+    public function listProducts(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return $this->productRepository->paginate($filters, $perPage);
+        return $this->productRepository->findAll($filters, $perPage);
     }
 
+    /**
+     * Get a single product by ID.
+     */
     public function getProduct(int $id): Product
     {
         $product = $this->productRepository->findById($id);
+
         if (!$product) {
-            throw new ModelNotFoundException("Product not found with ID: {$id}");
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
+                "Product with ID {$id} not found."
+            );
         }
+
         return $product;
     }
 
+    /**
+     * Create a new product within an ACID transaction.
+     */
     public function createProduct(ProductDTO $dto): Product
     {
         return DB::transaction(function () use ($dto) {
-            $existing = $this->productRepository->findBySku($dto->sku);
-            if ($existing) {
-                throw new \InvalidArgumentException("Product with SKU '{$dto->sku}' already exists.");
+            // Check for duplicate SKU
+            if ($this->productRepository->findBySku($dto->sku)) {
+                throw new \InvalidArgumentException(
+                    "A product with SKU '{$dto->sku}' already exists."
+                );
             }
 
             $product = $this->productRepository->create($dto);
 
+            Log::info('Product created', ['product_id' => $product->id, 'sku' => $product->sku]);
+
+            // Fire domain event
             Event::dispatch(new ProductCreated($product));
 
             return $product;
         });
     }
 
-    public function updateProduct(int $id, array $data): Product
+    /**
+     * Update an existing product within an ACID transaction.
+     */
+    public function updateProduct(int $id, ProductDTO $dto): Product
     {
-        return DB::transaction(function () use ($id, $data) {
-            $product = $this->getProduct($id);
+        return DB::transaction(function () use ($id, $dto) {
+            $existing = $this->productRepository->findById($id);
 
-            if (isset($data['sku']) && $data['sku'] !== $product->sku) {
-                $existing = $this->productRepository->findBySku($data['sku']);
-                if ($existing) {
-                    throw new \InvalidArgumentException("Product with SKU '{$data['sku']}' already exists.");
-                }
+            if (!$existing) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
+                    "Product with ID {$id} not found."
+                );
             }
 
-            $updated = $this->productRepository->update($id, $data);
+            // Check SKU uniqueness (excluding current product)
+            $skuProduct = $this->productRepository->findBySku($dto->sku);
+            if ($skuProduct && $skuProduct->id !== $id) {
+                throw new \InvalidArgumentException(
+                    "A product with SKU '{$dto->sku}' already exists."
+                );
+            }
 
-            Event::dispatch(new ProductUpdated($updated));
+            $changedAttributes = $this->getChangedAttributes($existing, $dto->toArray());
+            $product           = $this->productRepository->update($id, $dto);
 
-            return $updated;
+            Log::info('Product updated', ['product_id' => $product->id]);
+
+            // Fire domain event
+            Event::dispatch(new ProductUpdated($product, $changedAttributes));
+
+            return $product;
         });
     }
 
-    public function deleteProduct(int $id): void
+    /**
+     * Delete a product within an ACID transaction.
+     */
+    public function deleteProduct(int $id): bool
     {
-        DB::transaction(function () use ($id) {
-            $product = $this->getProduct($id);
-            $this->productRepository->delete($id);
-            Event::dispatch(new ProductDeleted($product));
+        return DB::transaction(function () use ($id) {
+            $product = $this->productRepository->findById($id);
+
+            if (!$product) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException(
+                    "Product with ID {$id} not found."
+                );
+            }
+
+            $productId   = $product->id;
+            $productSku  = $product->sku;
+            $productName = $product->name;
+
+            $result = $this->productRepository->delete($id);
+
+            Log::info('Product deleted', ['product_id' => $productId]);
+
+            // Fire domain event
+            Event::dispatch(new ProductDeleted($productId, $productSku, $productName));
+
+            return $result;
         });
     }
 
-    public function getCategories(): array
+    /**
+     * Determine which attributes changed for event tracking.
+     */
+    private function getChangedAttributes(Product $existing, array $newData): array
     {
-        return $this->productRepository->getAllCategories();
+        $changed = [];
+        foreach ($newData as $key => $value) {
+            if ($existing->{$key} != $value) {
+                $changed[$key] = [
+                    'from' => $existing->{$key},
+                    'to'   => $value,
+                ];
+            }
+        }
+        return $changed;
     }
 }

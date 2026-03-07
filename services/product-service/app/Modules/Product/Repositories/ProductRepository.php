@@ -5,42 +5,49 @@ namespace App\Modules\Product\Repositories;
 use App\Modules\Product\DTOs\ProductDTO;
 use App\Modules\Product\Models\Product;
 use App\Modules\Product\Repositories\Interfaces\ProductRepositoryInterface;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class ProductRepository implements ProductRepositoryInterface
 {
-    public function __construct(private Product $model) {}
+    public function __construct(
+        private readonly Product $model
+    ) {}
 
-    public function paginate(array $filters, int $perPage = 15): LengthAwarePaginator
+    public function findAll(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         $query = $this->model->newQuery();
 
+        // Search
         if (!empty($filters['search'])) {
             $query->search($filters['search']);
         }
 
+        // Category filter
         if (!empty($filters['category'])) {
-            $query->byCategory($filters['category']);
+            $query->inCategory($filters['category']);
         }
 
+        // Status filter
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['min_price'])) {
-            $query->where('price', '>=', $filters['min_price']);
+        // Price range filter
+        if (isset($filters['min_price']) || isset($filters['max_price'])) {
+            $query->priceRange(
+                $filters['min_price'] ?? null,
+                $filters['max_price'] ?? null
+            );
         }
 
-        if (!empty($filters['max_price'])) {
-            $query->where('price', '<=', $filters['max_price']);
-        }
+        // Sorting
+        $sortField     = $filters['sort_by'] ?? 'created_at';
+        $sortDirection = $filters['sort_direction'] ?? 'desc';
+        $allowedSorts  = ['name', 'price', 'created_at', 'updated_at', 'category'];
 
-        $sortBy = $filters['sort_by'] ?? 'created_at';
-        $sortDir = $filters['sort_dir'] ?? 'desc';
-        $allowedSorts = ['name', 'price', 'created_at', 'updated_at', 'sku', 'category'];
-
-        if (in_array($sortBy, $allowedSorts)) {
-            $query->orderBy($sortBy, in_array($sortDir, ['asc', 'desc']) ? $sortDir : 'desc');
+        if (in_array($sortField, $allowedSorts)) {
+            $query->orderBy($sortField, $sortDirection === 'asc' ? 'asc' : 'desc');
         }
 
         return $query->paginate($perPage);
@@ -61,30 +68,21 @@ class ProductRepository implements ProductRepositoryInterface
         return $this->model->create($dto->toArray());
     }
 
-    public function update(int $id, array $data): ?Product
+    public function update(int $id, ProductDTO $dto): Product
     {
-        $product = $this->findById($id);
-        if (!$product) {
-            return null;
-        }
-        $product->update($data);
+        $product = $this->model->findOrFail($id);
+        $product->update($dto->toArray());
         return $product->fresh();
     }
 
     public function delete(int $id): bool
     {
-        $product = $this->findById($id);
-        if (!$product) {
-            return false;
-        }
-        return (bool) $product->delete();
+        $product = $this->model->findOrFail($id);
+        return $product->delete();
     }
 
-    public function getAllCategories(): array
+    public function findByIds(array $ids): Collection
     {
-        return $this->model->whereNotNull('category')
-            ->distinct()
-            ->pluck('category')
-            ->toArray();
+        return $this->model->whereIn('id', $ids)->get();
     }
 }

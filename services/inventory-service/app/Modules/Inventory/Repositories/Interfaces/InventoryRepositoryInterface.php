@@ -3,19 +3,28 @@
 namespace App\Modules\Inventory\Repositories\Interfaces;
 
 use App\Modules\Inventory\DTOs\InventoryDTO;
-use App\Modules\Inventory\Models\InventoryItem;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Modules\Inventory\Models\Inventory;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface InventoryRepositoryInterface
 {
-    public function paginate(array $filters, int $perPage = 15): LengthAwarePaginator;
-    public function findById(int $id): ?InventoryItem;
-    public function findByProductId(int $productId): ?InventoryItem;
-    public function findByProductSku(string $sku): ?InventoryItem;
-    public function create(InventoryDTO $dto): InventoryItem;
-    public function update(int $id, array $data): ?InventoryItem;
+    public function findAll(array $filters = [], int $perPage = 15): LengthAwarePaginator;
+
+    public function findById(int $id): ?Inventory;
+
+    public function findByProductId(int $productId): ?Inventory;
+
+    public function findByProductSku(string $sku): ?Inventory;
+
+    public function create(InventoryDTO $dto): Inventory;
+
+    public function update(int $id, InventoryDTO $dto): Inventory;
+
+    public function adjustQuantity(int $id, int $delta): Inventory;
+
+    public function reserveQuantity(int $productId, int $quantity): bool;
+
+    public function releaseReservation(int $productId, int $quantity): bool;
+
     public function delete(int $id): bool;
-    public function adjustStock(int $id, int $quantityChange): ?InventoryItem;
-    public function reserveStock(int $id, int $quantity): bool;
-    public function releaseStock(int $id, int $quantity): bool;
 }

@@ -5,38 +5,46 @@ namespace App\Modules\User\DTOs;
 class UserDTO
 {
     public function __construct(
-        public readonly string $keycloakId,
+        public readonly string $username,
         public readonly string $email,
-        public readonly ?string $firstName = null,
-        public readonly ?string $lastName = null,
-        public readonly array $roles = [],
-        public readonly string $status = 'active',
-        public readonly ?array $metadata = null,
+        public readonly string $firstName,
+        public readonly string $lastName,
+        public readonly ?string $phone = null,
+        public readonly array $roles = ['customer'],
+        public readonly array $attributes = [],
+        public readonly bool $isActive = true,
+        public readonly ?string $keycloakId = null,
+        public readonly ?string $password = null,
     ) {}
 
-    public static function fromArray(array $data): self
+    public static function fromRequest(array $data): self
     {
         return new self(
-            keycloakId: $data['keycloak_id'],
-            email: $data['email'],
-            firstName: $data['first_name'] ?? null,
-            lastName: $data['last_name'] ?? null,
-            roles: $data['roles'] ?? [],
-            status: $data['status'] ?? 'active',
-            metadata: $data['metadata'] ?? null,
+            username:    $data['username'],
+            email:       $data['email'],
+            firstName:   $data['first_name'],
+            lastName:    $data['last_name'],
+            phone:       $data['phone'] ?? null,
+            roles:       $data['roles'] ?? ['customer'],
+            attributes:  $data['attributes'] ?? [],
+            isActive:    $data['is_active'] ?? true,
+            keycloakId:  $data['keycloak_id'] ?? null,
+            password:    $data['password'] ?? null,
         );
     }
 
     public function toArray(): array
     {
-        return [
-            'keycloak_id' => $this->keycloakId,
-            'email' => $this->email,
+        return array_filter([
+            'username'   => $this->username,
+            'email'      => $this->email,
             'first_name' => $this->firstName,
-            'last_name' => $this->lastName,
-            'roles' => $this->roles,
-            'status' => $this->status,
-            'metadata' => $this->metadata,
-        ];
+            'last_name'  => $this->lastName,
+            'phone'      => $this->phone,
+            'roles'      => $this->roles,
+            'attributes' => $this->attributes,
+            'is_active'  => $this->isActive,
+            'keycloak_id'=> $this->keycloakId,
+        ], fn ($v) => $v !== null);
     }
 }
