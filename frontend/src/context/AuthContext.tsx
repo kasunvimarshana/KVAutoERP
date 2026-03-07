@@ -1,110 +1,84 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import keycloak from '../keycloak';
-import type { AuthUser, KeycloakTokenParsed } from '../types';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { User } from '../types'
+import { authService } from '../services/authService'
 
-interface AuthContextValue {
-  user: AuthUser | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  token: string | null;
-  login: () => void;
-  logout: () => void;
-  hasRole: (role: string) => boolean;
-  hasAnyRole: (roles: string[]) => boolean;
+interface AuthContextType {
+  user: User | null
+  token: string | null
+  login: (email: string, password: string) => Promise<void>
+  logout: () => Promise<void>
+  isAuthenticated: boolean
+  isLoading: boolean
+  hasRole: (role: string) => boolean
+  hasPermission: (permission: string) => boolean
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null);
-
-function parseUserFromToken(parsed: KeycloakTokenParsed): AuthUser {
-  return {
-    id: parsed.sub,
-    email: parsed.email ?? parsed.preferred_username ?? '',
-    name: parsed.name ?? parsed.preferred_username ?? '',
-    roles: [
-      ...(parsed.realm_access?.roles ?? []),
-      ...(parsed.resource_access?.['inventory-frontend']?.roles ?? []),
-    ],
-    tenantId: parsed.tenant_id ?? '',
-    tenantName: parsed.tenant_name,
-  };
-}
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null)
+  const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token'))
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    keycloak
-      .init({
-        onLoad: 'check-sso',
-        silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
-        pkceMethod: 'S256',
-      })
-      .then((authenticated) => {
-        if (authenticated && keycloak.tokenParsed) {
-          setUser(parseUserFromToken(keycloak.tokenParsed as KeycloakTokenParsed));
-          setToken(keycloak.token ?? null);
+    const initAuth = async () => {
+      const storedToken = localStorage.getItem('auth_token')
+      if (storedToken) {
+        try {
+          const result = await authService.me()
+          setUser(result.data)
+        } catch {
+          localStorage.removeItem('auth_token')
+          localStorage.removeItem('auth_user')
+          setToken(null)
         }
-      })
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
-
-    keycloak.onTokenExpired = () => {
-      keycloak
-        .updateToken(30)
-        .then(() => setToken(keycloak.token ?? null))
-        .catch(() => keycloak.logout());
-    };
-
-    keycloak.onAuthSuccess = () => {
-      if (keycloak.tokenParsed) {
-        setUser(parseUserFromToken(keycloak.tokenParsed as KeycloakTokenParsed));
-        setToken(keycloak.token ?? null);
       }
-    };
+      setIsLoading(false)
+    }
+    initAuth()
+  }, [])
 
-    keycloak.onAuthLogout = () => {
-      setUser(null);
-      setToken(null);
-    };
-  }, []);
+  const login = async (email: string, password: string) => {
+    const result = await authService.login(email, password)
+    localStorage.setItem('auth_token', result.token)
+    localStorage.setItem('auth_user', JSON.stringify(result.user))
+    setToken(result.token)
+    setUser(result.user)
+  }
 
-  const login = useCallback(() => keycloak.login(), []);
-  const logout = useCallback(() => keycloak.logout({ redirectUri: window.location.origin }), []);
+  const logout = async () => {
+    try {
+      await authService.logout()
+    } catch {
+      // ignore
+    }
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_user')
+    setToken(null)
+    setUser(null)
+  }
 
-  const hasRole = useCallback(
-    (role: string) => user?.roles.includes(role) ?? false,
-    [user]
-  );
-
-  const hasAnyRole = useCallback(
-    (roles: string[]) => roles.some((r) => user?.roles.includes(r)) ?? false,
-    [user]
-  );
+  const hasRole = (role: string) => user?.roles?.includes(role) ?? false
+  const hasPermission = (permission: string) => user?.permissions?.includes(permission) ?? false
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        token,
-        login,
-        logout,
-        hasRole,
-        hasAnyRole,
-      }}
-    >
+    <AuthContext.Provider value={{
+      user,
+      token,
+      login,
+      logout,
+      isAuthenticated: !!token && !!user,
+      isLoading,
+      hasRole,
+      hasPermission,
+    }}>
       {children}
     </AuthContext.Provider>
-  );
+  )
 }
 
-export function useAuthContext(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuthContext must be used within AuthProvider');
-  return ctx;
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth must be used within AuthProvider')
+  return context
 }
-
-export default AuthContext;

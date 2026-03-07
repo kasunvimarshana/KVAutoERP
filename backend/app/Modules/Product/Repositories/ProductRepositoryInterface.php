@@ -2,22 +2,13 @@
 
 namespace App\Modules\Product\Repositories;
 
-use App\Modules\Product\Models\Product;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-
 interface ProductRepositoryInterface
 {
-    public function findById(string $id, string $tenantId): ?Product;
-
-    public function findBySku(string $sku, string $tenantId): ?Product;
-
-    public function paginate(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator;
-
-    public function create(array $data): Product;
-
-    public function update(Product $product, array $data): Product;
-
-    public function delete(Product $product): bool;
-
-    public function restore(string $id): bool;
+    public function all(array $filters = [], int $perPage = 15);
+    public function find(int $id);
+    public function create(array $data): \App\Modules\Product\Models\Product;
+    public function update(int $id, array $data): \App\Modules\Product\Models\Product;
+    public function delete(int $id): bool;
+    public function findBySku(string $sku, int $tenantId): ?\App\Modules\Product\Models\Product;
+    public function findByTenant(int $tenantId, array $filters = [], int $perPage = 15);
 }

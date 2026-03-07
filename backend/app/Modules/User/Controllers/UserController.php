@@ -2,6 +2,7 @@
 
 namespace App\Modules\User\Controllers;
 
+use App\Http\Controllers\Controller;
 use App\Modules\User\DTOs\UserDTO;
 use App\Modules\User\Requests\CreateUserRequest;
 use App\Modules\User\Requests\UpdateUserRequest;
@@ -10,65 +11,42 @@ use App\Modules\User\Services\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Routing\Controller;
 
 class UserController extends Controller
 {
-    public function __construct(private UserService $userService) {}
+    public function __construct(private readonly UserService $userService) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $tenantId = app('tenant_id');
-        $perPage  = (int) $request->query('per_page', 15);
-        $filters  = $request->only(['role', 'is_active', 'search']);
-
-        $users = $this->userService->list($tenantId, $perPage, $filters);
-
+        $filters = $request->only(['search', 'role', 'sort_by', 'sort_dir', 'tenant_id']);
+        $perPage = $request->input('per_page', 15);
+        $users = $this->userService->list($filters, $perPage);
         return UserResource::collection($users);
     }
 
-    public function show(Request $request, string $id): UserResource
+    public function show(int $id): UserResource
     {
-        $tenantId = app('tenant_id');
-        $user     = $this->userService->findById($id, $tenantId);
-
+        $user = $this->userService->get($id);
         return new UserResource($user);
     }
 
     public function store(CreateUserRequest $request): JsonResponse
     {
-        $tenantId = app('tenant_id');
-        $data     = $request->validated();
-        $data['tenant_id'] = $tenantId;
-
-        $dto  = UserDTO::fromRequest($data);
+        $dto = UserDTO::fromArray($request->validated());
         $user = $this->userService->create($dto);
-
-        return (new UserResource($user))
-            ->response()
-            ->setStatusCode(201);
+        return (new UserResource($user))->response()->setStatusCode(201);
     }
 
-    public function update(UpdateUserRequest $request, string $id): UserResource
+    public function update(UpdateUserRequest $request, int $id): UserResource
     {
-        $tenantId = app('tenant_id');
-        $user     = $this->userService->update($id, $tenantId, $request->validated());
-
+        $dto = UserDTO::fromArray($request->validated());
+        $user = $this->userService->update($id, $dto);
         return new UserResource($user);
     }
 
-    public function destroy(string $id): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
-        $tenantId = app('tenant_id');
-        $this->userService->delete($id, $tenantId);
-
+        $this->userService->delete($id);
         return response()->json(['message' => 'User deleted successfully']);
-    }
-
-    public function restore(string $id): JsonResponse
-    {
-        $this->userService->restore($id);
-
-        return response()->json(['message' => 'User restored successfully']);
     }
 }

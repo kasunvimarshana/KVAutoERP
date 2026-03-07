@@ -5,139 +5,96 @@ namespace App\Modules\Order\Services;
 use App\Modules\Inventory\Repositories\InventoryRepositoryInterface;
 use App\Modules\Order\DTOs\OrderDTO;
 use App\Modules\Order\Events\OrderCancelled;
-use App\Modules\Order\Events\OrderCompleted;
 use App\Modules\Order\Events\OrderCreated;
+use App\Modules\Order\Events\OrderStatusChanged;
 use App\Modules\Order\Models\Order;
 use App\Modules\Order\Repositories\OrderRepositoryInterface;
-use App\Modules\Product\Repositories\ProductRepositoryInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
     public function __construct(
-        private OrderRepositoryInterface $orderRepository,
-        private ProductRepositoryInterface $productRepository,
-        private InventoryRepositoryInterface $inventoryRepository,
+        private readonly OrderRepositoryInterface $orderRepository,
+        private readonly InventoryRepositoryInterface $inventoryRepository
     ) {}
 
-    public function list(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator
+    public function list(array $filters = [], int $perPage = 15)
     {
-        return $this->orderRepository->paginate($tenantId, $perPage, $filters);
+        return $this->orderRepository->all($filters, $perPage);
     }
 
-    public function findById(string $id, string $tenantId): Order
+    public function get(int $id): Order
     {
-        $order = $this->orderRepository->findById($id, $tenantId);
-
-        if (!$order) {
-            throw new \RuntimeException("Order not found: {$id}");
-        }
-
-        return $order;
+        return $this->orderRepository->find($id);
     }
 
     public function create(OrderDTO $dto): Order
     {
         return DB::transaction(function () use ($dto) {
+            // Validate inventory availability
+            foreach ($dto->items as $item) {
+                $inventory = $this->inventoryRepository->findByProduct($item['product_id']);
+                $available = $inventory ? ($inventory->quantity - $inventory->reserved_quantity) : 0;
+                if ($available < $item['quantity']) {
+                    throw ValidationException::withMessages([
+                        'items' => "Insufficient inventory for product {$item['product_id']}. Available: {$available}",
+                    ]);
+                }
+            }
+
+            $totalAmount = 0;
             $orderItems = [];
-            $subtotal   = 0.00;
 
             foreach ($dto->items as $item) {
-                $product = $this->productRepository->findById($item['product_id'], $dto->tenantId);
-
-                if (!$product) {
-                    throw new \RuntimeException("Product not found: {$item['product_id']}");
-                }
-
-                $unitPrice    = (float) ($item['unit_price'] ?? $product->price);
-                $qty          = (int) $item['quantity'];
-                $itemDiscount = (float) ($item['discount'] ?? 0.00);
-                $itemTotal    = ($unitPrice * $qty) - $itemDiscount;
-                $subtotal    += $itemTotal;
-
+                $totalAmount += $item['unit_price'] * $item['quantity'];
                 $orderItems[] = [
-                    'id'           => Str::uuid()->toString(),
-                    'product_id'   => $product->id,
-                    'product_sku'  => $product->sku,
-                    'product_name' => $product->name,
-                    'quantity'     => $qty,
-                    'unit_price'   => $unitPrice,
-                    'discount'     => $itemDiscount,
-                    'total'        => $itemTotal,
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'total_price' => $item['unit_price'] * $item['quantity'],
                 ];
             }
 
-            $total = $subtotal + $dto->tax - $dto->discount;
+            $order = $this->orderRepository->create([
+                'tenant_id' => $dto->tenantId,
+                'user_id' => $dto->userId,
+                'status' => Order::STATUS_PENDING,
+                'total_amount' => $totalAmount,
+                'notes' => $dto->notes,
+                'metadata' => $dto->metadata,
+            ]);
 
-            $orderData = [
-                'id'               => Str::uuid()->toString(),
-                'tenant_id'        => $dto->tenantId,
-                'user_id'          => $dto->userId,
-                'order_number'     => Order::generateOrderNumber($dto->tenantId),
-                'status'           => Order::STATUS_PENDING,
-                'subtotal'         => $subtotal,
-                'tax'              => $dto->tax,
-                'discount'         => $dto->discount,
-                'total'            => $total,
-                'currency'         => $dto->currency,
-                'notes'            => $dto->notes,
-                'shipping_address' => $dto->shippingAddress,
-                'billing_address'  => $dto->billingAddress,
-                'metadata'         => $dto->metadata,
-            ];
+            foreach ($orderItems as $itemData) {
+                $order->items()->create($itemData);
+            }
 
-            $order = $this->orderRepository->createWithItems($orderData, $orderItems);
-
-            Event::dispatch(new OrderCreated($order));
+            $order->load(['items.product', 'user']);
+            event(new OrderCreated($order));
 
             return $order;
         });
     }
 
-    public function updateStatus(string $id, string $tenantId, string $status): Order
+    public function updateStatus(int $id, string $status): Order
     {
-        $order = $this->findById($id, $tenantId);
+        return DB::transaction(function () use ($id, $status) {
+            $order = $this->orderRepository->find($id);
+            $previousStatus = $order->status;
+            $order = $this->orderRepository->updateStatus($id, $status);
 
-        $updateData = ['status' => $status];
+            event(new OrderStatusChanged($order, $previousStatus));
 
-        if ($status === Order::STATUS_COMPLETED) {
-            $updateData['completed_at'] = now();
-        } elseif ($status === Order::STATUS_CANCELLED) {
-            $updateData['cancelled_at'] = now();
-        }
+            if ($status === Order::STATUS_CANCELLED) {
+                event(new OrderCancelled($order));
+            }
 
-        $order = $this->orderRepository->update($order, $updateData);
-
-        if ($status === Order::STATUS_COMPLETED) {
-            Event::dispatch(new OrderCompleted($order));
-        } elseif ($status === Order::STATUS_CANCELLED) {
-            Event::dispatch(new OrderCancelled($order));
-        }
-
-        return $order;
+            return $order;
+        });
     }
 
-    public function cancel(string $id, string $tenantId): Order
+    public function delete(int $id): bool
     {
-        return $this->updateStatus($id, $tenantId, Order::STATUS_CANCELLED);
-    }
-
-    public function complete(string $id, string $tenantId): Order
-    {
-        return $this->updateStatus($id, $tenantId, Order::STATUS_COMPLETED);
-    }
-
-    public function delete(string $id, string $tenantId): bool
-    {
-        $order = $this->findById($id, $tenantId);
-
-        if (!in_array($order->status, [Order::STATUS_PENDING, Order::STATUS_CANCELLED])) {
-            throw new \RuntimeException("Cannot delete order in status: {$order->status}");
-        }
-
-        return $this->orderRepository->delete($order);
+        return $this->orderRepository->delete($id);
     }
 }

@@ -13,13 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'auth.keycloak'    => \App\Http\Middleware\AuthenticateWithKeycloak::class,
-            'tenant'           => \App\Http\Middleware\TenantMiddleware::class,
-            'check.permission' => \App\Http\Middleware\CheckPermission::class,
-            'verify.service'   => \App\Http\Middleware\VerifyServiceToken::class,
+            'tenant' => \App\Http\Middleware\TenantMiddleware::class,
+            'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
+            'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
-    })
-    ->create();
+    })->create();

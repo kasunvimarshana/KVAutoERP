@@ -2,46 +2,40 @@
 
 namespace App\Modules\User\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Passport\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class User extends Model
+class User extends Authenticatable
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
 
     protected $fillable = [
-        'tenant_id',
-        'keycloak_id',
-        'username',
+        'name',
         'email',
-        'first_name',
-        'last_name',
-        'role',
+        'password',
+        'tenant_id',
+        'attributes',
         'is_active',
-        'permissions',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
     ];
 
     protected $casts = [
-        'is_active'   => 'boolean',
-        'permissions' => 'array',
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'attributes' => 'array',
+        'is_active' => 'boolean',
     ];
 
-    protected $hidden = [];
-
-    public function getFullNameAttribute(): string
+    public function tenant()
     {
-        return trim("{$this->first_name} {$this->last_name}");
-    }
-
-    public function scopeForTenant($query, string $tenantId)
-    {
-        return $query->where('tenant_id', $tenantId);
-    }
-
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
+        return $this->belongsTo(\App\Modules\Tenant\Models\Tenant::class);
     }
 }

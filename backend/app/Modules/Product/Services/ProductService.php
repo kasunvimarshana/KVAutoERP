@@ -8,71 +8,70 @@ use App\Modules\Product\Events\ProductDeleted;
 use App\Modules\Product\Events\ProductUpdated;
 use App\Modules\Product\Models\Product;
 use App\Modules\Product\Repositories\ProductRepositoryInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class ProductService
 {
     public function __construct(
-        private ProductRepositoryInterface $productRepository
+        private readonly ProductRepositoryInterface $productRepository
     ) {}
 
-    public function list(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator
+    public function list(array $filters = [], int $perPage = 15)
     {
-        return $this->productRepository->paginate($tenantId, $perPage, $filters);
+        return $this->productRepository->all($filters, $perPage);
     }
 
-    public function findById(string $id, string $tenantId): Product
+    public function get(int $id): Product
     {
-        $product = $this->productRepository->findById($id, $tenantId);
-
-        if (!$product) {
-            throw new \RuntimeException("Product not found: {$id}");
-        }
-
-        return $product;
+        return $this->productRepository->find($id);
     }
 
     public function create(ProductDTO $dto): Product
     {
-        $data       = $dto->toArray();
-        $data['id'] = Str::uuid()->toString();
+        return DB::transaction(function () use ($dto) {
+            $product = $this->productRepository->create([
+                'name' => $dto->name,
+                'description' => $dto->description,
+                'sku' => $dto->sku,
+                'price' => $dto->price,
+                'category' => $dto->category,
+                'tenant_id' => $dto->tenantId,
+                'attributes' => $dto->attributes,
+                'is_active' => $dto->isActive ?? true,
+            ]);
 
-        $existing = $this->productRepository->findBySku($dto->sku, $dto->tenantId);
-        if ($existing) {
-            throw new \RuntimeException("Product SKU already exists: {$dto->sku}");
-        }
+            event(new ProductCreated($product));
 
-        $product = $this->productRepository->create($data);
-
-        Event::dispatch(new ProductCreated($product));
-
-        return $product;
+            return $product;
+        });
     }
 
-    public function update(string $id, string $tenantId, array $data): Product
+    public function update(int $id, ProductDTO $dto): Product
     {
-        $product = $this->findById($id, $tenantId);
+        return DB::transaction(function () use ($id, $dto) {
+            $data = array_filter([
+                'name' => $dto->name,
+                'description' => $dto->description,
+                'sku' => $dto->sku,
+                'price' => $dto->price,
+                'category' => $dto->category,
+                'attributes' => $dto->attributes,
+                'is_active' => $dto->isActive,
+            ], fn($v) => $v !== null);
 
-        $updated = $this->productRepository->update($product, $data);
-
-        Event::dispatch(new ProductUpdated($updated));
-
-        return $updated;
+            $product = $this->productRepository->update($id, $data);
+            event(new ProductUpdated($product));
+            return $product;
+        });
     }
 
-    public function delete(string $id, string $tenantId): bool
+    public function delete(int $id): bool
     {
-        $product = $this->findById($id, $tenantId);
-
-        Event::dispatch(new ProductDeleted($product));
-
-        return $this->productRepository->delete($product);
-    }
-
-    public function restore(string $id): bool
-    {
-        return $this->productRepository->restore($id);
+        return DB::transaction(function () use ($id) {
+            $product = $this->productRepository->find($id);
+            $result = $this->productRepository->delete($id);
+            event(new ProductDeleted($product));
+            return $result;
+        });
     }
 }

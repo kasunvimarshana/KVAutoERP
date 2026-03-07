@@ -1,54 +1,37 @@
-import api from './api';
-import type {
-  InventoryItem,
-  InventoryTransaction,
-  CreateInventoryTransactionPayload,
-  PaginatedResponse,
-} from '../types';
+import apiClient from './api'
+import { Inventory, PaginatedResponse } from '../types'
 
-export interface InventoryListParams {
-  page?: number;
-  per_page?: number;
-  search?: string;
-  warehouse?: string;
-  low_stock?: boolean;
-  sort_by?: string;
-  sort_dir?: 'asc' | 'desc';
-}
-
-export interface TransactionListParams {
-  page?: number;
-  per_page?: number;
-  product_id?: number;
-  type?: string;
-  sort_by?: string;
-  sort_dir?: 'asc' | 'desc';
+export interface InventoryFilters {
+  product_id?: number
+  low_stock?: boolean
+  per_page?: number
+  page?: number
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
 }
 
 export const inventoryService = {
-  listItems(params: InventoryListParams = {}) {
-    return api.get<PaginatedResponse<InventoryItem>>('/inventory', { params });
+  async list(filters: InventoryFilters = {}): Promise<PaginatedResponse<Inventory>> {
+    const response = await apiClient.get<PaginatedResponse<Inventory>>('/inventory', { params: filters })
+    return response.data
   },
 
-  getItem(id: number) {
-    return api.get<{ data: InventoryItem }>(`/inventory/${id}`);
+  async get(id: number): Promise<{ data: Inventory }> {
+    const response = await apiClient.get<{ data: Inventory }>(`/inventory/${id}`)
+    return response.data
   },
 
-  listTransactions(params: TransactionListParams = {}) {
-    return api.get<PaginatedResponse<InventoryTransaction>>('/inventory/transactions', { params });
+  async update(id: number, data: Partial<Inventory>): Promise<{ data: Inventory }> {
+    const response = await apiClient.put<{ data: Inventory }>(`/inventory/${id}`, data)
+    return response.data
   },
 
-  createTransaction(payload: CreateInventoryTransactionPayload) {
-    return api.post<{ data: InventoryTransaction }>('/inventory/transactions', payload);
+  async adjust(id: number, adjustment: number, reason?: string): Promise<{ data: Inventory }> {
+    const response = await apiClient.post<{ data: Inventory }>(`/inventory/${id}/adjust`, { adjustment, reason })
+    return response.data
   },
 
-  adjustStock(productId: number, warehouse: string, quantity: number, notes?: string) {
-    return api.post<{ data: InventoryTransaction }>('/inventory/transactions', {
-      product_id: productId,
-      warehouse,
-      type: 'adjustment',
-      quantity,
-      notes,
-    });
+  async delete(id: number): Promise<void> {
+    await apiClient.delete(`/inventory/${id}`)
   },
-};
+}

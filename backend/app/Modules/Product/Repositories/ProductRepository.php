@@ -7,35 +7,30 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class ProductRepository implements ProductRepositoryInterface
 {
-    public function findById(string $id, string $tenantId): ?Product
-    {
-        return Product::where('id', $id)->where('tenant_id', $tenantId)->first();
-    }
+    public function __construct(private readonly Product $model) {}
 
-    public function findBySku(string $sku, string $tenantId): ?Product
+    public function all(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return Product::where('sku', $sku)->where('tenant_id', $tenantId)->first();
-    }
+        $query = $this->model->newQuery()->with('inventory');
 
-    public function paginate(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator
-    {
-        $query = Product::where('tenant_id', $tenantId);
+        if (!empty($filters['search'])) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('name', 'like', "%{$filters['search']}%")
+                  ->orWhere('sku', 'like', "%{$filters['search']}%")
+                  ->orWhere('description', 'like', "%{$filters['search']}%");
+            });
+        }
+
+        if (!empty($filters['tenant_id'])) {
+            $query->where('tenant_id', $filters['tenant_id']);
+        }
 
         if (!empty($filters['category'])) {
             $query->where('category', $filters['category']);
         }
 
         if (isset($filters['is_active'])) {
-            $query->where('is_active', filter_var($filters['is_active'], FILTER_VALIDATE_BOOLEAN));
-        }
-
-        if (!empty($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%")
-                  ->orWhere('brand', 'like', "%{$search}%");
-            });
+            $query->where('is_active', $filters['is_active']);
         }
 
         if (!empty($filters['min_price'])) {
@@ -46,27 +41,44 @@ class ProductRepository implements ProductRepositoryInterface
             $query->where('price', '<=', $filters['max_price']);
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate($perPage);
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortDir = $filters['sort_dir'] ?? 'desc';
+        $query->orderBy($sortBy, $sortDir);
+
+        return $query->paginate($perPage);
+    }
+
+    public function find(int $id): Product
+    {
+        return $this->model->with('inventory')->findOrFail($id);
     }
 
     public function create(array $data): Product
     {
-        return Product::create($data);
+        return $this->model->create($data);
     }
 
-    public function update(Product $product, array $data): Product
+    public function update(int $id, array $data): Product
     {
+        $product = $this->find($id);
         $product->update($data);
-        return $product->fresh();
+        return $product->fresh('inventory');
     }
 
-    public function delete(Product $product): bool
+    public function delete(int $id): bool
     {
-        return (bool) $product->delete();
+        $product = $this->find($id);
+        return $product->delete();
     }
 
-    public function restore(string $id): bool
+    public function findBySku(string $sku, int $tenantId): ?Product
     {
-        return (bool) Product::withTrashed()->where('id', $id)->restore();
+        return $this->model->where('sku', $sku)->where('tenant_id', $tenantId)->first();
+    }
+
+    public function findByTenant(int $tenantId, array $filters = [], int $perPage = 15): LengthAwarePaginator
+    {
+        $filters['tenant_id'] = $tenantId;
+        return $this->all($filters, $perPage);
     }
 }

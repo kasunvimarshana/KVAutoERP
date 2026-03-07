@@ -8,66 +8,80 @@ use App\Modules\User\Events\UserDeleted;
 use App\Modules\User\Events\UserUpdated;
 use App\Modules\User\Models\User;
 use App\Modules\User\Repositories\UserRepositoryInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class UserService
 {
     public function __construct(
-        private UserRepositoryInterface $userRepository
+        private readonly UserRepositoryInterface $userRepository
     ) {}
 
-    public function list(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator
+    public function list(array $filters = [], int $perPage = 15)
     {
-        return $this->userRepository->paginate($tenantId, $perPage, $filters);
+        return $this->userRepository->all($filters, $perPage);
     }
 
-    public function findById(string $id, string $tenantId): User
+    public function get(int $id): User
     {
-        $user = $this->userRepository->findById($id, $tenantId);
-
-        if (!$user) {
-            throw new \RuntimeException("User not found: {$id}");
-        }
-
-        return $user;
+        return $this->userRepository->find($id);
     }
 
     public function create(UserDTO $dto): User
     {
-        $data       = $dto->toArray();
-        $data['id'] = Str::uuid()->toString();
+        return DB::transaction(function () use ($dto) {
+            $user = $this->userRepository->create([
+                'name' => $dto->name,
+                'email' => $dto->email,
+                'password' => Hash::make($dto->password),
+                'tenant_id' => $dto->tenantId,
+                'attributes' => $dto->attributes,
+                'is_active' => $dto->isActive ?? true,
+            ]);
 
-        $user = $this->userRepository->create($data);
+            if ($dto->role) {
+                $user->assignRole($dto->role);
+            }
 
-        Event::dispatch(new UserCreated($user));
+            event(new UserCreated($user));
 
-        return $user;
+            return $user;
+        });
     }
 
-    public function update(string $id, string $tenantId, array $data): User
+    public function update(int $id, UserDTO $dto): User
     {
-        $user = $this->findById($id, $tenantId);
+        return DB::transaction(function () use ($id, $dto) {
+            $data = array_filter([
+                'name' => $dto->name,
+                'email' => $dto->email,
+                'attributes' => $dto->attributes,
+                'is_active' => $dto->isActive,
+            ], fn($v) => $v !== null);
 
-        $updated = $this->userRepository->update($user, $data);
+            if ($dto->password) {
+                $data['password'] = Hash::make($dto->password);
+            }
 
-        Event::dispatch(new UserUpdated($updated));
+            $user = $this->userRepository->update($id, $data);
 
-        return $updated;
+            if ($dto->role) {
+                $user->syncRoles([$dto->role]);
+            }
+
+            event(new UserUpdated($user));
+
+            return $user;
+        });
     }
 
-    public function delete(string $id, string $tenantId): bool
+    public function delete(int $id): bool
     {
-        $user = $this->findById($id, $tenantId);
-
-        Event::dispatch(new UserDeleted($user));
-
-        return $this->userRepository->delete($user);
-    }
-
-    public function restore(string $id): bool
-    {
-        return $this->userRepository->restore($id);
+        return DB::transaction(function () use ($id) {
+            $user = $this->userRepository->find($id);
+            $result = $this->userRepository->delete($id);
+            event(new UserDeleted($user));
+            return $result;
+        });
     }
 }

@@ -2,26 +2,13 @@
 
 namespace App\Modules\Inventory\Repositories;
 
-use App\Modules\Inventory\Models\Inventory;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-
 interface InventoryRepositoryInterface
 {
-    public function findById(string $id, string $tenantId): ?Inventory;
-
-    public function findByProduct(string $productId, string $tenantId): ?Inventory;
-
-    public function paginate(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator;
-
-    public function create(array $data): Inventory;
-
-    public function update(Inventory $inventory, array $data): Inventory;
-
-    public function delete(Inventory $inventory): bool;
-
-    public function adjustQuantity(Inventory $inventory, int $delta): Inventory;
-
-    public function reserveQuantity(Inventory $inventory, int $quantity): bool;
-
-    public function releaseReservation(Inventory $inventory, int $quantity): bool;
+    public function all(array $filters = [], int $perPage = 15);
+    public function find(int $id);
+    public function findByProduct(int $productId): ?\App\Modules\Inventory\Models\Inventory;
+    public function create(array $data): \App\Modules\Inventory\Models\Inventory;
+    public function update(int $id, array $data): \App\Modules\Inventory\Models\Inventory;
+    public function delete(int $id): bool;
+    public function adjustQuantity(int $id, int $adjustment): \App\Modules\Inventory\Models\Inventory;
 }

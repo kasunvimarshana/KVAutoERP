@@ -2,23 +2,17 @@
 
 namespace App\Modules\Product\Webhooks;
 
-use App\Modules\Product\DTOs\ProductWebhookDTO;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Log;
 
-class ProductWebhookHandler extends Controller
+class ProductWebhookHandler
 {
-    public function handle(Request $request): JsonResponse
+    public function handle(Request $request): array
     {
-        $dto = ProductWebhookDTO::fromPayload($request->all());
+        $event = $request->input('event', '');
+        $data = $request->input('data', []);
 
-        Log::info('Product webhook received', [
-            'event'      => $dto->event,
-            'product_id' => $dto->productId,
-        ]);
+        \Illuminate\Support\Facades\Log::info("Product webhook: {$event}", $data);
 
-        return response()->json(['status' => 'processed']);
+        return ['status' => 'processed', 'event' => $event];
     }
 }

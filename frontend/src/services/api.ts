@@ -1,47 +1,33 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import keycloak from '../keycloak';
+import axios, { AxiosInstance } from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api'
 
-const api = axios.create({
-  baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-  timeout: 15000,
-});
+const apiClient: AxiosInstance = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+})
 
-// Attach Bearer token and X-Tenant-ID to every request
-api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-  if (keycloak.isTokenExpired(30)) {
-    try {
-      await keycloak.updateToken(30);
-    } catch {
-      keycloak.logout();
-      return Promise.reject(new Error('Session expired'));
-    }
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
+  return config
+})
 
-  if (keycloak.token) {
-    config.headers.Authorization = `Bearer ${keycloak.token}`;
-  }
-
-  const parsed = keycloak.tokenParsed as Record<string, unknown> | undefined;
-  const tenantId = (parsed?.['tenant_id'] as string | undefined) ?? '';
-  if (tenantId) {
-    config.headers['X-Tenant-ID'] = tenantId;
-  }
-
-  return config;
-});
-
-// Normalise error responses
-api.interceptors.response.use(
+apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  (error) => {
     if (error.response?.status === 401) {
-      keycloak.login();
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('auth_user')
+      window.location.href = '/login'
     }
-    return Promise.reject(error);
+    return Promise.reject(error)
   }
-);
+)
 
-export default api;
+export default apiClient

@@ -1,43 +1,40 @@
-import api from './api';
-import type {
-  Product,
-  CreateProductPayload,
-  UpdateProductPayload,
-  PaginatedResponse,
-} from '../types';
+import apiClient from './api'
+import { PaginatedResponse, Product } from '../types'
 
-export interface ProductListParams {
-  page?: number;
-  per_page?: number;
-  search?: string;
-  category?: string;
-  status?: string;
-  sort_by?: string;
-  sort_dir?: 'asc' | 'desc';
+export interface ProductFilters {
+  search?: string
+  category?: string
+  is_active?: boolean
+  min_price?: number
+  max_price?: number
+  per_page?: number
+  page?: number
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
 }
 
 export const productService = {
-  list(params: ProductListParams = {}) {
-    return api.get<PaginatedResponse<Product>>('/products', { params });
+  async list(filters: ProductFilters = {}): Promise<PaginatedResponse<Product>> {
+    const response = await apiClient.get<PaginatedResponse<Product>>('/products', { params: filters })
+    return response.data
   },
 
-  get(id: number) {
-    return api.get<{ data: Product }>(`/products/${id}`);
+  async get(id: number): Promise<{ data: Product }> {
+    const response = await apiClient.get<{ data: Product }>(`/products/${id}`)
+    return response.data
   },
 
-  create(payload: CreateProductPayload) {
-    return api.post<{ data: Product }>('/products', payload);
+  async create(data: Partial<Product>): Promise<{ data: Product }> {
+    const response = await apiClient.post<{ data: Product }>('/products', data)
+    return response.data
   },
 
-  update(id: number, payload: UpdateProductPayload) {
-    return api.put<{ data: Product }>(`/products/${id}`, payload);
+  async update(id: number, data: Partial<Product>): Promise<{ data: Product }> {
+    const response = await apiClient.put<{ data: Product }>(`/products/${id}`, data)
+    return response.data
   },
 
-  delete(id: number) {
-    return api.delete(`/products/${id}`);
+  async delete(id: number): Promise<void> {
+    await apiClient.delete(`/products/${id}`)
   },
-
-  categories() {
-    return api.get<{ data: string[] }>('/products/categories');
-  },
-};
+}

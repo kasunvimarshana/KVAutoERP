@@ -2,22 +2,12 @@
 
 namespace App\Modules\Order\Repositories;
 
-use App\Modules\Order\Models\Order;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-
 interface OrderRepositoryInterface
 {
-    public function findById(string $id, string $tenantId): ?Order;
-
-    public function findByOrderNumber(string $orderNumber, string $tenantId): ?Order;
-
-    public function paginate(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator;
-
-    public function create(array $data): Order;
-
-    public function createWithItems(array $orderData, array $items): Order;
-
-    public function update(Order $order, array $data): Order;
-
-    public function delete(Order $order): bool;
+    public function all(array $filters = [], int $perPage = 15);
+    public function find(int $id);
+    public function create(array $data): \App\Modules\Order\Models\Order;
+    public function update(int $id, array $data): \App\Modules\Order\Models\Order;
+    public function delete(int $id): bool;
+    public function updateStatus(int $id, string $status): \App\Modules\Order\Models\Order;
 }

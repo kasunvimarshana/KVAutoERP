@@ -5,44 +5,27 @@ namespace App\Modules\Inventory\DTOs;
 class InventoryDTO
 {
     public function __construct(
-        public readonly string $tenantId,
-        public readonly string $productId,
-        public readonly int $quantity = 0,
-        public readonly int $reservedQuantity = 0,
-        public readonly int $minimumQuantity = 0,
-        public readonly ?int $maximumQuantity = null,
-        public readonly ?string $warehouseLocation = null,
-        public readonly string $status = 'in_stock',
-        public readonly ?array $metadata = null,
+        public readonly ?int $productId = null,
+        public readonly ?int $tenantId = null,
+        public readonly ?int $quantity = null,
+        public readonly ?int $reservedQuantity = null,
+        public readonly ?int $minQuantity = null,
+        public readonly ?int $maxQuantity = null,
+        public readonly ?string $location = null,
+        public readonly ?string $notes = null,
     ) {}
 
-    public static function fromRequest(array $data): self
+    public static function fromArray(array $data): self
     {
         return new self(
-            tenantId:           $data['tenant_id'],
-            productId:          $data['product_id'],
-            quantity:           (int) ($data['quantity'] ?? 0),
-            reservedQuantity:   (int) ($data['reserved_quantity'] ?? 0),
-            minimumQuantity:    (int) ($data['minimum_quantity'] ?? 0),
-            maximumQuantity:    isset($data['maximum_quantity']) ? (int) $data['maximum_quantity'] : null,
-            warehouseLocation:  $data['warehouse_location'] ?? null,
-            status:             $data['status'] ?? 'in_stock',
-            metadata:           $data['metadata'] ?? null,
+            productId: $data['product_id'] ?? null,
+            tenantId: $data['tenant_id'] ?? null,
+            quantity: $data['quantity'] ?? null,
+            reservedQuantity: $data['reserved_quantity'] ?? null,
+            minQuantity: $data['min_quantity'] ?? null,
+            maxQuantity: $data['max_quantity'] ?? null,
+            location: $data['location'] ?? null,
+            notes: $data['notes'] ?? null,
         );
-    }
-
-    public function toArray(): array
-    {
-        return [
-            'tenant_id'          => $this->tenantId,
-            'product_id'         => $this->productId,
-            'quantity'           => $this->quantity,
-            'reserved_quantity'  => $this->reservedQuantity,
-            'minimum_quantity'   => $this->minimumQuantity,
-            'maximum_quantity'   => $this->maximumQuantity,
-            'warehouse_location' => $this->warehouseLocation,
-            'status'             => $this->status,
-            'metadata'           => $this->metadata,
-        ];
     }
 }

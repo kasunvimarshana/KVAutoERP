@@ -1,253 +1,102 @@
-// ─── Auth & User ────────────────────────────────────────────────────────────
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
-  roles: string[];
-  tenantId: string;
-  tenantName?: string;
+export interface User {
+  id: number
+  name: string
+  email: string
+  tenant_id: number
+  roles: string[]
+  permissions: string[]
+  attributes?: Record<string, unknown>
+  is_active: boolean
+  email_verified_at?: string
+  created_at: string
+  updated_at: string
 }
-
-export interface KeycloakTokenParsed {
-  sub: string;
-  email: string;
-  name: string;
-  realm_access?: { roles: string[] };
-  resource_access?: Record<string, { roles: string[] }>;
-  tenant_id?: string;
-  tenant_name?: string;
-  preferred_username?: string;
-}
-
-// ─── Tenant ──────────────────────────────────────────────────────────────────
 
 export interface Tenant {
-  id: string;
-  name: string;
-  slug: string;
-  plan: 'free' | 'starter' | 'professional' | 'enterprise';
-  status: 'active' | 'inactive' | 'suspended';
-  created_at: string;
-  updated_at: string;
+  id: number
+  name: string
+  domain?: string
+  is_active: boolean
+  settings?: Record<string, unknown>
 }
-
-// ─── User ────────────────────────────────────────────────────────────────────
-
-export type UserRole = 'admin' | 'manager' | 'staff' | 'viewer';
-
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: UserRole;
-  tenant_id: string;
-  status: 'active' | 'inactive';
-  last_login?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateUserPayload {
-  name: string;
-  email: string;
-  role: UserRole;
-  password: string;
-  status: 'active' | 'inactive';
-}
-
-export interface UpdateUserPayload {
-  name?: string;
-  email?: string;
-  role?: UserRole;
-  status?: 'active' | 'inactive';
-  password?: string;
-}
-
-// ─── Product ─────────────────────────────────────────────────────────────────
-
-export type ProductStatus = 'active' | 'inactive' | 'discontinued';
 
 export interface Product {
-  id: number;
-  name: string;
-  sku: string;
-  description?: string;
-  category: string;
-  unit_price: number;
-  cost_price: number;
-  status: ProductStatus;
-  tenant_id: string;
-  created_at: string;
-  updated_at: string;
+  id: number
+  name: string
+  description?: string
+  sku: string
+  price: number
+  category?: string
+  tenant_id: number
+  attributes?: Record<string, unknown>
+  is_active: boolean
+  inventory?: Inventory
+  created_at: string
+  updated_at: string
 }
 
-export interface CreateProductPayload {
-  name: string;
-  sku: string;
-  description?: string;
-  category: string;
-  unit_price: number;
-  cost_price: number;
-  status: ProductStatus;
-}
-
-export interface UpdateProductPayload extends Partial<CreateProductPayload> {}
-
-// ─── Inventory ────────────────────────────────────────────────────────────────
-
-export type InventoryTransactionType = 'in' | 'out' | 'adjustment' | 'return';
-
-export interface InventoryItem {
-  id: number;
-  product_id: number;
-  product?: Product;
-  warehouse: string;
-  quantity: number;
-  min_quantity: number;
-  max_quantity: number;
-  tenant_id: string;
-  updated_at: string;
-}
-
-export interface InventoryTransaction {
-  id: number;
-  inventory_item_id: number;
-  product_id: number;
-  product?: Product;
-  type: InventoryTransactionType;
-  quantity: number;
-  reference?: string;
-  notes?: string;
-  created_by: string;
-  tenant_id: string;
-  created_at: string;
-}
-
-export interface CreateInventoryTransactionPayload {
-  product_id: number;
-  warehouse: string;
-  type: InventoryTransactionType;
-  quantity: number;
-  reference?: string;
-  notes?: string;
-}
-
-// ─── Order ───────────────────────────────────────────────────────────────────
-
-export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
-
-export interface OrderItem {
-  id: number;
-  order_id: number;
-  product_id: number;
-  product?: Product;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
+export interface Inventory {
+  id: number
+  product_id: number
+  tenant_id: number
+  quantity: number
+  reserved_quantity: number
+  available_quantity: number
+  min_quantity: number
+  max_quantity?: number
+  location?: string
+  notes?: string
+  product?: Product
+  created_at: string
+  updated_at: string
 }
 
 export interface Order {
-  id: number;
-  order_number: string;
-  customer_name: string;
-  customer_email: string;
-  status: OrderStatus;
-  payment_status: PaymentStatus;
-  items: OrderItem[];
-  subtotal: number;
-  tax: number;
-  total: number;
-  notes?: string;
-  tenant_id: string;
-  created_at: string;
-  updated_at: string;
+  id: number
+  tenant_id: number
+  user_id: number
+  status: OrderStatus
+  total_amount: number
+  notes?: string
+  metadata?: Record<string, unknown>
+  items?: OrderItem[]
+  user?: User
+  created_at: string
+  updated_at: string
 }
 
-export interface CreateOrderPayload {
-  customer_name: string;
-  customer_email: string;
-  items: { product_id: number; quantity: number; unit_price: number }[];
-  notes?: string;
+export interface OrderItem {
+  id: number
+  order_id: number
+  product_id: number
+  quantity: number
+  unit_price: number
+  total_price: number
+  product?: Product
 }
 
-export interface UpdateOrderPayload {
-  status?: OrderStatus;
-  payment_status?: PaymentStatus;
-  notes?: string;
-}
-
-// ─── Pagination & API ─────────────────────────────────────────────────────────
-
-export interface PaginationMeta {
-  current_page: number;
-  last_page: number;
-  per_page: number;
-  total: number;
-  from: number;
-  to: number;
-}
+export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
 
 export interface PaginatedResponse<T> {
-  data: T[];
-  meta: PaginationMeta;
-  links?: {
-    first: string;
-    last: string;
-    prev: string | null;
-    next: string | null;
-  };
+  data: T[]
+  meta: {
+    current_page: number
+    from: number
+    last_page: number
+    per_page: number
+    to: number
+    total: number
+  }
+  links: {
+    first: string
+    last: string
+    next?: string
+    prev?: string
+  }
 }
 
-export interface ApiError {
-  message: string;
-  errors?: Record<string, string[]>;
-  status?: number;
-}
-
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-
-export interface DashboardStats {
-  total_products: number;
-  total_orders: number;
-  low_stock_items: number;
-  revenue_this_month: number;
-  orders_this_month: number;
-  pending_orders: number;
-  active_users: number;
-  inventory_value: number;
-}
-
-export interface RecentOrder {
-  id: number;
-  order_number: string;
-  customer_name: string;
-  total: number;
-  status: OrderStatus;
-  created_at: string;
-}
-
-// ─── Table / UI ───────────────────────────────────────────────────────────────
-
-export interface Column<T> {
-  key: keyof T | string;
-  label: string;
-  sortable?: boolean;
-  render?: (value: unknown, row: T) => React.ReactNode;
-  className?: string;
-}
-
-export interface FilterOption {
-  label: string;
-  value: string;
-}
-
-export interface TableState {
-  page: number;
-  perPage: number;
-  search: string;
-  sortKey: string;
-  sortDir: 'asc' | 'desc';
-  filters: Record<string, string>;
+export interface AuthResponse {
+  user: User
+  token: string
+  token_type: string
 }

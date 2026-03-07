@@ -2,48 +2,38 @@
 
 namespace App\Modules\User\Webhooks;
 
-use App\Modules\User\DTOs\UserWebhookDTO;
-use App\Modules\User\Repositories\UserRepositoryInterface;
-use Illuminate\Http\JsonResponse;
+use App\Modules\User\DTOs\WebhookPayloadDTO;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Log;
 
-class UserWebhookHandler extends Controller
+class UserWebhookHandler
 {
-    public function __construct(private UserRepositoryInterface $userRepository) {}
-
-    public function handle(Request $request): JsonResponse
+    public function handle(Request $request): array
     {
-        $payload = $request->all();
-        $dto     = UserWebhookDTO::fromPayload($payload);
+        $payload = WebhookPayloadDTO::fromRequest($request);
 
-        Log::info('User webhook received', ['event' => $dto->event, 'user_id' => $dto->userId]);
-
-        match ($dto->event) {
-            'user.registered' => $this->handleRegistered($dto),
-            'user.deactivated' => $this->handleDeactivated($dto),
-            default => Log::warning('Unknown webhook event', ['event' => $dto->event]),
+        return match ($payload->event) {
+            'user.created' => $this->handleUserCreated($payload),
+            'user.updated' => $this->handleUserUpdated($payload),
+            'user.deleted' => $this->handleUserDeleted($payload),
+            default => ['status' => 'ignored', 'event' => $payload->event],
         };
-
-        return response()->json(['status' => 'processed']);
     }
 
-    private function handleRegistered(UserWebhookDTO $dto): void
+    private function handleUserCreated(WebhookPayloadDTO $payload): array
     {
-        $user = $this->userRepository->findByKeycloakId($dto->keycloakId ?? '');
-
-        if ($user && !$user->keycloak_id) {
-            $this->userRepository->update($user, ['keycloak_id' => $dto->keycloakId]);
-        }
+        \Illuminate\Support\Facades\Log::info('Webhook: user.created', ['data' => $payload->data]);
+        return ['status' => 'processed', 'event' => 'user.created'];
     }
 
-    private function handleDeactivated(UserWebhookDTO $dto): void
+    private function handleUserUpdated(WebhookPayloadDTO $payload): array
     {
-        $user = $this->userRepository->findByKeycloakId($dto->keycloakId ?? '');
+        \Illuminate\Support\Facades\Log::info('Webhook: user.updated', ['data' => $payload->data]);
+        return ['status' => 'processed', 'event' => 'user.updated'];
+    }
 
-        if ($user) {
-            $this->userRepository->update($user, ['is_active' => false]);
-        }
+    private function handleUserDeleted(WebhookPayloadDTO $payload): array
+    {
+        \Illuminate\Support\Facades\Log::info('Webhook: user.deleted', ['data' => $payload->data]);
+        return ['status' => 'processed', 'event' => 'user.deleted'];
     }
 }

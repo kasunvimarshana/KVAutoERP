@@ -2,24 +2,13 @@
 
 namespace App\Modules\User\Repositories;
 
-use App\Modules\User\Models\User;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-
 interface UserRepositoryInterface
 {
-    public function findById(string $id, string $tenantId): ?User;
-
-    public function findByEmail(string $email, string $tenantId): ?User;
-
-    public function findByKeycloakId(string $keycloakId): ?User;
-
-    public function paginate(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator;
-
-    public function create(array $data): User;
-
-    public function update(User $user, array $data): User;
-
-    public function delete(User $user): bool;
-
-    public function restore(string $id): bool;
+    public function all(array $filters = [], int $perPage = 15);
+    public function find(int $id);
+    public function create(array $data): \App\Modules\User\Models\User;
+    public function update(int $id, array $data): \App\Modules\User\Models\User;
+    public function delete(int $id): bool;
+    public function findByEmail(string $email): ?\App\Modules\User\Models\User;
+    public function findByTenant(int $tenantId, array $filters = [], int $perPage = 15);
 }

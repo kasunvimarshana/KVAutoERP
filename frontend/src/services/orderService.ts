@@ -1,43 +1,44 @@
-import api from './api';
-import type {
-  Order,
-  CreateOrderPayload,
-  UpdateOrderPayload,
-  PaginatedResponse,
-} from '../types';
+import apiClient from './api'
+import { Order, OrderStatus, PaginatedResponse } from '../types'
 
-export interface OrderListParams {
-  page?: number;
-  per_page?: number;
-  search?: string;
-  status?: string;
-  payment_status?: string;
-  sort_by?: string;
-  sort_dir?: 'asc' | 'desc';
+export interface OrderFilters {
+  status?: OrderStatus
+  user_id?: number
+  per_page?: number
+  page?: number
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
+}
+
+export interface CreateOrderData {
+  tenant_id: number
+  user_id: number
+  items: Array<{ product_id: number; quantity: number; unit_price: number }>
+  notes?: string
 }
 
 export const orderService = {
-  list(params: OrderListParams = {}) {
-    return api.get<PaginatedResponse<Order>>('/orders', { params });
+  async list(filters: OrderFilters = {}): Promise<PaginatedResponse<Order>> {
+    const response = await apiClient.get<PaginatedResponse<Order>>('/orders', { params: filters })
+    return response.data
   },
 
-  get(id: number) {
-    return api.get<{ data: Order }>(`/orders/${id}`);
+  async get(id: number): Promise<{ data: Order }> {
+    const response = await apiClient.get<{ data: Order }>(`/orders/${id}`)
+    return response.data
   },
 
-  create(payload: CreateOrderPayload) {
-    return api.post<{ data: Order }>('/orders', payload);
+  async create(data: CreateOrderData): Promise<{ data: Order }> {
+    const response = await apiClient.post<{ data: Order }>('/orders', data)
+    return response.data
   },
 
-  update(id: number, payload: UpdateOrderPayload) {
-    return api.put<{ data: Order }>(`/orders/${id}`, payload);
+  async updateStatus(id: number, status: OrderStatus): Promise<{ data: Order }> {
+    const response = await apiClient.patch<{ data: Order }>(`/orders/${id}/status`, { status })
+    return response.data
   },
 
-  cancel(id: number) {
-    return api.post<{ data: Order }>(`/orders/${id}/cancel`);
+  async delete(id: number): Promise<void> {
+    await apiClient.delete(`/orders/${id}`)
   },
-
-  delete(id: number) {
-    return api.delete(`/orders/${id}`);
-  },
-};
+}

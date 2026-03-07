@@ -8,83 +8,66 @@ use Illuminate\Support\Facades\DB;
 
 class InventoryRepository implements InventoryRepositoryInterface
 {
-    public function findById(string $id, string $tenantId): ?Inventory
+    public function __construct(private readonly Inventory $model) {}
+
+    public function all(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return Inventory::where('id', $id)->where('tenant_id', $tenantId)->first();
+        $query = $this->model->newQuery()->with('product');
+
+        if (!empty($filters['tenant_id'])) {
+            $query->where('tenant_id', $filters['tenant_id']);
+        }
+
+        if (!empty($filters['product_id'])) {
+            $query->where('product_id', $filters['product_id']);
+        }
+
+        if (isset($filters['low_stock'])) {
+            $query->whereColumn('quantity', '<=', 'min_quantity');
+        }
+
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortDir = $filters['sort_dir'] ?? 'desc';
+        $query->orderBy($sortBy, $sortDir);
+
+        return $query->paginate($perPage);
     }
 
-    public function findByProduct(string $productId, string $tenantId): ?Inventory
+    public function find(int $id): Inventory
     {
-        return Inventory::where('product_id', $productId)->where('tenant_id', $tenantId)->first();
+        return $this->model->with('product')->findOrFail($id);
     }
 
-    public function paginate(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator
+    public function findByProduct(int $productId): ?Inventory
     {
-        $query = Inventory::with('product')->where('tenant_id', $tenantId);
-
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
-        }
-
-        if (!empty($filters['warehouse_location'])) {
-            $query->where('warehouse_location', $filters['warehouse_location']);
-        }
-
-        if (!empty($filters['low_stock'])) {
-            $query->lowStock();
-        }
-
-        return $query->orderBy('created_at', 'desc')->paginate($perPage);
+        return $this->model->where('product_id', $productId)->first();
     }
 
     public function create(array $data): Inventory
     {
-        return Inventory::create($data);
+        return $this->model->create($data);
     }
 
-    public function update(Inventory $inventory, array $data): Inventory
+    public function update(int $id, array $data): Inventory
     {
+        $inventory = $this->find($id);
         $inventory->update($data);
-        return $inventory->fresh();
+        return $inventory->fresh('product');
     }
 
-    public function delete(Inventory $inventory): bool
+    public function delete(int $id): bool
     {
-        return (bool) $inventory->delete();
+        $inventory = $this->find($id);
+        return $inventory->delete();
     }
 
-    public function adjustQuantity(Inventory $inventory, int $delta): Inventory
+    public function adjustQuantity(int $id, int $adjustment): Inventory
     {
-        return DB::transaction(function () use ($inventory, $delta) {
-            $inventory->increment('quantity', $delta);
-            $inventory->refresh();
-            $inventory->updateStatus();
-            $inventory->save();
-            return $inventory;
-        });
-    }
-
-    public function reserveQuantity(Inventory $inventory, int $quantity): bool
-    {
-        return DB::transaction(function () use ($inventory, $quantity) {
-            $inventory->refresh();
-
-            $available = $inventory->quantity - $inventory->reserved_quantity;
-            if ($available < $quantity) {
-                return false;
-            }
-
-            $inventory->increment('reserved_quantity', $quantity);
-            return true;
-        });
-    }
-
-    public function releaseReservation(Inventory $inventory, int $quantity): bool
-    {
-        return DB::transaction(function () use ($inventory, $quantity) {
-            $newReserved = max(0, $inventory->reserved_quantity - $quantity);
-            $inventory->update(['reserved_quantity' => $newReserved]);
-            return true;
+        return DB::transaction(function () use ($id, $adjustment) {
+            $inventory = $this->model->lockForUpdate()->findOrFail($id);
+            $newQuantity = max(0, $inventory->quantity + $adjustment);
+            $inventory->update(['quantity' => $newQuantity]);
+            return $inventory->fresh('product');
         });
     }
 }

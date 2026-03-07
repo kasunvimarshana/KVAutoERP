@@ -14,14 +14,13 @@ class CreateUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'username'    => ['required', 'string', 'min:3', 'max:50', 'regex:/^[a-zA-Z0-9_]+$/'],
-            'email'       => ['required', 'email', 'max:255'],
-            'password'    => ['required', 'string', 'min:8'],
-            'first_name'  => ['nullable', 'string', 'max:100'],
-            'last_name'   => ['nullable', 'string', 'max:100'],
-            'role'        => ['nullable', 'string', 'in:admin,manager,staff,viewer'],
-            'is_active'   => ['nullable', 'boolean'],
-            'permissions' => ['nullable', 'array'],
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+            'tenant_id' => 'required|integer|exists:tenants,id',
+            'role' => 'sometimes|string|exists:roles,name',
+            'attributes' => 'sometimes|array',
+            'is_active' => 'sometimes|boolean',
         ];
     }
 }

@@ -2,48 +2,43 @@
 
 namespace App\Modules\Product\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'tenant_id',
-        'sku',
         'name',
         'description',
-        'category',
-        'brand',
-        'unit',
+        'sku',
         'price',
-        'cost',
-        'is_active',
+        'category',
+        'tenant_id',
         'attributes',
+        'is_active',
     ];
 
     protected $casts = [
-        'price'      => 'decimal:2',
-        'cost'       => 'decimal:2',
-        'is_active'  => 'boolean',
+        'price' => 'decimal:2',
         'attributes' => 'array',
+        'is_active' => 'boolean',
     ];
 
     public function inventory()
     {
-        return $this->hasMany(\App\Modules\Inventory\Models\Inventory::class, 'product_id');
+        return $this->hasOne(\App\Modules\Inventory\Models\Inventory::class);
     }
 
-    public function scopeForTenant($query, string $tenantId)
+    public function tenant()
     {
-        return $query->where('tenant_id', $tenantId);
+        return $this->belongsTo(\App\Modules\Tenant\Models\Tenant::class);
     }
 
-    public function scopeActive($query)
+    public function orderItems()
     {
-        return $query->where('is_active', true);
+        return $this->hasMany(\App\Modules\Order\Models\OrderItem::class);
     }
 }

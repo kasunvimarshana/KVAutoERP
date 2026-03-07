@@ -9,14 +9,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tenants', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->id();
             $table->string('name');
-            $table->string('slug')->unique();
             $table->string('domain')->nullable()->unique();
-            $table->string('plan')->default('free');
-            $table->boolean('is_active')->default(true);
+            $table->string('database')->nullable();
             $table->json('settings')->nullable();
-            $table->json('metadata')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
         });

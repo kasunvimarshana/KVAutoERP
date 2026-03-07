@@ -7,68 +7,65 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class UserRepository implements UserRepositoryInterface
 {
-    public function findById(string $id, string $tenantId): ?User
+    public function __construct(private readonly User $model) {}
+
+    public function all(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return User::where('id', $id)
-            ->where('tenant_id', $tenantId)
-            ->first();
-    }
-
-    public function findByEmail(string $email, string $tenantId): ?User
-    {
-        return User::where('email', $email)
-            ->where('tenant_id', $tenantId)
-            ->first();
-    }
-
-    public function findByKeycloakId(string $keycloakId): ?User
-    {
-        return User::where('keycloak_id', $keycloakId)->first();
-    }
-
-    public function paginate(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator
-    {
-        $query = User::where('tenant_id', $tenantId);
-
-        if (!empty($filters['role'])) {
-            $query->where('role', $filters['role']);
-        }
-
-        if (!empty($filters['is_active'])) {
-            $query->where('is_active', filter_var($filters['is_active'], FILTER_VALIDATE_BOOLEAN));
-        }
+        $query = $this->model->newQuery();
 
         if (!empty($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('email', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%");
+            $query->where(function ($q) use ($filters) {
+                $q->where('name', 'like', "%{$filters['search']}%")
+                  ->orWhere('email', 'like', "%{$filters['search']}%");
             });
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate($perPage);
+        if (!empty($filters['tenant_id'])) {
+            $query->where('tenant_id', $filters['tenant_id']);
+        }
+
+        if (!empty($filters['role'])) {
+            $query->role($filters['role']);
+        }
+
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortDir = $filters['sort_dir'] ?? 'desc';
+        $query->orderBy($sortBy, $sortDir);
+
+        return $query->paginate($perPage);
+    }
+
+    public function find(int $id): ?User
+    {
+        return $this->model->findOrFail($id);
     }
 
     public function create(array $data): User
     {
-        return User::create($data);
+        return $this->model->create($data);
     }
 
-    public function update(User $user, array $data): User
+    public function update(int $id, array $data): User
     {
+        $user = $this->find($id);
         $user->update($data);
         return $user->fresh();
     }
 
-    public function delete(User $user): bool
+    public function delete(int $id): bool
     {
-        return (bool) $user->delete();
+        $user = $this->find($id);
+        return $user->delete();
     }
 
-    public function restore(string $id): bool
+    public function findByEmail(string $email): ?User
     {
-        return (bool) User::withTrashed()->where('id', $id)->restore();
+        return $this->model->where('email', $email)->first();
+    }
+
+    public function findByTenant(int $tenantId, array $filters = [], int $perPage = 15): LengthAwarePaginator
+    {
+        $filters['tenant_id'] = $tenantId;
+        return $this->all($filters, $perPage);
     }
 }

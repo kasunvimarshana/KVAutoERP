@@ -4,87 +4,107 @@ namespace App\Modules\Inventory\Services;
 
 use App\Modules\Inventory\DTOs\InventoryDTO;
 use App\Modules\Inventory\Events\InventoryUpdated;
+use App\Modules\Inventory\Events\LowStockAlert;
 use App\Modules\Inventory\Models\Inventory;
 use App\Modules\Inventory\Repositories\InventoryRepositoryInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Str;
+use App\Modules\Product\Models\Product;
+use Illuminate\Support\Facades\DB;
 
 class InventoryService
 {
     public function __construct(
-        private InventoryRepositoryInterface $inventoryRepository
+        private readonly InventoryRepositoryInterface $inventoryRepository
     ) {}
 
-    public function list(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator
+    public function list(array $filters = [], int $perPage = 15)
     {
-        return $this->inventoryRepository->paginate($tenantId, $perPage, $filters);
+        return $this->inventoryRepository->all($filters, $perPage);
     }
 
-    public function findById(string $id, string $tenantId): Inventory
+    public function get(int $id): Inventory
     {
-        $inventory = $this->inventoryRepository->findById($id, $tenantId);
-
-        if (!$inventory) {
-            throw new \RuntimeException("Inventory record not found: {$id}");
-        }
-
-        return $inventory;
+        return $this->inventoryRepository->find($id);
     }
 
     public function create(InventoryDTO $dto): Inventory
     {
-        $data       = $dto->toArray();
-        $data['id'] = Str::uuid()->toString();
+        return DB::transaction(function () use ($dto) {
+            $inventory = $this->inventoryRepository->create([
+                'product_id' => $dto->productId,
+                'tenant_id' => $dto->tenantId,
+                'quantity' => $dto->quantity ?? 0,
+                'reserved_quantity' => $dto->reservedQuantity ?? 0,
+                'min_quantity' => $dto->minQuantity ?? 0,
+                'max_quantity' => $dto->maxQuantity,
+                'location' => $dto->location,
+                'notes' => $dto->notes,
+            ]);
 
-        $inventory = $this->inventoryRepository->create($data);
+            event(new InventoryUpdated($inventory));
 
-        Event::dispatch(new InventoryUpdated($inventory, 'created'));
-
-        return $inventory;
+            return $inventory;
+        });
     }
 
-    public function update(string $id, string $tenantId, array $data): Inventory
+    public function update(int $id, InventoryDTO $dto): Inventory
     {
-        $inventory = $this->findById($id, $tenantId);
-        $updated   = $this->inventoryRepository->update($inventory, $data);
+        return DB::transaction(function () use ($id, $dto) {
+            $data = array_filter([
+                'quantity' => $dto->quantity,
+                'reserved_quantity' => $dto->reservedQuantity,
+                'min_quantity' => $dto->minQuantity,
+                'max_quantity' => $dto->maxQuantity,
+                'location' => $dto->location,
+                'notes' => $dto->notes,
+            ], fn($v) => $v !== null);
 
-        Event::dispatch(new InventoryUpdated($updated, 'updated'));
+            $inventory = $this->inventoryRepository->update($id, $data);
+            event(new InventoryUpdated($inventory));
 
-        return $updated;
+            if ($inventory->quantity <= $inventory->min_quantity) {
+                event(new LowStockAlert($inventory));
+            }
+
+            return $inventory;
+        });
     }
 
-    public function adjustStock(string $id, string $tenantId, int $delta, string $reason = ''): Inventory
+    public function adjustQuantity(int $id, int $adjustment): Inventory
     {
-        $inventory = $this->findById($id, $tenantId);
-        $adjusted  = $this->inventoryRepository->adjustQuantity($inventory, $delta);
+        return DB::transaction(function () use ($id, $adjustment) {
+            $inventory = $this->inventoryRepository->adjustQuantity($id, $adjustment);
+            event(new InventoryUpdated($inventory));
 
-        Event::dispatch(new InventoryUpdated($adjusted, 'adjusted', ['delta' => $delta, 'reason' => $reason]));
+            if ($inventory->quantity <= $inventory->min_quantity) {
+                event(new LowStockAlert($inventory));
+            }
 
-        return $adjusted;
+            return $inventory;
+        });
     }
 
-    public function reserveStock(string $id, string $tenantId, int $quantity): bool
+    public function delete(int $id): bool
     {
-        $inventory = $this->findById($id, $tenantId);
-        $reserved  = $this->inventoryRepository->reserveQuantity($inventory, $quantity);
+        return $this->inventoryRepository->delete($id);
+    }
 
-        if ($reserved) {
-            Event::dispatch(new InventoryUpdated($inventory->refresh(), 'reserved', ['quantity' => $quantity]));
+    public function initializeForProduct(Product $product): Inventory
+    {
+        return $this->inventoryRepository->create([
+            'product_id' => $product->id,
+            'tenant_id' => $product->tenant_id,
+            'quantity' => 0,
+            'reserved_quantity' => 0,
+            'min_quantity' => 0,
+        ]);
+    }
+
+    public function deleteForProduct(Product $product): bool
+    {
+        $inventory = $this->inventoryRepository->findByProduct($product->id);
+        if ($inventory) {
+            return $this->inventoryRepository->delete($inventory->id);
         }
-
-        return $reserved;
-    }
-
-    public function releaseStock(string $id, string $tenantId, int $quantity): bool
-    {
-        $inventory = $this->findById($id, $tenantId);
-        return $this->inventoryRepository->releaseReservation($inventory, $quantity);
-    }
-
-    public function delete(string $id, string $tenantId): bool
-    {
-        $inventory = $this->findById($id, $tenantId);
-        return $this->inventoryRepository->delete($inventory);
+        return true;
     }
 }

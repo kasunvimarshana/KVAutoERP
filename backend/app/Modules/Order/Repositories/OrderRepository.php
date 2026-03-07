@@ -4,69 +4,59 @@ namespace App\Modules\Order\Repositories;
 
 use App\Modules\Order\Models\Order;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\DB;
 
 class OrderRepository implements OrderRepositoryInterface
 {
-    public function findById(string $id, string $tenantId): ?Order
-    {
-        return Order::with('items')->where('id', $id)->where('tenant_id', $tenantId)->first();
-    }
+    public function __construct(private readonly Order $model) {}
 
-    public function findByOrderNumber(string $orderNumber, string $tenantId): ?Order
+    public function all(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return Order::where('order_number', $orderNumber)->where('tenant_id', $tenantId)->first();
-    }
+        $query = $this->model->newQuery()->with(['items.product', 'user']);
 
-    public function paginate(string $tenantId, int $perPage = 15, array $filters = []): LengthAwarePaginator
-    {
-        $query = Order::with('items')->where('tenant_id', $tenantId);
-
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
+        if (!empty($filters['tenant_id'])) {
+            $query->where('tenant_id', $filters['tenant_id']);
         }
 
         if (!empty($filters['user_id'])) {
             $query->where('user_id', $filters['user_id']);
         }
 
-        if (!empty($filters['from_date'])) {
-            $query->whereDate('created_at', '>=', $filters['from_date']);
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['to_date'])) {
-            $query->whereDate('created_at', '<=', $filters['to_date']);
-        }
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortDir = $filters['sort_dir'] ?? 'desc';
+        $query->orderBy($sortBy, $sortDir);
 
-        return $query->orderBy('created_at', 'desc')->paginate($perPage);
+        return $query->paginate($perPage);
+    }
+
+    public function find(int $id): Order
+    {
+        return $this->model->with(['items.product', 'user'])->findOrFail($id);
     }
 
     public function create(array $data): Order
     {
-        return Order::create($data);
+        return $this->model->create($data);
     }
 
-    public function createWithItems(array $orderData, array $items): Order
+    public function update(int $id, array $data): Order
     {
-        return DB::transaction(function () use ($orderData, $items) {
-            $order = Order::create($orderData);
-
-            foreach ($items as $item) {
-                $order->items()->create($item);
-            }
-
-            return $order->load('items');
-        });
-    }
-
-    public function update(Order $order, array $data): Order
-    {
+        $order = $this->find($id);
         $order->update($data);
-        return $order->fresh(['items']);
+        return $order->fresh(['items.product', 'user']);
     }
 
-    public function delete(Order $order): bool
+    public function delete(int $id): bool
     {
-        return (bool) $order->delete();
+        $order = $this->find($id);
+        return $order->delete();
+    }
+
+    public function updateStatus(int $id, string $status): Order
+    {
+        return $this->update($id, ['status' => $status]);
     }
 }

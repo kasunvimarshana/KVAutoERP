@@ -1,35 +1,54 @@
-FROM php:8.2-fpm
+FROM php:8.2-fpm-alpine
 
-# System dependencies
-RUN apt-get update && apt-get install -y \
-    git \
+# Install system dependencies
+RUN apk add --no-cache \
+    nginx \
+    supervisor \
     curl \
+    git \
     libpng-dev \
-    libonig-dev \
-    libxml2-dev \
     libzip-dev \
     zip \
     unzip \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    oniguruma-dev \
+    mysql-client
 
-# PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+# Install PHP extensions
+RUN docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl bcmath gd
 
-# Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
+# Install Redis extension
+RUN apk add --no-cache --virtual .build-deps autoconf g++ make \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del .build-deps
 
-# Composer
+# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-WORKDIR /var/www
+WORKDIR /var/www/html
 
+# Copy application files
 COPY . .
 
-RUN composer install --no-interaction --no-dev --optimize-autoloader
+# Install PHP dependencies
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html/storage \
+    && chmod -R 755 /var/www/html/bootstrap/cache
 
-EXPOSE 9000
+# Create nginx config
+RUN mkdir -p /run/nginx
+COPY docker/nginx.conf /etc/nginx/nginx.conf
 
-CMD ["php-fpm"]
+# Create supervisor config
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Copy startup script
+COPY docker/start.sh /start.sh
+RUN chmod +x /start.sh
+
+EXPOSE 8000
+
+CMD ["/start.sh"]

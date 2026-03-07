@@ -10,16 +10,26 @@ class TenantMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Prefer tenant_id from the authenticated JWT (set by AuthenticateWithKeycloak)
-        // Fall back to the X-Tenant-ID header as secondary source
-        $tenantId = $request->get('tenant_id')
-            ?? $request->header('X-Tenant-ID');
+        $user = $request->user();
 
-        if (!$tenantId) {
-            return response()->json(['error' => 'Tenant context required'], 400);
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        app()->instance('tenant_id', $tenantId);
+        if (!$user->tenant_id) {
+            return response()->json(['message' => 'No tenant associated with this user'], 403);
+        }
+
+        // Set tenant context on request
+        $request->merge(['current_tenant_id' => $user->tenant_id]);
+        app()->instance('current_tenant_id', $user->tenant_id);
+
+        // Check tenant_id in request matches user's tenant (for non-admin users)
+        if (!$user->hasRole('super-admin') && $request->has('tenant_id')) {
+            if ((int) $request->input('tenant_id') !== (int) $user->tenant_id) {
+                return response()->json(['message' => 'Access denied to this tenant'], 403);
+            }
+        }
 
         return $next($request);
     }
