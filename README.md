@@ -1,331 +1,484 @@
-# Enterprise Multi-Tenant SaaS Inventory Management System
+# Multi-Tenant SaaS Inventory Management System
 
-A fully dynamic, extendible, and reusable **multi-tenant SaaS Inventory Management System** built with a **React frontend** and a **Laravel backend**, following industrial best practices for enterprise-grade applications.
+A fully dynamic, extendible, reusable multi-tenant SaaS Inventory Management System with a **React frontend** and **Laravel backend**, where each module is a separate microservice following the **Controller → Service → Repository** architecture pattern.
 
 ---
 
-## 📐 Architecture Overview
+## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         React Frontend (Vite + TS)                  │
-│  Login · Dashboard · Users · Products · Inventory · Orders · Config │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │ HTTPS  (Bearer Token + X-Tenant-ID)
-┌──────────────────────────────▼──────────────────────────────────────┐
-│                    Laravel API (backend/)                            │
-│                                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐           │
-│  │  User    │  │ Product  │  │Inventory │  │  Order   │  Modules   │
-│  │Controller│  │Controller│  │Controller│  │Controller│           │
-│  │ Service  │  │ Service  │  │ Service  │  │ Service  │           │
-│  │  Repo    │  │  Repo    │  │  Repo    │  │  Repo    │           │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘           │
-│       │              │              │              │ OrderSaga       │
-│  ┌────▼──────────────▼──────────────▼──────────────▼─────────────┐ │
-│  │   TenantMiddleware · AuthorizationMiddleware (RBAC + ABAC)     │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │   MessageBrokerInterface: NullBroker | RabbitMQ | Kafka        │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │   PaginationHelper (per_page present → paginated, else all)    │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
-        │              │              │
-   MySQL / SQLite    Redis        RabbitMQ / Kafka
+┌─────────────────────────────────────────────────────────────────┐
+│                        React Frontend                            │
+│          (Auth, Products, Inventory, Orders, Users UI)           │
+│                    Port 3000 (nginx)                             │
+└──────────┬──────────┬────────────┬──────────────────────────────┘
+           │          │            │            │
+           ▼          ▼            ▼            ▼
+    ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+    │  User    │ │ Product  │ │Inventory │ │  Order   │
+    │ Service  │ │ Service  │ │ Service  │ │ Service  │
+    │ :8001    │ │ :8002    │ │ :8003    │ │ :8004    │
+    └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘
+         │            │            │              │
+         ▼            ▼            │  ◄──────────►│ (Saga)
+    ┌─────────┐  ┌─────────┐       │
+    │ user-db │  │product  │  ┌─────────┐  ┌─────────┐
+    │ MySQL   │  │   db    │  │inventory│  │order-db │
+    └─────────┘  └─────────┘  │   db   │  │ MySQL  │
+                               └─────────┘  └─────────┘
+                                    │
+                     ┌──────────────┴──────────────┐
+                     │          Redis               │
+                     │   (Cache, Queue, Session)    │
+                     └──────────────────────────────┘
+                                    │
+                     ┌──────────────┴──────────────┐
+                     │         RabbitMQ             │
+                     │  (Event-driven Messaging)    │
+                     └──────────────────────────────┘
 ```
 
 ---
 
-## ✅ Implemented Requirements
+## Microservices
 
-| Requirement | Implementation |
-|---|---|
-| **Modular Microservices** | `app/Modules/{User,Product,Inventory,Order,Auth,Tenant}/` each with Controller → Service → Repository |
-| **Laravel Passport + SSO** | `/api/auth/login`, `/api/auth/sso/callback`, token refresh, scoped permissions |
-| **Multi-Tenancy** | `TenantMiddleware` resolves tenant from `X-Tenant-ID` header, subdomain, or `?tenant_id` |
-| **RBAC + ABAC** | 5 roles (super_admin → viewer), 19 permissions, attribute-based fallback in `AuthorizationMiddleware` |
-| **Tenant Runtime Config** | `TenantConfig` model + `TenantConfigService` — per-tenant mail, payment, notification settings |
-| **Cross-service Queries** | Inventory filtered by product name via `whereHas('product')` |
-| **Saga Pattern** | `OrderSaga` — 5 steps with compensating transactions and full rollback on failure |
-| **MessageBroker Interface** | Swappable via `MESSAGE_BROKER_DRIVER=null\|rabbitmq\|kafka` |
-| **Conditional Pagination** | `PaginationHelper::paginate()` — all records when no `per_page`, paginated when present |
-| **Clean Architecture** | Controller → Service → Repository, interfaces, DI container bindings |
-| **React Frontend** | Full CRUD UI for Users, Products, Inventory, Orders, Tenant Config with auth guards |
+| Service | Port | Database | Responsibilities |
+|---------|------|----------|-----------------|
+| **User Service** | 8001 | `user_service` | Authentication (Passport SSO), RBAC/ABAC, user management, tenant management |
+| **Product Service** | 8002 | `product_service` | Product catalog, categories, product events |
+| **Inventory Service** | 8003 | `inventory_service` | Stock management, warehouse, cross-service product data |
+| **Order Service** | 8004 | `order_service` | Order management, Saga pattern, distributed transactions |
+| **Frontend** | 3000 | — | React SPA, auth, all CRUD views |
 
 ---
 
-## 🚀 Quick Start
+## Key Architectural Features
+
+### 1. Base Repository Pattern
+Every service contains a fully reusable `BaseRepository` with:
+- `all()`, `find()`, `findBy()`, `findAllBy()` — basic CRUD
+- `create()`, `update()`, `delete()` — write operations
+- `paginate()` — standard pagination
+- `search()` — LIKE-based multi-field search
+- `filter()` — dynamic filtering with operators (`=`, `>`, `between`, `in`)
+- `orderBy()` — sorting
+- `with()` — eager loading
+- `conditionalPaginate()` — **returns paginated results if `per_page` is present, all results otherwise** (works for queries, arrays, collections, API responses)
+- `paginateIterable()` — paginate any iterable (array, Collection, API response)
+- `transaction()` — ACID-compliant DB transactions
+
+```php
+// Usage example
+$products = $productRepository
+    ->with(['category'])
+    ->orderBy('name', 'asc')
+    ->conditionalPaginate([
+        'per_page' => 15,
+        'page' => 1,
+        'search' => 'Widget',
+        'filters' => ['is_active' => true],
+        'sort_by' => 'price',
+        'sort_direction' => 'asc',
+    ]);
+```
+
+### 2. Laravel Passport SSO
+- OAuth2 with personal access tokens
+- Token refresh and revocation
+- Cross-service token validation via Bearer header
+- Tenant isolation enforced at authentication level
+
+### 3. RBAC + ABAC Authorization
+**RBAC** (Role-Based): Roles (`super_admin`, `admin`, `manager`, `viewer`) each with specific permissions (`create_products`, `read_inventory`, etc.)
+
+**ABAC** (Attribute-Based): Evaluated policies consider:
+- User attributes (role, tenant_id)
+- Resource attributes (ownership)
+- Environment (current tenant context)
+
+```php
+// Route protection
+Route::middleware(['auth:api', 'tenant', 'abac:read,products'])->get('/products', ...);
+Route::middleware(['auth:api', 'tenant', 'permission:create_products'])->post('/products', ...);
+```
+
+### 4. Multi-Tenant Architecture
+- Every request carries `X-Tenant-ID` header
+- `TenantMiddleware` validates tenant and applies runtime config
+- `TenantConfigService` dynamically overrides mail, payment, notification settings per tenant
+- All data is tenant-scoped
+
+### 5. Pluggable MessageBroker Interface
+Swap between RabbitMQ and Kafka without changing application code:
+
+```php
+// In .env
+MESSAGE_BROKER_DRIVER=rabbitmq   # or: kafka
+
+// Usage
+$messageBroker->publish('product.created', ['product_id' => 1, ...]);
+$messageBroker->subscribe('inventory.updated', fn($msg) => ...);
+```
+
+Supported brokers: `RabbitMQBroker`, `KafkaBroker` (plug in new ones by implementing `MessageBrokerInterface`)
+
+### 6. Domain Events + Listeners
+| Event | Listener | Effect |
+|-------|----------|--------|
+| `UserCreated` | `SendWelcomeEmail` | Queued welcome email |
+| `ProductCreated` | — | Message broker publish |
+| `ProductDeleted` | `NotifyInventoryOnProductDeleted` | Notifies inventory service |
+| `InventoryUpdated` | — | Message broker publish |
+| `OrderCreated` | — | Message broker publish + webhook |
+
+### 7. Saga Pattern (Distributed Transactions)
+Order creation uses the Saga Orchestrator pattern:
+
+```
+CreateOrder (pending)
+    ↓
+[Step 1] ReserveInventoryStep  →  calls Inventory Service API
+    ↓ success
+[Step 2] ProcessPaymentStep    →  calls Payment Gateway
+    ↓ success  
+[Step 3] ConfirmOrderStep      →  updates order to 'confirmed'
+    ↓
+Order Created ✅
+
+On any failure:
+[Step N] FAILS
+    ↑
+[Step N-1].compensate()  →  reverse each completed step
+[Step N-2].compensate()
+...
+Order Cancelled ↩
+```
+
+Extend with new saga steps by implementing `SagaStep::execute()` and `SagaStep::compensate()`.
+
+### 8. Cross-Service Data Access
+The Inventory Service includes a `ProductServiceClient` that fetches product details from the Product Service via HTTP, enabling:
+- Filter inventory by product name
+- List inventory with enriched product details
+- Search products across services
+
+### 9. Webhook Integration
+All services support tenant webhooks with HMAC-SHA256 signatures:
+
+```
+POST {tenant.webhook_url}
+Headers:
+  X-Webhook-Signature: <hmac-sha256>
+  X-Webhook-Event: product.created
+  X-Tenant-ID: 1
+
+Body (WebhookPayloadDTO):
+{
+  "event": "product.created",
+  "data": { "product_id": 1, "name": "Widget A" },
+  "tenant_id": 1,
+  "timestamp": "2024-01-01T00:00:00Z",
+  "version": "1.0"
+}
+```
+
+### 10. Health Check Endpoints
+Every service exposes `GET /api/health`:
+
+```json
+{
+  "status": "healthy",
+  "service": "product-service",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "checks": {
+    "database": { "status": "healthy" },
+    "cache": { "status": "healthy" },
+    "app": { "status": "healthy", "name": "Product Service", "version": "1.0.0" }
+  }
+}
+```
+
+---
+
+## Project Structure
+
+```
+SAAS_MultiTenent/
+├── docker-compose.yml              # Full orchestration
+├── frontend/                       # React SPA
+│   ├── src/
+│   │   ├── App.js
+│   │   ├── contexts/               # AuthContext, TenantContext
+│   │   ├── hooks/                  # useApi, usePaginatedApi
+│   │   ├── services/               # api.js, productService, inventoryService, orderService
+│   │   ├── components/             # Layout, DataTable, Pagination, SearchBar, StatusBadge
+│   │   └── pages/                  # Login, Dashboard, Products, Inventory, Orders, Users
+│   └── Dockerfile
+├── user-service/                   # Laravel 10 - Auth/Users
+│   └── app/
+│       ├── Contracts/Repository/   # BaseRepositoryInterface
+│       ├── Contracts/Messaging/    # MessageBrokerInterface
+│       ├── Repositories/           # BaseRepository, UserRepository, TenantRepository
+│       ├── Services/               # UserService, WebhookService, TenantConfigService
+│       ├── Http/Controllers/       # AuthController, UserController, HealthCheckController
+│       ├── Http/Middleware/        # TenantMiddleware, AuthorizeAbac, CheckPermission
+│       ├── Models/                 # User, Tenant, Role, Permission
+│       ├── Events/                 # UserCreated
+│       ├── Listeners/              # SendWelcomeEmail
+│       ├── DTOs/                   # UserDTO, WebhookPayloadDTO
+│       └── Messaging/              # RabbitMQBroker, KafkaBroker
+├── product-service/                # Laravel 10 - Products
+│   └── app/
+│       ├── (same pattern as user-service)
+│       ├── Models/                 # Product, Category
+│       ├── Events/                 # ProductCreated, ProductDeleted
+│       └── Listeners/              # NotifyInventoryOnProductDeleted
+├── inventory-service/              # Laravel 10 - Inventory
+│   └── app/
+│       ├── (same pattern as user-service)
+│       ├── Models/                 # Inventory, InventoryTransaction, Warehouse
+│       ├── Services/               # InventoryService, ProductServiceClient
+│       └── Events/                 # InventoryUpdated
+└── order-service/                  # Laravel 10 - Orders
+    └── app/
+        ├── (same pattern as user-service)
+        ├── Models/                 # Order, OrderItem
+        ├── Services/               # OrderService, InventoryServiceClient
+        ├── Saga/                   # SagaOrchestrator, SagaStep, SagaResult
+        │   └── Steps/              # ReserveInventoryStep, ProcessPaymentStep, ConfirmOrderStep
+        └── Events/                 # OrderCreated
+```
+
+---
+
+## Quick Start
 
 ### Prerequisites
-- PHP 8.3+, Composer 2+
-- Node.js 20+, npm 9+
-- SQLite (default) or MySQL
+- Docker & Docker Compose
+- Node.js 18+ (for local frontend development)
 
-### Backend Setup
+### Run with Docker Compose
 
 ```bash
-cd backend
+# 1. Clone repository
+git clone <repo-url>
+cd SAAS_MultiTenent
 
-# Copy environment file
-cp .env.example .env
+# 2. Start all services
+docker-compose up -d
 
-# Install dependencies
-composer install
+# 3. Initialize each Laravel service (run once)
+docker-compose exec user-service php artisan key:generate
+docker-compose exec user-service php artisan passport:install
+docker-compose exec user-service php artisan migrate --seed
 
-# Generate app key
-php artisan key:generate
+docker-compose exec product-service php artisan key:generate
+docker-compose exec product-service php artisan migrate --seed
 
-# Run migrations + seed demo data
-php artisan migrate --seed
+docker-compose exec inventory-service php artisan key:generate
+docker-compose exec inventory-service php artisan migrate --seed
 
-# Install Passport keys + personal access client
-php artisan passport:keys
-php artisan passport:client --personal --name="SaaS API"
+docker-compose exec order-service php artisan key:generate
+docker-compose exec order-service php artisan migrate
 
-# Start the server
-php artisan serve --port=8000
+# 4. Access the application
+# Frontend:       http://localhost:3000
+# User Service:   http://localhost:8001/api
+# Product:        http://localhost:8002/api
+# Inventory:      http://localhost:8003/api
+# Orders:         http://localhost:8004/api
+# RabbitMQ UI:    http://localhost:15672 (guest/guest)
 ```
 
-### Frontend Setup
+### Local Development (Frontend)
 
 ```bash
 cd frontend
+cp .env.example .env
 npm install
-npm run dev
-```
-
-Open **http://localhost:3000** and log in with:
-- **Email:** `admin@demo.com`
-- **Password:** `password`
-
----
-
-## 🐳 Docker Compose
-
-```bash
-# Core services (backend + frontend + MySQL + Redis)
-docker compose up -d
-
-# With RabbitMQ
-docker compose --profile messaging up -d
-
-# With Apache Kafka
-docker compose --profile kafka up -d
-
-# With phpMyAdmin
-docker compose --profile dev up -d
-```
-
-| Service | URL |
-|---|---|
-| Backend API | http://localhost:8000/api |
-| React Frontend | http://localhost:3000 |
-| phpMyAdmin | http://localhost:8080 |
-| RabbitMQ Management | http://localhost:15672 |
-
----
-
-## 📡 API Reference
-
-### Authentication
-```
-POST /api/auth/login              { email, password }
-POST /api/auth/logout             Bearer token
-GET  /api/auth/me                 Bearer token
-POST /api/auth/refresh            Bearer token
-POST /api/auth/sso/callback       { sso_token, email }
-```
-
-> All tenant-scoped endpoints require `X-Tenant-ID: {id}` header (or `?tenant_id=1`).
-
-### Users
-```
-GET    /api/users              ?per_page=10&page=1&search=john&role=admin
-POST   /api/users              { name, email, password, roles[], is_active, attributes }
-GET    /api/users/{id}
-PUT    /api/users/{id}
-DELETE /api/users/{id}
-```
-
-### Products
-```
-GET    /api/products           ?per_page=10&page=1&search=widget&category=gadgets
-POST   /api/products           { name, sku, price, category, description, attributes }
-GET    /api/products/{id}
-PUT    /api/products/{id}
-DELETE /api/products/{id}
-```
-
-### Inventory (cross-service product-name filtering)
-```
-GET    /api/inventory          ?per_page=10&product_name=widget&low_stock=1
-POST   /api/inventory          { product_id, warehouse_location, quantity, reorder_level }
-GET    /api/inventory/{id}
-PUT    /api/inventory/{id}
-DELETE /api/inventory/{id}
-POST   /api/inventory/{id}/adjust-stock   { delta, reason }
-```
-
-### Orders (Saga pattern)
-```
-GET    /api/orders             ?per_page=10&status=pending
-POST   /api/orders             { items:[{product_id,quantity}], shipping_address, payment_method }
-GET    /api/orders/{id}
-PATCH  /api/orders/{id}/status { status }
-POST   /api/orders/{id}/cancel { reason }
-```
-
-### Tenant Configuration
-```
-GET  /api/admin/tenants/{id}/config
-POST /api/admin/tenants/{id}/config   { key, value, group, type }
+npm start
 ```
 
 ---
 
-## 🏗️ Project Structure
+## API Reference
 
-```
-├── backend/
-│   ├── app/
-│   │   ├── Helpers/PaginationHelper.php      # Conditional pagination
-│   │   ├── Infrastructure/MessageBroker/     # Null · RabbitMQ · Kafka
-│   │   ├── Interfaces/                       # MessageBroker · Repository · Saga
-│   │   ├── Middleware/                       # TenantMiddleware · AuthorizationMiddleware
-│   │   ├── Models/                           # Tenant · TenantConfig · User · Product · Inventory · Order · OrderItem
-│   │   ├── Modules/
-│   │   │   ├── Auth/Controllers/AuthController.php
-│   │   │   ├── User/{Controllers,Services,Repositories}/
-│   │   │   ├── Product/{Controllers,Services,Repositories}/
-│   │   │   ├── Inventory/{Controllers,Services,Repositories}/
-│   │   │   ├── Order/{Controllers,Services,Repositories}/
-│   │   │   └── Tenant/Controllers/TenantController.php
-│   │   ├── Sagas/OrderSaga.php               # Saga + compensating transactions
-│   │   └── Services/TenantConfigService.php
-│   ├── database/
-│   │   ├── migrations/                       # 7 migrations
-│   │   └── seeders/DatabaseSeeder.php        # Demo tenant · roles · users · products
-│   ├── routes/api.php
-│   └── tests/
-│       ├── Unit/PaginationHelperTest.php
-│       └── Feature/AuthTest.php
-│
-├── frontend/
-│   └── src/
-│       ├── api/         # client · auth · users · products · inventory · orders · tenants
-│       ├── components/  # Layout · ProtectedRoute · DataTable · Pagination
-│       ├── contexts/    # AuthContext · TenantContext
-│       ├── pages/       # Login · Dashboard · Users · Products · Inventory · Orders · TenantConfig
-│       └── types/       # TypeScript interfaces
-│
-├── docker-compose.yml
-└── README.md
-```
+### Authentication (User Service - port 8001)
 
----
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | Login, get Bearer token |
+| POST | `/api/auth/logout` | Revoke current token |
+| GET | `/api/auth/me` | Get authenticated user |
+| POST | `/api/auth/refresh` | Refresh access token |
 
-## 🔐 Authentication & SSO
+### Users (port 8001) — requires `X-Tenant-ID`
 
-The system uses **Laravel Passport** for OAuth2 token-based authentication. Each user gets a personal access token with scoped permissions derived from their roles.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/users?per_page=10&search=john&sort_by=name` | List users (conditional pagination) |
+| GET | `/api/users/{id}` | Get user with roles & permissions |
+| PUT | `/api/users/{id}` | Update user |
+| DELETE | `/api/users/{id}` | Delete user |
+| POST | `/api/users/{id}/roles` | Assign role to user |
 
-**SSO Flow:**
-1. Identity provider authenticates the user
-2. Provider calls `POST /api/auth/sso/callback` with `{ sso_token, email }`
-3. System issues a Passport access token
-4. React stores token in `localStorage` and attaches it to all API requests via `Authorization: Bearer ...`
+### Products (port 8002) — requires `X-Tenant-ID`
 
----
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/products?per_page=15&search=widget&sort_by=price&sort_direction=desc` | List products |
+| POST | `/api/products` | Create product (triggers ProductCreated event) |
+| GET | `/api/products/{id}` | Get product |
+| PUT | `/api/products/{id}` | Update product |
+| DELETE | `/api/products/{id}` | Delete product (triggers ProductDeleted → notifies inventory) |
+| GET | `/api/products/search/query?q=widget` | Search products |
 
-## 🏢 Multi-Tenancy
+### Inventory (port 8003) — requires `X-Tenant-ID`
 
-Each request is scoped to a tenant via `TenantMiddleware`:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/inventory?per_page=10` | List inventory |
+| GET | `/api/inventory/with-products` | List inventory with product details (cross-service) |
+| GET | `/api/inventory/reports/low-stock` | Get items below reorder level |
+| GET | `/api/inventory/search/product-name?q=widget` | Search by product name |
+| POST | `/api/inventory/{id}/add-stock` | Add stock (records transaction) |
+| POST | `/api/inventory/{id}/remove-stock` | Remove stock (records transaction) |
 
-```
-X-Tenant-ID: 1               (HTTP header — preferred)
-?tenant_id=1                 (query parameter)
-subdomain.yourdomain.com     (subdomain resolution)
-```
+### Orders (port 8004) — requires `X-Tenant-ID`
 
-**Tenant Runtime Configuration** — settings vary per tenant without affecting others:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/orders?per_page=10&sort_by=created_at&sort_direction=desc` | List orders |
+| POST | `/api/orders` | Create order (Saga: reserve → pay → confirm) |
+| GET | `/api/orders/{id}` | Get order with items |
+| POST | `/api/orders/{id}/cancel` | Cancel order + release inventory |
 
-```http
-POST /api/admin/tenants/1/config
-{ "key": "mail_from_address", "value": "hello@company.com", "group": "mail", "type": "string" }
-```
+### Health Checks (all services)
 
-Supported config groups: `mail` · `payment` · `notification` · `general`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/health` | Health status (DB + cache + app) |
 
 ---
 
-## 🛡️ RBAC + ABAC
+## Tenant Runtime Configuration
 
-**Roles:** `super_admin` · `admin` · `manager` · `staff` · `viewer`
+Configure per-tenant mail, payment, and other settings via the `settings` JSON column:
 
-**ABAC example** — `AuthorizationMiddleware` evaluates user `attributes` JSON:
 ```json
-{ "is_department_head": true, "extra_permissions": ["inventory.adjust"] }
+{
+  "mail": {
+    "host": "smtp.sendgrid.net",
+    "port": 587,
+    "username": "apikey",
+    "password": "SG.xxx",
+    "from_address": "noreply@acme.com",
+    "from_name": "Acme Corp"
+  },
+  "payment": {
+    "gateway": "stripe",
+    "public_key": "pk_live_xxx",
+    "secret_key": "sk_live_xxx"
+  },
+  "notifications": {
+    "slack_webhook": "https://hooks.slack.com/services/..."
+  }
+}
 ```
+
+These settings are dynamically applied per-request by `TenantConfigService::applyTenantConfig()`.
 
 ---
 
-## 🔄 Saga Pattern
+## Extending the System
 
-`OrderSaga` orchestrates a distributed transaction:
+### Add a New Microservice
 
-```
-Step 1: validate_order        validate items and quantities
-Step 2: reserve_inventory     atomically reserve stock (DB transaction)
-Step 3: create_order          persist order + items
-Step 4: confirm_payment       call payment gateway (simulated)
-Step 5: confirm_order         set status = confirmed
+1. Create `{service-name}/` directory mirroring existing service structure
+2. Extend `BaseRepository` for your entity
+3. Extend `BaseService`
+4. Implement `BaseController` with `successResponse()` / `paginatedResponse()`
+5. Add `TenantMiddleware` to your routes
+6. Register in `docker-compose.yml`
 
-On failure → compensate in reverse:
-  compensateConfirmOrder      set status = cancelled
-  compensateConfirmPayment    refund payment
-  compensateCreateOrder       delete order record
-  compensateReserveInventory  release reserved stock
-```
-
----
-
-## 📨 Event-Driven Architecture
-
-Services publish domain events via `MessageBrokerInterface`:
+### Add a New Message Broker
 
 ```php
-$this->messageBroker->publish('order.confirmed', ['order_id' => 123, 'tenant_id' => 1]);
+// Create app/Messaging/PulsarBroker.php
+class PulsarBroker implements MessageBrokerInterface {
+    // implement: connect, disconnect, publish, subscribe, acknowledge, reject
+}
+
+// Register in RepositoryServiceProvider
+'pulsar' => new PulsarBroker(...),
+
+// Switch via .env
+MESSAGE_BROKER_DRIVER=pulsar
 ```
 
-Switch broker via `.env`:
-```
-MESSAGE_BROKER_DRIVER=null       # default (log-only)
-MESSAGE_BROKER_DRIVER=rabbitmq   # RabbitMQ
-MESSAGE_BROKER_DRIVER=kafka      # Apache Kafka
+### Add a New Saga Step
+
+```php
+class SendConfirmationEmailStep extends SagaStep
+{
+    public function getName(): string { return 'send_confirmation_email'; }
+
+    public function execute(array &$context): array
+    {
+        // Send email...
+        return ['email_sent' => true];
+    }
+
+    public function compensate(array $context): void
+    {
+        // Nothing to undo for emails
+    }
+}
+
+// Register in OrderService
+$saga->addStep(new SendConfirmationEmailStep($this->mailer));
 ```
 
 ---
 
-## 📄 Conditional Pagination
+## Technology Stack
 
-```
-GET /api/products                  → returns all records (Collection)
-GET /api/products?per_page=10&page=2  → returns paginated LengthAwarePaginator
-```
-
-Works for Eloquent Builder, Collection, and plain arrays.
-
----
-
-## 🧪 Tests
-
-```bash
-cd backend && php artisan test
-```
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, React Router 6, Axios |
+| Backend | PHP 8.1, Laravel 10 |
+| Authentication | Laravel Passport (OAuth2) |
+| Database | MySQL 8.0 (per service) |
+| Cache / Queue | Redis 7 |
+| Message Broker | RabbitMQ 3 (or Apache Kafka) |
+| Container | Docker, Docker Compose |
+| Web Server | Nginx (frontend), PHP-FPM (services) |
 
 ---
 
-## 📝 License
+## Security
 
-MIT
+- **Authentication**: Laravel Passport OAuth2 Bearer tokens
+- **Authorization**: RBAC roles + ABAC attribute policies, enforced per-request
+- **Tenant Isolation**: Every query is scoped to `tenant_id`; cross-tenant access returns 404
+- **Webhook Signatures**: HMAC-SHA256 signed payloads; receivers validate before processing
+- **SQL Injection Prevention**: All LIKE searches use `addcslashes()` to escape wildcards; Eloquent parameterized queries throughout
+- **Password Hashing**: Laravel's `bcrypt` via `Hash::make()`
+- **No Secrets in Code**: All credentials via environment variables (`.env.example` provided)
+
+---
+
+## Design Patterns Used
+
+| Pattern | Where |
+|---------|-------|
+| Repository Pattern | `BaseRepository` + concrete repositories per entity |
+| Service Layer | `BaseService` + concrete services per domain |
+| Strategy / Interface | `MessageBrokerInterface` for swappable brokers |
+| Saga Orchestrator | `SagaOrchestrator` + `SagaStep` in order-service |
+| DTO | `UserDTO`, `ProductDTO`, `InventoryDTO`, `OrderDTO`, `WebhookPayloadDTO` |
+| Observer / Events | Laravel Events + Listeners for domain events |
+| Middleware Chain | Tenant → Auth → ABAC/RBAC → Controller |
+| Factory Method | `DTOs::fromModel()` static factories |
+| Template Method | `SagaStep::execute()` / `compensate()` abstract methods |
