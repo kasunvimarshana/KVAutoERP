@@ -1,48 +1,79 @@
-# Dependencies
-node_modules/
-vendor/
-
-# Build artifacts
-dist/
-build/
-.next/
-out/
-
-# Environment files
+# ─── Laravel ──────────────────────────────────────────────────────────────────
+/vendor/
+/node_modules/
+/public/hot
+/public/storage
+/storage/*.key
 .env
-.env.local
-.env.*.local
-backend/.env
+.env.*
+!.env.example
+*.lock
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+/.idea
+/.vscode
+*.swp
+*.swo
+.phpunit.result.cache
+.phpunit.cache/
+
+# ─── React / Node ─────────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/build/
 frontend/.env
+frontend/.env.*
+!frontend/.env.example
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
 
-# Laravel runtime
-backend/bootstrap/cache/*.php
-backend/storage/app/public
-backend/storage/framework/cache
-backend/storage/framework/sessions
-backend/storage/framework/views
-backend/storage/logs
+# ─── Docker ───────────────────────────────────────────────────────────────────
+docker/mysql/data/
+docker/nginx/ssl/*.pem
+docker/nginx/ssl/*.crt
+docker/nginx/ssl/*.key
 
-# IDE / OS
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ─── IDE ──────────────────────────────────────────────────────────────────────
 .idea/
 .vscode/
-*.DS_Store
-Thumbs.db
+*.sublime-project
+*.sublime-workspace
+nbproject/
 
-# PHP Composer
-backend/vendor/
-
-# Node
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-
-# Logs
+# ─── Logs & Temp ─────────────────────────────────────────────────────────────
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+/tmp/
+*.tmp
+*.bak
+*.orig
 
-# Testing
-.phpunit.result.cache
-coverage/
+# ─── Composer ─────────────────────────────────────────────────────────────────
+services/*/vendor/
+services/*/composer.lock
+
+# ─── Per-service .env files ───────────────────────────────────────────────────
+services/*/.env
+services/*/.env.*
+!services/*/.env.example
+
+# ─── Storage symlinks ─────────────────────────────────────────────────────────
+services/*/public/storage
+services/*/storage/logs/*.log
+services/*/storage/framework/cache/data/*
+services/*/storage/framework/sessions/*
+services/*/storage/framework/testing/*
+services/*/storage/framework/views/*
+!services/*/storage/framework/.gitkeep
+!services/*/storage/logs/.gitkeep
+!services/*/storage/app/.gitkeep

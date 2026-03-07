@@ -1,42 +1,18 @@
 import React from 'react';
-import clsx from 'clsx';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
-  fullScreen?: boolean;
 }
 
-const sizeMap = {
-  sm: 'w-4 h-4 border-2',
-  md: 'w-8 h-8 border-2',
-  lg: 'w-12 h-12 border-3',
-};
+const sizeMap = { sm: 'h-4 w-4', md: 'h-8 w-8', lg: 'h-12 w-12' };
 
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
-  size = 'md',
-  className,
-  fullScreen = false,
-}) => {
-  const spinner = (
-    <div
-      className={clsx(
-        'rounded-full border-gray-300 border-t-primary-600 animate-spin',
-        sizeMap[size],
-        className,
-      )}
-    />
-  );
-
-  if (fullScreen) {
-    return (
-      <div className="fixed inset-0 bg-white/80 flex items-center justify-center z-50">
-        {spinner}
-      </div>
-    );
-  }
-
-  return spinner;
-};
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md', className = '' }) => (
+  <div
+    className={`animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 ${sizeMap[size]} ${className}`}
+    role="status"
+    aria-label="Loading"
+  />
+);
 
 export default LoadingSpinner;
