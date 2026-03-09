@@ -1,16 +1,30 @@
 <?php
+
 declare(strict_types=1);
-use App\Http\Controllers\Api\V1\HealthController;
-use App\Http\Controllers\Api\V1\OrderController;
+
 use Illuminate\Support\Facades\Route;
-Route::prefix('health')->group(function () {
-    Route::get('/', [HealthController::class, 'health'])->name('health');
-    Route::get('/ping', [HealthController::class, 'ping'])->name('health.ping');
+
+/*
+|--------------------------------------------------------------------------
+| Order Service API Routes
+|--------------------------------------------------------------------------
+*/
+
+// Health checks
+Route::prefix('health')->group(function (): void {
+    Route::get('/', [\App\Http\Controllers\Order\HealthController::class, 'check'])->name('health.check');
+    Route::get('/ready', [\App\Http\Controllers\Order\HealthController::class, 'ready'])->name('health.ready');
 });
-Route::prefix('v1/orders')->group(function () {
-    Route::get('/', [OrderController::class, 'index'])->name('orders.index');
-    Route::get('/{id}', [OrderController::class, 'show'])->name('orders.show');
-    Route::post('/saga', [OrderController::class, 'createSaga'])->name('orders.saga.create');
-    Route::post('/saga/{orderId}/cancel', [OrderController::class, 'cancelSaga'])->name('orders.saga.cancel');
-    Route::put('/{id}/confirm', [OrderController::class, 'confirm'])->name('orders.confirm');
-});
+
+Route::prefix('v1')
+    ->middleware(['auth:api', \App\Http\Middleware\TenantMiddleware::class])
+    ->group(function (): void {
+
+        // Order lifecycle
+        Route::prefix('orders')->name('orders.')->group(function (): void {
+            Route::get('/', [\App\Http\Controllers\Order\OrderController::class, 'index'])->name('index');
+            Route::post('/', [\App\Http\Controllers\Order\OrderController::class, 'store'])->name('store');
+            Route::get('/{id}', [\App\Http\Controllers\Order\OrderController::class, 'show'])->name('show');
+            Route::post('/{id}/cancel', [\App\Http\Controllers\Order\OrderController::class, 'cancel'])->name('cancel');
+        });
+    });

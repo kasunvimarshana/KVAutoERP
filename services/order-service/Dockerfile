@@ -1,16 +1,83 @@
-FROM php:8.2-fpm-alpine
-WORKDIR /var/www/html
-RUN apk add --no-cache nginx supervisor curl git zip unzip bash mysql-client libpng-dev libzip-dev icu-dev oniguruma-dev rabbitmq-c-dev $PHPIZE_DEPS \
-    && docker-php-ext-install pdo_mysql mbstring pcntl bcmath zip intl opcache \
-    && pecl install amqp redis && docker-php-ext-enable amqp redis
+# Order Service Dockerfile
+# Multi-stage build for production optimization
+
+FROM php:8.3-fpm-alpine AS base
+
+# Install system dependencies
+RUN apk add --no-cache \
+    bash \
+    curl \
+    git \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    libwebp-dev \
+    libzip-dev \
+    mysql-client \
+    oniguruma-dev \
+    openssl \
+    unzip \
+    zip \
+    && docker-php-ext-install \
+        bcmath \
+        exif \
+        gd \
+        mbstring \
+        opcache \
+        pdo \
+        pdo_mysql \
+        zip
+
+# Install Redis extension
+RUN pecl install redis && docker-php-ext-enable redis
+
+# Install Composer
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
-COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY docker/php.ini /usr/local/etc/php/conf.d/app.ini
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+WORKDIR /var/www/html
+
+# ============================================================
+# Development stage
+# ============================================================
+FROM base AS development
+
 COPY . .
-RUN composer install --no-dev --optimize-autoloader --no-interaction \
-    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 CMD curl -f http://localhost/health || exit 1
-EXPOSE 80
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+RUN composer install --no-scripts --no-autoloader
+RUN composer dump-autoload --optimize
+
+EXPOSE 8003
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8003"]
+
+# ============================================================
+# Production stage
+# ============================================================
+FROM base AS production
+
+ENV APP_ENV=production
+ENV LOG_CHANNEL=stderr
+
+# Copy application files
+COPY . .
+
+# Install production dependencies only
+RUN composer install \
+    --no-dev \
+    --no-scripts \
+    --no-autoloader \
+    --prefer-dist \
+    && composer dump-autoload --optimize --classmap-authoritative
+
+# Configure PHP OPcache for production
+RUN echo "opcache.enable=1" >> /usr/local/etc/php/conf.d/opcache.ini \
+    && echo "opcache.memory_consumption=256" >> /usr/local/etc/php/conf.d/opcache.ini \
+    && echo "opcache.max_accelerated_files=10000" >> /usr/local/etc/php/conf.d/opcache.ini \
+    && echo "opcache.validate_timestamps=0" >> /usr/local/etc/php/conf.d/opcache.ini
+
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8003/api/health || exit 1
+
+EXPOSE 8003
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8003"]

@@ -4,71 +4,51 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Repositories;
 
-use App\Contracts\Repositories\OrderRepositoryInterface;
-use App\Domain\Order\Models\Order;
-use Illuminate\Support\Facades\DB;
+use App\Domain\Order\Entities\Order;
+use App\Domain\Order\Repositories\Interfaces\OrderRepositoryInterface;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 
 /**
- * Order Repository
+ * Eloquent Order Repository.
  */
-class OrderRepository implements OrderRepositoryInterface
+class OrderRepository extends BaseRepository implements OrderRepositoryInterface
 {
-    public function findById(string $id): ?Order
+    protected array $searchableColumns  = ['id', 'customer_id'];
+    protected array $filterableColumns  = ['tenant_id', 'status', 'saga_status', 'customer_id', 'currency', 'created_at'];
+    protected string $defaultSortBy     = 'created_at';
+
+    protected function resolveModel(): Model
     {
-        return Order::with('items')->find($id);
+        return new Order();
     }
 
-    public function findBySagaId(string $sagaId): ?Order
+    public function all(array $params = []): LengthAwarePaginator|Collection
     {
-        return Order::where('saga_id', $sagaId)->with('items')->first();
+        return parent::all($params);
+    }
+
+    public function find(string $id): ?Order
+    {
+        /** @var Order|null */
+        return parent::find($id);
     }
 
     public function create(array $data): Order
     {
-        return DB::transaction(function () use ($data) {
-            $items = $data['items'] ?? [];
-            unset($data['items']);
-
-            $order = Order::create($data);
-
-            foreach ($items as $item) {
-                $order->items()->create([
-                    'product_id' => $item['product_id'],
-                    'warehouse_id' => $item['warehouse_id'],
-                    'product_name' => $item['product_name'] ?? 'Unknown',
-                    'product_sku' => $item['product_sku'] ?? '',
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'] ?? 0,
-                    'total_price' => ($item['unit_price'] ?? 0) * $item['quantity'],
-                ]);
-            }
-
-            return $order->load('items');
-        });
+        /** @var Order */
+        return parent::create($data);
     }
 
-    public function updateStatus(string $id, string $status, ?array $extra = null): Order
+    public function update(string $id, array $data): Order
     {
-        $order = Order::findOrFail($id);
-        $update = array_merge(['status' => $status], $extra ?? []);
-        $order->update($update);
-        return $order->fresh('items');
+        /** @var Order */
+        return parent::update($id, $data);
     }
 
-    public function getByTenant(string $tenantId, array $params = []): mixed
+    public function delete(string $id): bool
     {
-        $query = Order::where('tenant_id', $tenantId)->with('items')->orderBy('created_at', 'desc');
-        if (isset($params['per_page'])) {
-            return $query->paginate((int) $params['per_page'], ['*'], 'page', (int) ($params['page'] ?? 1));
-        }
-        return $query->get();
-    }
-
-    public function cancel(string $id, string $reason): Order
-    {
-        return $this->updateStatus($id, Order::STATUS_CANCELLED, [
-            'cancellation_reason' => $reason,
-            'cancelled_at' => now(),
-        ]);
+        return parent::delete($id);
     }
 }

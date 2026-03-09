@@ -1,21 +1,20 @@
-FROM node:20-alpine
+# Payment Service Dockerfile (Node.js)
+
+FROM node:20-alpine AS base
 
 WORKDIR /app
 
-RUN apk add --no-cache curl
-
+# Install dependencies
 COPY package*.json ./
-
 RUN npm ci --only=production
 
-COPY . .
+# Copy source
+COPY src/ ./src/
 
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
-USER nodejs
-
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:3000/health/ping || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:8004/api/health || exit 1
 
-EXPOSE 3000
+EXPOSE 8004
 
-CMD ["node", "src/index.js"]
+CMD ["node", "src/app.js"]

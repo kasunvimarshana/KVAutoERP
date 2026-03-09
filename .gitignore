@@ -1,36 +1,38 @@
 # Environment files
 .env
-*.env.local
+.env.*
+!.env.example
 
-# Dependencies
-node_modules/
-vendor/
+# Vendor / node_modules
+services/*/vendor/
+services/payment-service/node_modules/
+
+# Laravel compiled files
+services/*/bootstrap/cache/*.php
+services/*/storage/logs/
+services/*/storage/app/
+services/*/storage/framework/cache/
+services/*/storage/framework/sessions/
+services/*/storage/framework/views/
+
+# Passport keys
+services/*/storage/oauth-*.key
 
 # Build artifacts
-*.log
-*.cache
+services/payment-service/coverage/
 
-# IDE
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# OS
-.DS_Store
-Thumbs.db
+# Docker volumes (if accidentally created locally)
+docker/volumes/
 
-# Docker
-.docker/
-
-# Laravel storage
-services/*/storage/logs/*.log
-services/*/storage/framework/cache/*
-services/*/storage/framework/sessions/*
-services/*/storage/framework/views/*
-services/*/bootstrap/cache/*
-
-# SSL certificates (generated locally)
-infrastructure/nginx/ssl/*.pem
-infrastructure/nginx/ssl/*.key
-infrastructure/nginx/ssl/*.crt
+# Logs
+*.log

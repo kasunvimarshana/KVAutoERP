@@ -4,128 +4,170 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Repositories;
 
-use App\Contracts\Repositories\InventoryRepositoryInterface;
-use App\Domain\Inventory\Models\InventoryItem;
-use App\Domain\Inventory\Models\StockMovement;
+use App\Domain\Inventory\Entities\InventoryItem;
+use App\Domain\Inventory\Entities\StockMovement;
+use App\Domain\Inventory\Repositories\Interfaces\InventoryRepositoryInterface;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Psr\Log\LoggerInterface;
 
 /**
- * Inventory Repository
+ * Eloquent Inventory Repository Implementation.
  *
- * Handles stock operations with database-level locking to prevent
- * race conditions in distributed environments.
+ * Extends the reusable BaseRepository and adds inventory-specific operations.
  */
 class InventoryRepository extends BaseRepository implements InventoryRepositoryInterface
 {
-    protected array $filterableColumns = ['tenant_id', 'product_id', 'warehouse_id'];
-    protected array $sortableColumns = ['created_at', 'quantity_on_hand'];
+    protected array $searchableColumns = ['name', 'sku', 'description'];
 
-    public function __construct(
-        InventoryItem $model,
-        private readonly LoggerInterface $logger
-    ) {
-        parent::__construct($model);
+    protected array $filterableColumns = [
+        'tenant_id',
+        'category_id',
+        'warehouse_id',
+        'status',
+        'sku',
+        'unit_of_measure',
+        'created_at',
+        'updated_at',
+    ];
+
+    protected function resolveModel(): Model
+    {
+        return new InventoryItem();
     }
 
-    public function findByProductAndWarehouse(string $productId, string $warehouseId): ?InventoryItem
+    // =========================================================================
+    // InventoryRepositoryInterface Implementation
+    // =========================================================================
+
+    public function all(array $params = []): LengthAwarePaginator|Collection
     {
-        return InventoryItem::where('product_id', $productId)
-            ->where('warehouse_id', $warehouseId)
-            ->first();
+        return parent::all($params);
+    }
+
+    public function find(string $id): ?InventoryItem
+    {
+        /** @var InventoryItem|null */
+        return parent::find($id);
+    }
+
+    public function findBySku(string $sku, string $tenantId): ?InventoryItem
+    {
+        return $this->findOneBy(['sku' => $sku, 'tenant_id' => $tenantId]);
+    }
+
+    public function create(array $data): InventoryItem
+    {
+        /** @var InventoryItem */
+        return parent::create($data);
+    }
+
+    public function update(string $id, array $data): InventoryItem
+    {
+        /** @var InventoryItem */
+        return parent::update($id, $data);
+    }
+
+    public function delete(string $id): bool
+    {
+        return parent::delete($id);
     }
 
     /**
-     * Reserve stock for an order using pessimistic locking (FOR UPDATE).
-     * Ensures ACID compliance in concurrent environments.
+     * Reserve stock with full audit trail.
      */
-    public function reserveStock(string $productId, string $warehouseId, int $quantity): bool
+    public function reserveStock(string $itemId, int $quantity, string $referenceId): InventoryItem
     {
-        return DB::transaction(function () use ($productId, $warehouseId, $quantity) {
-            $item = InventoryItem::where('product_id', $productId)
-                ->where('warehouse_id', $warehouseId)
-                ->lockForUpdate()
-                ->first();
+        return DB::transaction(function () use ($itemId, $quantity, $referenceId): InventoryItem {
+            /** @var InventoryItem $item */
+            $item = $this->newQuery()->lockForUpdate()->findOrFail($itemId);
 
-            if (!$item) {
-                $this->logger->warning('Inventory item not found for reservation', compact('productId', 'warehouseId'));
-                return false;
-            }
+            $beforeQty = $item->quantity;
+            $item->reserveStock($quantity); // Throws DomainException on insufficient stock
 
-            $available = $item->quantity_on_hand - $item->quantity_reserved;
+            // Record audit trail
+            StockMovement::create([
+                'tenant_id'         => $item->tenant_id,
+                'inventory_item_id' => $item->id,
+                'type'              => 'reservation',
+                'quantity'          => $quantity,
+                'before_quantity'   => $beforeQty,
+                'after_quantity'    => $item->fresh()->quantity,
+                'reference_type'    => 'order',
+                'reference_id'      => $referenceId,
+                'notes'             => "Stock reserved for order {$referenceId}",
+            ]);
 
-            if ($available < $quantity) {
-                $this->logger->warning('Insufficient stock for reservation', [
-                    'product_id' => $productId,
-                    'warehouse_id' => $warehouseId,
-                    'requested' => $quantity,
-                    'available' => $available,
-                ]);
-                return false;
-            }
-
-            $item->increment('quantity_reserved', $quantity);
-
-            $this->logger->info('Stock reserved', compact('productId', 'warehouseId', 'quantity'));
-            return true;
+            return $item->fresh() ?? $item;
         });
     }
 
     /**
-     * Release a stock reservation (Saga compensation action).
+     * Release reserved stock with audit trail.
      */
-    public function releaseReservation(string $productId, string $warehouseId, int $quantity): bool
+    public function releaseStock(string $itemId, int $quantity, string $referenceId): InventoryItem
     {
-        return DB::transaction(function () use ($productId, $warehouseId, $quantity) {
-            $item = InventoryItem::where('product_id', $productId)
-                ->where('warehouse_id', $warehouseId)
-                ->lockForUpdate()
-                ->first();
+        return DB::transaction(function () use ($itemId, $quantity, $referenceId): InventoryItem {
+            /** @var InventoryItem $item */
+            $item = $this->newQuery()->lockForUpdate()->findOrFail($itemId);
 
-            if (!$item) {
-                return false;
-            }
+            $beforeQty = $item->quantity;
+            $item->releaseStock($quantity);
 
-            $release = min($quantity, $item->quantity_reserved);
-            $item->decrement('quantity_reserved', $release);
+            StockMovement::create([
+                'tenant_id'         => $item->tenant_id,
+                'inventory_item_id' => $item->id,
+                'type'              => 'release',
+                'quantity'          => $quantity,
+                'before_quantity'   => $beforeQty,
+                'after_quantity'    => $item->fresh()->quantity,
+                'reference_type'    => 'order',
+                'reference_id'      => $referenceId,
+                'notes'             => "Stock released from order {$referenceId} (cancellation/rollback)",
+            ]);
 
-            $this->logger->info('Stock reservation released', compact('productId', 'warehouseId', 'quantity'));
-            return true;
+            return $item->fresh() ?? $item;
         });
     }
 
     /**
-     * Deduct stock from inventory (final commit after payment).
+     * Deduct stock on fulfillment with audit trail.
      */
-    public function deductStock(string $productId, string $warehouseId, int $quantity): bool
+    public function deductStock(string $itemId, int $quantity, string $referenceId): InventoryItem
     {
-        return DB::transaction(function () use ($productId, $warehouseId, $quantity) {
-            $item = InventoryItem::where('product_id', $productId)
-                ->where('warehouse_id', $warehouseId)
-                ->lockForUpdate()
-                ->first();
+        return DB::transaction(function () use ($itemId, $quantity, $referenceId): InventoryItem {
+            /** @var InventoryItem $item */
+            $item = $this->newQuery()->lockForUpdate()->findOrFail($itemId);
 
-            if (!$item || $item->quantity_on_hand < $quantity) {
-                return false;
-            }
+            $beforeQty = $item->quantity;
+            $item->deductStock($quantity);
 
-            $item->decrement('quantity_on_hand', $quantity);
-            $item->decrement('quantity_reserved', min($quantity, $item->quantity_reserved));
+            StockMovement::create([
+                'tenant_id'         => $item->tenant_id,
+                'inventory_item_id' => $item->id,
+                'type'              => 'out',
+                'quantity'          => $quantity,
+                'before_quantity'   => $beforeQty,
+                'after_quantity'    => $item->fresh()->quantity,
+                'reference_type'    => 'order',
+                'reference_id'      => $referenceId,
+                'notes'             => "Stock deducted for fulfilled order {$referenceId}",
+            ]);
 
-            $this->logger->info('Stock deducted', compact('productId', 'warehouseId', 'quantity'));
-            return true;
+            return $item->fresh() ?? $item;
         });
     }
 
     /**
-     * Get items below reorder threshold.
+     * Get items at or below reorder point.
      */
-    public function getLowStockItems(string $tenantId, int $threshold = 10): Collection
+    public function getLowStockItems(string $tenantId): Collection
     {
-        return InventoryItem::where('tenant_id', $tenantId)
-            ->whereRaw('quantity_on_hand - quantity_reserved <= reorder_point')
-            ->with('product')
+        return $this->newQuery()
+            ->where('tenant_id', $tenantId)
+            ->lowStock()
+            ->active()
             ->get();
     }
 }
