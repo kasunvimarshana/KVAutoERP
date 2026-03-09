@@ -1,83 +1,108 @@
-# Auth Service Dockerfile
-# Multi-stage build for production optimization
+# ─── Stage 1: Composer dependencies ──────────────────────────────────────────
+FROM php:8.3-fpm AS builder
 
-FROM php:8.3-fpm-alpine AS base
+# Install system dependencies required to build PHP extensions.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+        libzip-dev \
+        libonig-dev \
+        libxml2-dev \
+        libssl-dev \
+        libpq-dev \
+        librabbitmq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install system dependencies
-RUN apk add --no-cache \
-    bash \
-    curl \
-    git \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    libwebp-dev \
-    libzip-dev \
-    mysql-client \
-    oniguruma-dev \
-    openssl \
-    unzip \
-    zip \
-    && docker-php-ext-install \
-        bcmath \
-        exif \
-        gd \
-        mbstring \
-        opcache \
+# Install PHP extensions.
+RUN docker-php-ext-install \
         pdo \
         pdo_mysql \
-        zip
+        bcmath \
+        mbstring \
+        tokenizer \
+        xml \
+        ctype \
+        opcache \
+        zip \
+    && pecl install redis \
+    && docker-php-ext-enable redis
 
-# Install Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
+# Install Composer.
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Install Composer
-COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
+WORKDIR /app
+
+# Copy dependency manifests first to leverage Docker layer cache.
+COPY composer.json composer.lock* ./
+
+# Install production dependencies only.
+RUN composer install \
+        --no-dev \
+        --no-scripts \
+        --no-autoloader \
+        --prefer-dist \
+        --optimize-autoloader \
+    && composer clear-cache
+
+# Copy application source.
+COPY . .
+
+# Also copy the shared contracts (mounted via build context or volume).
+COPY ../../shared /app/../../shared/ 2>/dev/null || true
+
+# Generate the optimised autoloader.
+RUN composer dump-autoload --optimize --classmap-authoritative
+
+
+# ─── Stage 2: Production image ────────────────────────────────────────────────
+FROM php:8.3-fpm AS production
+
+LABEL maintainer="KV_SAAS Platform Team"
+LABEL service="auth-service"
+LABEL version="1.0.0"
+
+# Runtime system deps.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libzip-dev \
+        libonig-dev \
+        libxml2-dev \
+        libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install the same PHP extensions as builder (without build tools).
+RUN docker-php-ext-install \
+        pdo \
+        pdo_mysql \
+        bcmath \
+        mbstring \
+        tokenizer \
+        xml \
+        ctype \
+        opcache \
+        zip \
+    && pecl install redis \
+    && docker-php-ext-enable redis
+
+# PHP-FPM & OPcache tuning.
+COPY docker/php/php.ini   /usr/local/etc/php/conf.d/app.ini
+COPY docker/php/fpm.conf  /usr/local/etc/php-fpm.d/www.conf
 
 WORKDIR /var/www/html
 
-# ============================================================
-# Development stage
-# ============================================================
-FROM base AS development
+# Copy the compiled application from the builder stage.
+COPY --from=builder --chown=www-data:www-data /app .
 
-COPY . .
-RUN composer install --no-scripts --no-autoloader
-RUN composer dump-autoload --optimize
+# Ensure writable directories exist.
+RUN mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
-EXPOSE 8001
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8001"]
+# Switch to non-root user.
+USER www-data
 
-# ============================================================
-# Production stage
-# ============================================================
-FROM base AS production
+EXPOSE 9000
 
-ENV APP_ENV=production
-ENV LOG_CHANNEL=stderr
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD php-fpm -t || exit 1
 
-# Copy application files
-COPY . .
-
-# Install production dependencies only
-RUN composer install \
-    --no-dev \
-    --no-scripts \
-    --no-autoloader \
-    --prefer-dist \
-    && composer dump-autoload --optimize --classmap-authoritative
-
-# Configure PHP OPcache for production
-RUN echo "opcache.enable=1" >> /usr/local/etc/php/conf.d/opcache.ini \
-    && echo "opcache.memory_consumption=256" >> /usr/local/etc/php/conf.d/opcache.ini \
-    && echo "opcache.max_accelerated_files=10000" >> /usr/local/etc/php/conf.d/opcache.ini \
-    && echo "opcache.validate_timestamps=0" >> /usr/local/etc/php/conf.d/opcache.ini
-
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8001/api/health || exit 1
-
-EXPOSE 8001
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8001"]
+CMD ["php-fpm"]

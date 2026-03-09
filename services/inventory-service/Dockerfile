@@ -1,83 +1,64 @@
-# Inventory Service Dockerfile
-# Multi-stage build for production optimization
+# ─── Stage 1: Composer dependencies ──────────────────────────────────────────
+FROM composer:2.7 AS vendor
 
-FROM php:8.3-fpm-alpine AS base
+WORKDIR /app
 
-# Install system dependencies
+COPY composer.json composer.lock ./
+
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-scripts \
+    --prefer-dist \
+    --optimize-autoloader
+
+# ─── Stage 2: Production image ────────────────────────────────────────────────
+FROM php:8.3-fpm-alpine AS production
+
+LABEL maintainer="KV_SAAS Team"
+LABEL service="inventory-service"
+
+# System dependencies
 RUN apk add --no-cache \
     bash \
-    curl \
     git \
+    curl \
     libpng-dev \
-    libjpeg-turbo-dev \
-    libwebp-dev \
     libzip-dev \
-    mysql-client \
+    postgresql-dev \
     oniguruma-dev \
-    openssl \
-    unzip \
-    zip \
+    icu-dev \
     && docker-php-ext-install \
-        bcmath \
-        exif \
-        gd \
-        mbstring \
-        opcache \
         pdo \
+        pdo_pgsql \
         pdo_mysql \
-        zip
-
-# Install Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
-
-# Install Composer
-COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
+        zip \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        intl \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && rm -rf /var/cache/apk/*
 
 WORKDIR /var/www/html
 
-# ============================================================
-# Development stage
-# ============================================================
-FROM base AS development
+# Copy vendor from build stage
+COPY --from=vendor /app/vendor ./vendor
 
-COPY . .
-RUN composer install --no-scripts --no-autoloader
-RUN composer dump-autoload --optimize
-
-EXPOSE 8002
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8002"]
-
-# ============================================================
-# Production stage
-# ============================================================
-FROM base AS production
-
-ENV APP_ENV=production
-ENV LOG_CHANNEL=stderr
-
-# Copy application files
+# Copy application source
 COPY . .
 
-# Install production dependencies only
-RUN composer install \
-    --no-dev \
-    --no-scripts \
-    --no-autoloader \
-    --prefer-dist \
-    && composer dump-autoload --optimize --classmap-authoritative
+# PHP configuration
+COPY docker/php.ini /usr/local/etc/php/conf.d/app.ini
 
-# Configure PHP OPcache for production
-RUN echo "opcache.enable=1" >> /usr/local/etc/php/conf.d/opcache.ini \
-    && echo "opcache.memory_consumption=256" >> /usr/local/etc/php/conf.d/opcache.ini \
-    && echo "opcache.max_accelerated_files=10000" >> /usr/local/etc/php/conf.d/opcache.ini \
-    && echo "opcache.validate_timestamps=0" >> /usr/local/etc/php/conf.d/opcache.ini
+RUN cp .env.example .env 2>/dev/null || true \
+    && php artisan config:cache --no-interaction 2>/dev/null || true \
+    && php artisan route:cache  --no-interaction 2>/dev/null || true \
+    && chown -R www-data:www-data /var/www/html/storage \
+    && chown -R www-data:www-data /var/www/html/bootstrap/cache
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+EXPOSE 9000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8002/api/health || exit 1
-
-EXPOSE 8002
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8002"]
+CMD ["php-fpm"]
