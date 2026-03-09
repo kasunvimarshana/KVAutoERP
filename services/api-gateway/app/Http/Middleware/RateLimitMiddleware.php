@@ -1,62 +1,41 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\RateLimiter;
+use Symfony\Component\HttpFoundation\Response;
 
-class RateLimitMiddleware
+/**
+ * Per-tenant/IP rate limiting middleware.
+ */
+final class RateLimitMiddleware
 {
-    /**
-     * Rate-limit requests using a per-tenant (or per-IP) sliding counter in Redis.
-     *
-     * @param int $maxAttempts Maximum requests allowed within the decay window.
-     * @param int $decayMinutes Length of the rate-limit window in minutes.
-     */
-    public function handle(Request $request, Closure $next, int $maxAttempts = 100, int $decayMinutes = 1): mixed
+    public function handle(Request $request, Closure $next): Response
     {
-        // Use tenant ID if present, fall back to client IP
-        $identifier = $request->header('X-Tenant-ID') ?? $request->ip();
-        $key        = 'rate_limit:' . $identifier;
+        $tenantId = $request->header('X-Tenant-ID', $request->ip());
+        $key      = "gateway:rate:{$tenantId}";
+        $limit    = (int) env('RATE_LIMIT_PER_MINUTE', 120);
 
-        $attempts = (int) (Redis::get($key) ?? 0);
-
-        if ($attempts >= $maxAttempts) {
-            $retryAfter = (int) Redis::ttl($key);
-
-            Log::warning('Rate limit exceeded', [
-                'identifier' => $identifier,
-                'attempts'   => $attempts,
-                'limit'      => $maxAttempts,
-            ]);
-
+        if (RateLimiter::tooManyAttempts($key, $limit)) {
+            $retryAfter = RateLimiter::availableIn($key);
             return response()->json([
-                'error'       => 'Too Many Requests',
-                'retry_after' => $retryAfter,
-            ], 429)->withHeaders([
-                'X-RateLimit-Limit'     => $maxAttempts,
-                'X-RateLimit-Remaining' => 0,
-                'Retry-After'           => $retryAfter,
-                'X-RateLimit-Reset'     => now()->addSeconds($retryAfter)->timestamp,
-            ]);
+                'success' => false,
+                'message' => "Rate limit exceeded. Retry after {$retryAfter} seconds.",
+            ], 429, ['Retry-After' => $retryAfter]);
         }
 
-        if ($attempts === 0) {
-            // First request in this window: set key with expiry
-            Redis::setex($key, $decayMinutes * 60, 1);
-        } else {
-            Redis::incr($key);
-        }
-
-        $remaining = max(0, $maxAttempts - $attempts - 1);
+        RateLimiter::hit($key, 60);
 
         $response = $next($request);
 
-        return $response->withHeaders([
-            'X-RateLimit-Limit'     => $maxAttempts,
-            'X-RateLimit-Remaining' => $remaining,
-        ]);
+        // Inject rate limit headers
+        $response->headers->set('X-RateLimit-Limit', (string) $limit);
+        $response->headers->set('X-RateLimit-Remaining', (string) RateLimiter::remaining($key, $limit));
+
+        return $response;
     }
 }

@@ -1,128 +1,91 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
-class GatewayController extends Controller
+/**
+ * Transparent proxy controller.
+ * Routes incoming requests to the appropriate downstream microservice.
+ */
+final class GatewayController extends Controller
 {
     /**
-     * Maps the first path segment to the corresponding service environment key.
+     * The service routing map: path prefix → env var for service URL.
+     *
+     * @var array<string, string>
      */
     private array $serviceMap = [
         'auth'          => 'AUTH_SERVICE_URL',
         'tenants'       => 'TENANT_SERVICE_URL',
-        'inventory'     => 'INVENTORY_SERVICE_URL',
+        'products'      => 'INVENTORY_SERVICE_URL',
+        'categories'    => 'INVENTORY_SERVICE_URL',
+        'warehouses'    => 'INVENTORY_SERVICE_URL',
+        'stock-movements'=> 'INVENTORY_SERVICE_URL',
         'orders'        => 'ORDER_SERVICE_URL',
         'notifications' => 'NOTIFICATION_SERVICE_URL',
+        'sagas'         => 'SAGA_SERVICE_URL',
     ];
 
     /**
-     * Proxy an incoming request to the appropriate downstream microservice.
+     * Proxy the request to the appropriate service.
+     * Matched by first path segment after /api/v1/.
      */
-    public function proxy(Request $request, string $service, string $path = ''): JsonResponse
+    public function proxy(Request $request, string $service, string $path = ''): Response
     {
-        $serviceUrl = $this->resolveServiceUrl($service);
+        $envKey     = $this->serviceMap[$service] ?? null;
+        $serviceUrl = $envKey ? env($envKey) : null;
 
         if (!$serviceUrl) {
-            return response()->json([
-                'error'   => 'Service not found',
-                'service' => $service,
-            ], 404);
+            return response()->json(['success' => false, 'message' => "Service [{$service}] not found."], 404);
         }
 
-        $requestId = $request->header('X-Request-ID', 'req_' . Str::uuid()->toString());
-
-        // Build the forwarded headers, injecting gateway-specific ones
-        $forwardedHeaders = $this->buildForwardedHeaders($request, $requestId);
-
-        $targetUrl = rtrim($serviceUrl, '/') . '/api/v1/' . ltrim($path, '/');
-
-        Log::info('Gateway proxying request', [
-            'request_id' => $requestId,
-            'service'    => $service,
-            'method'     => $request->method(),
-            'url'        => $targetUrl,
-        ]);
-
-        try {
-            $httpClient = Http::withHeaders($forwardedHeaders)
-                ->timeout((int) env('GATEWAY_TIMEOUT', 30));
-
-            $response = $httpClient->send($request->method(), $targetUrl, [
-                'query'       => $request->query(),
-                'json'        => $request->isJson() ? $request->json()->all() : null,
-                'form_params' => (!$request->isJson() && in_array($request->method(), ['POST', 'PUT', 'PATCH'], true))
-                    ? $request->all()
-                    : null,
-            ]);
-
-            Log::info('Gateway received response', [
-                'request_id' => $requestId,
-                'status'     => $response->status(),
-            ]);
-
-            return response()->json(
-                $response->json() ?? [],
-                $response->status()
-            )->withHeaders([
-                'X-Request-ID'        => $requestId,
-                'X-Gateway-Service'   => $service,
-            ]);
-        } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            Log::error('Gateway connection failed', [
-                'service'    => $service,
-                'request_id' => $requestId,
-                'error'      => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'error'      => 'Service unavailable',
-                'service'    => $service,
-                'request_id' => $requestId,
-            ], 503);
-        } catch (\Throwable $e) {
-            Log::error('Gateway proxy error', [
-                'service'    => $service,
-                'request_id' => $requestId,
-                'error'      => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'error'      => 'Gateway error',
-                'message'    => $e->getMessage(),
-                'request_id' => $requestId,
-            ], 500);
+        $targetUrl = rtrim($serviceUrl, '/') . '/api/v1/' . $service . ($path ? "/{$path}" : '');
+        $query     = $request->getQueryString();
+        if ($query) {
+            $targetUrl .= '?' . $query;
         }
-    }
 
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
+        $httpRequest = Http::withHeaders($this->forwardHeaders($request))
+            ->timeout((int) env('GATEWAY_PROXY_TIMEOUT', 30));
 
-    private function resolveServiceUrl(string $service): ?string
-    {
-        $envKey = $this->serviceMap[$service] ?? null;
-        return $envKey ? env($envKey) : null;
-    }
+        $response = match (strtoupper($request->method())) {
+            'GET'    => $httpRequest->get($targetUrl),
+            'POST'   => $httpRequest->post($targetUrl, $request->all()),
+            'PUT'    => $httpRequest->put($targetUrl, $request->all()),
+            'PATCH'  => $httpRequest->patch($targetUrl, $request->all()),
+            'DELETE' => $httpRequest->delete($targetUrl),
+            default  => $httpRequest->get($targetUrl),
+        };
 
-    private function buildForwardedHeaders(Request $request, string $requestId): array
-    {
-        // Start with all incoming headers, then override/add gateway headers
-        $headers = collect($request->headers->all())
-            ->map(fn ($v) => is_array($v) ? implode(', ', $v) : $v)
-            ->except(['host'])  // Remove host – each service has its own
-            ->toArray();
-
-        return array_merge($headers, [
-            'X-Gateway-Request'  => 'true',
-            'X-Request-ID'       => $requestId,
-            'X-Forwarded-For'    => $request->ip(),
-            'X-Real-IP'          => $request->ip(),
+        return response($response->body(), $response->status(), [
+            'Content-Type' => 'application/json',
         ]);
+    }
+
+    /**
+     * Build the headers to forward downstream.
+     *
+     * @return array<string, string>
+     */
+    private function forwardHeaders(Request $request): array
+    {
+        $headers = [
+            'X-Tenant-ID'  => $request->header('X-Tenant-ID', ''),
+            'X-User-ID'    => $request->header('X-User-ID', ''),
+            'X-User-Roles' => $request->header('X-User-Roles', ''),
+            'Accept'       => 'application/json',
+        ];
+
+        if ($token = $request->bearerToken()) {
+            $headers['Authorization'] = "Bearer {$token}";
+        }
+
+        return $headers;
     }
 }

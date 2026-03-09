@@ -1,5 +1,3 @@
-version: '3.9'
-
 networks:
   saas_network:
     driver: bridge
@@ -8,391 +6,228 @@ volumes:
   mysql_data:
   redis_data:
   rabbitmq_data:
+  kafka_data:
+  zookeeper_data:
 
 services:
-
-  # ─── MySQL ──────────────────────────────────────────────────────────────────
+  # ─────────────── Infrastructure ───────────────
   mysql:
     image: mysql:8.0
     container_name: saas_mysql
     restart: unless-stopped
-    ports:
-      - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootsecret}
-      MYSQL_USER: ${MYSQL_USER:-saas_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-saas_password}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: saas_main
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
     networks:
       - saas_network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootsecret}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 5
 
-  # ─── Redis ──────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: saas_redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
-    command: redis-server --requirepass ${REDIS_PASSWORD:-redissecret} --appendonly yes
     volumes:
       - redis_data:/data
+    ports:
+      - "6379:6379"
     networks:
       - saas_network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redissecret}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 5
 
-  # ─── RabbitMQ ───────────────────────────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: saas_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper
+    networks:
+      - saas_network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: saas_kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    volumes:
+      - kafka_data:/var/lib/kafka
+    ports:
+      - "9092:9092"
+    networks:
+      - saas_network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
   rabbitmq:
     image: rabbitmq:3.12-management-alpine
     container_name: saas_rabbitmq
     restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-password}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
-      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - saas_network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
-
-  # ─── Auth Service ───────────────────────────────────────────────────────────
-  auth-service:
-    build:
-      context: ./services/auth-service
-      dockerfile: Dockerfile
-    container_name: saas_auth
-    restart: unless-stopped
-    ports:
-      - "8001:8001"
-    environment:
-      APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${AUTH_APP_KEY}
-      APP_URL: http://auth-service:8001
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: auth_db
-      DB_USERNAME: auth_user
-      DB_PASSWORD: ${AUTH_DB_PASSWORD:-authsecret}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redissecret}
-      JWT_SECRET: ${JWT_SECRET}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
-    volumes:
-      - ./services/auth-service:/var/www/html
-    networks:
-      - saas_network
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/v1/health"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 60s
 
-  # ─── Tenant Service ─────────────────────────────────────────────────────────
-  tenant-service:
-    build:
-      context: ./services/tenant-service
-      dockerfile: Dockerfile
-    container_name: saas_tenant
-    restart: unless-stopped
-    ports:
-      - "8002:8002"
-    environment:
-      APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${TENANT_APP_KEY}
-      APP_URL: http://tenant-service:8002
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: tenant_db
-      DB_USERNAME: tenant_user
-      DB_PASSWORD: ${TENANT_DB_PASSWORD:-tenantsecret}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redissecret}
-      JWT_SECRET: ${JWT_SECRET}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
-    volumes:
-      - ./services/tenant-service:/var/www/html
-    networks:
-      - saas_network
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-  # ─── Inventory Service ──────────────────────────────────────────────────────
-  inventory-service:
-    build:
-      context: ./services/inventory-service
-      dockerfile: Dockerfile
-    container_name: saas_inventory
-    restart: unless-stopped
-    ports:
-      - "8003:8003"
-    environment:
-      APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${INVENTORY_APP_KEY}
-      APP_URL: http://inventory-service:8003
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: inventory_db
-      DB_USERNAME: inventory_user
-      DB_PASSWORD: ${INVENTORY_DB_PASSWORD:-inventorysecret}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redissecret}
-      JWT_SECRET: ${JWT_SECRET}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
-      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
-      TENANT_SERVICE_URL: http://tenant-service:8002
-      AUTH_SERVICE_URL: http://auth-service:8001
-      MESSAGE_BROKER: ${MESSAGE_BROKER:-rabbitmq}
-    volumes:
-      - ./services/inventory-service:/var/www/html
-    networks:
-      - saas_network
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      tenant-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8003/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-  # ─── Order Service ──────────────────────────────────────────────────────────
-  order-service:
-    build:
-      context: ./services/order-service
-      dockerfile: Dockerfile
-    container_name: saas_order
-    restart: unless-stopped
-    ports:
-      - "8004:8004"
-    environment:
-      APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${ORDER_APP_KEY}
-      APP_URL: http://order-service:8004
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: order_db
-      DB_USERNAME: order_user
-      DB_PASSWORD: ${ORDER_DB_PASSWORD:-ordersecret}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redissecret}
-      JWT_SECRET: ${JWT_SECRET}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
-      TENANT_SERVICE_URL: http://tenant-service:8002
-      INVENTORY_SERVICE_URL: http://inventory-service:8003
-    volumes:
-      - ./services/order-service:/var/www/html
-    networks:
-      - saas_network
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8004/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-  # ─── Notification Service ───────────────────────────────────────────────────
-  notification-service:
-    build:
-      context: ./services/notification-service
-      dockerfile: Dockerfile
-    container_name: saas_notification
-    restart: unless-stopped
-    ports:
-      - "8005:8005"
-    environment:
-      APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${NOTIFICATION_APP_KEY}
-      APP_URL: http://notification-service:8005
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: notification_db
-      DB_USERNAME: notification_user
-      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notificationsecret}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redissecret}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
-      MAIL_MAILER: ${MAIL_MAILER:-smtp}
-      MAIL_HOST: ${MAIL_HOST:-mailhog}
-      MAIL_PORT: ${MAIL_PORT:-1025}
-      MAIL_USERNAME: ${MAIL_USERNAME:-}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-    volumes:
-      - ./services/notification-service:/var/www/html
-    networks:
-      - saas_network
-    depends_on:
-      mysql:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8005/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-  # ─── API Gateway ────────────────────────────────────────────────────────────
+  # ─────────────── Microservices ───────────────
   api-gateway:
     build:
       context: ./services/api-gateway
       dockerfile: Dockerfile
-    container_name: saas_gateway
+    container_name: saas_api_gateway
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    depends_on:
+      - mysql
+      - redis
     environment:
-      APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${GATEWAY_APP_KEY}
-      APP_URL: http://api-gateway:8000
-      JWT_SECRET: ${JWT_SECRET}
-      AUTH_SERVICE_URL: http://auth-service:8001
-      TENANT_SERVICE_URL: http://tenant-service:8002
-      INVENTORY_SERVICE_URL: http://inventory-service:8003
-      ORDER_SERVICE_URL: http://order-service:8004
-      NOTIFICATION_SERVICE_URL: http://notification-service:8005
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redissecret}
+      - APP_ENV=${APP_ENV:-local}
+      - APP_KEY=${API_GATEWAY_APP_KEY}
     volumes:
       - ./services/api-gateway:/var/www/html
+    ports:
+      - "8080:80"
     networks:
       - saas_network
-    depends_on:
-      auth-service:
-        condition: service_healthy
-      tenant-service:
-        condition: service_healthy
-      inventory-service:
-        condition: service_healthy
-      order-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
 
-  # ─── Frontend ───────────────────────────────────────────────────────────────
-  frontend:
+  auth-service:
     build:
-      context: ./frontend
+      context: ./services/auth-service
       dockerfile: Dockerfile
-      args:
-        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
-        REACT_APP_ENV: ${APP_ENV:-production}
-    container_name: saas_frontend
+    container_name: saas_auth_service
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    depends_on:
+      - mysql
+      - redis
     environment:
-      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
-    networks:
-      - saas_network
-    depends_on:
-      api-gateway:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-
-  # ─── Nginx Reverse Proxy ────────────────────────────────────────────────────
-  nginx:
-    image: nginx:1.25-alpine
-    container_name: saas_nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
+      - APP_ENV=${APP_ENV:-local}
     volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ./services/auth-service:/var/www/html
+    ports:
+      - "8081:80"
     networks:
       - saas_network
+
+  tenant-service:
+    build:
+      context: ./services/tenant-service
+      dockerfile: Dockerfile
+    container_name: saas_tenant_service
+    restart: unless-stopped
     depends_on:
-      - api-gateway
-      - frontend
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - mysql
+      - redis
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+    volumes:
+      - ./services/tenant-service:/var/www/html
+    ports:
+      - "8082:80"
+    networks:
+      - saas_network
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: services/inventory-service/Dockerfile
+    container_name: saas_inventory_service
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+      - rabbitmq
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+    volumes:
+      - ./services/inventory-service:/var/www/html
+    ports:
+      - "8083:80"
+    networks:
+      - saas_network
+
+  order-service:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: saas_order_service
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+      - rabbitmq
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+    volumes:
+      - ./services/order-service:/var/www/html
+    ports:
+      - "8084:80"
+    networks:
+      - saas_network
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: saas_notification_service
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - rabbitmq
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+    volumes:
+      - ./services/notification-service:/var/www/html
+    ports:
+      - "8085:80"
+    networks:
+      - saas_network
+
+  saga-orchestrator:
+    build:
+      context: ./services/saga-orchestrator
+      dockerfile: Dockerfile
+    container_name: saas_saga_orchestrator
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+      - rabbitmq
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+    volumes:
+      - ./services/saga-orchestrator:/var/www/html
+    ports:
+      - "8086:80"
+    networks:
+      - saas_network

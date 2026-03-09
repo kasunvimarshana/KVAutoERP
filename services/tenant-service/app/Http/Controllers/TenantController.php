@@ -1,167 +1,76 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Application\Services\TenantService;
-use App\Http\Requests\CreateTenantRequest;
-use App\Http\Requests\UpdateTenantRequest;
 use App\Http\Resources\TenantResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Saas\SharedKernel\Application\DTOs\PaginationDto;
 
-class TenantController extends Controller
+/**
+ * Thin tenant management controller.
+ */
+final class TenantController extends Controller
 {
-    public function __construct(private TenantService $tenantService) {}
+    public function __construct(private readonly TenantService $tenantService) {}
 
-    /**
-     * List all tenants with optional filters and pagination.
-     */
-    public function index(Request $request): AnonymousResourceCollection|JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $params = $request->only(['search', 'status', 'per_page', 'page']);
-        $tenants = $this->tenantService->listTenants($params);
+        $pagination = PaginationDto::fromArray($request->all());
+        $result     = $this->tenantService->list($pagination, $request->only(['status', 'plan']));
 
-        return TenantResource::collection($tenants);
-    }
-
-    /**
-     * Show a single tenant.
-     */
-    public function show(string $id): TenantResource|JsonResponse
-    {
-        try {
-            $tenant = $this->tenantService->getTenant($id);
-            return new TenantResource($tenant);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
-            return response()->json(['error' => 'Tenant not found'], 404);
+        if (method_exists($result, 'currentPage')) {
+            $result->through(fn($t) => new TenantResource($t));
+            return response()->json(['success' => true, 'data' => $result->items(), 'meta' => ['total' => $result->total()]]);
         }
+
+        return response()->json(['success' => true, 'data' => TenantResource::collection($result)]);
     }
 
-    /**
-     * Create a new tenant.
-     */
-    public function store(CreateTenantRequest $request): JsonResponse
+    public function store(Request $request): JsonResponse
     {
-        $tenant = $this->tenantService->createTenant($request->validated());
-
-        return (new TenantResource($tenant))
-            ->response()
-            ->setStatusCode(201);
-    }
-
-    /**
-     * Update an existing tenant.
-     */
-    public function update(UpdateTenantRequest $request, string $id): TenantResource|JsonResponse
-    {
-        try {
-            $tenant = $this->tenantService->updateTenant($id, $request->validated());
-            return new TenantResource($tenant);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
-            return response()->json(['error' => 'Tenant not found'], 404);
-        }
-    }
-
-    /**
-     * Soft-delete a tenant.
-     */
-    public function destroy(string $id): JsonResponse
-    {
-        try {
-            $this->tenantService->deleteTenant($id);
-            return response()->json(['message' => 'Tenant deleted successfully']);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
-            return response()->json(['error' => 'Tenant not found'], 404);
-        }
-    }
-
-    /**
-     * Activate a suspended or inactive tenant.
-     */
-    public function activate(string $id): TenantResource|JsonResponse
-    {
-        try {
-            $tenant = $this->tenantService->activateTenant($id);
-            return new TenantResource($tenant);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
-            return response()->json(['error' => 'Tenant not found'], 404);
-        }
-    }
-
-    /**
-     * Suspend an active tenant.
-     */
-    public function suspend(string $id): TenantResource|JsonResponse
-    {
-        try {
-            $tenant = $this->tenantService->suspendTenant($id);
-            return new TenantResource($tenant);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
-            return response()->json(['error' => 'Tenant not found'], 404);
-        }
-    }
-
-    /**
-     * Retrieve the current (cached) config for a tenant.
-     */
-    public function getConfig(string $id): JsonResponse
-    {
-        try {
-            $config = $this->tenantService->getTenantConfig($id);
-            // Strip sensitive fields before returning
-            unset($config['database'], $config['mail'], $config['broker']);
-            return response()->json(['data' => $config]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
-            return response()->json(['error' => 'Tenant not found'], 404);
-        }
-    }
-
-    /**
-     * Update persisted config fields (settings, cache_config, etc.).
-     */
-    public function updateConfig(Request $request, string $id): TenantResource|JsonResponse
-    {
-        $request->validate([
-            'settings'      => 'sometimes|array',
-            'cache_config'  => 'sometimes|array',
-            'mail_config'   => 'sometimes|array',
-            'broker_config' => 'sometimes|array',
-            'db_config'     => 'sometimes|array',
+        $data   = $request->validate([
+            'name'  => ['required', 'string', 'max:255'],
+            'slug'  => ['required', 'string', 'max:100', 'regex:/^[a-z0-9-]+$/'],
+            'plan'  => ['sometimes', 'string', 'in:free,starter,professional,enterprise'],
+            'domain'=> ['sometimes', 'nullable', 'url'],
         ]);
 
-        try {
-            $tenant = $this->tenantService->updateTenantConfig($id, $request->all());
-            return new TenantResource($tenant);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
-            return response()->json(['error' => 'Tenant not found'], 404);
-        }
+        $tenant = $this->tenantService->create($data);
+        return response()->json(['success' => true, 'data' => new TenantResource($tenant)], 201);
     }
 
-    /**
-     * Force-refresh the cached config for a tenant.
-     */
-    public function refreshConfig(string $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
-        try {
-            $this->tenantService->refreshTenantConfig($id);
-            return response()->json(['message' => 'Tenant config refreshed successfully']);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
-            return response()->json(['error' => 'Tenant not found'], 404);
-        }
+        return response()->json(['success' => true, 'data' => new TenantResource($this->tenantService->get($id))]);
     }
 
-    /**
-     * Internal endpoint: find tenant by custom domain.
-     */
-    public function findByDomain(string $domain): TenantResource|JsonResponse
+    public function update(Request $request, string $id): JsonResponse
     {
-        $tenant = $this->tenantService->findByDomain($domain);
+        $data   = $request->validate([
+            'name'   => ['sometimes', 'string', 'max:255'],
+            'plan'   => ['sometimes', 'string', 'in:free,starter,professional,enterprise'],
+            'status' => ['sometimes', 'string', 'in:active,suspended,trial,cancelled'],
+            'domain' => ['sometimes', 'nullable', 'url'],
+        ]);
 
-        if (!$tenant) {
-            return response()->json(['error' => 'Tenant not found for domain'], 404);
-        }
+        $tenant = $this->tenantService->update($id, $data);
+        return response()->json(['success' => true, 'data' => new TenantResource($tenant)]);
+    }
 
-        return new TenantResource($tenant);
+    public function destroy(string $id): JsonResponse
+    {
+        $this->tenantService->delete($id);
+        return response()->json(['success' => true, 'message' => 'Tenant deleted.']);
+    }
+
+    public function updateConfig(Request $request, string $id): JsonResponse
+    {
+        $config = $request->validate(['config' => ['required', 'array']]);
+        $tenant = $this->tenantService->updateConfig($id, $config['config']);
+        return response()->json(['success' => true, 'data' => new TenantResource($tenant)]);
     }
 }

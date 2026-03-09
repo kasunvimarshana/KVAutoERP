@@ -1,31 +1,40 @@
 <?php
 
-use App\Http\Controllers\HealthCheckController;
-use App\Http\Controllers\InventoryController;
+declare(strict_types=1);
+
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\HealthController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes – Inventory Service
+| Inventory Service API Routes – v1
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('v1')->group(function () {
+Route::get('/health', HealthController::class);
 
-    // Public health-check – no auth required (used by Docker / k8s probes)
-    Route::get('/health', [HealthCheckController::class, 'check']);
+Route::prefix('v1')->middleware(['auth:api'])->group(function (): void {
 
-    // Protected routes – require a valid tenant and a verified JWT
-    Route::middleware(['tenant', 'auth:api'])->group(function () {
+    // ── Products ──────────────────────────────────────────────────────────
+    Route::apiResource('products', ProductController::class);
+    Route::post('products/{product}/adjust-stock', [ProductController::class, 'adjustStock'])
+        ->name('products.adjust-stock');
 
-        // Low-stock report must be declared BEFORE the resource routes
-        // to prevent Laravel from treating 'reports' as an {inventory} ID.
-        Route::get('inventories/reports/low-stock', [InventoryController::class, 'lowStock']);
+    // ── Categories ────────────────────────────────────────────────────────
+    Route::apiResource('categories', CategoryController::class);
 
-        // Standard CRUD
-        Route::apiResource('inventories', InventoryController::class);
+    // ── Warehouses ────────────────────────────────────────────────────────
+    Route::apiResource('warehouses', WarehouseController::class);
 
-        // Stock adjustment endpoint
-        Route::post('inventories/{id}/adjust-stock', [InventoryController::class, 'adjustStock']);
-    });
+    // ── Stock Movements ───────────────────────────────────────────────────
+    Route::get('stock-movements',            [StockMovementController::class, 'index'])
+        ->name('stock-movements.index');
+    Route::get('stock-movements/{movement}', [StockMovementController::class, 'show'])
+        ->name('stock-movements.show');
+    Route::get('products/{product}/stock-movements', [StockMovementController::class, 'byProduct'])
+        ->name('products.stock-movements');
 });

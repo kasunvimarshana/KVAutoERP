@@ -1,79 +1,42 @@
-# ─── Laravel ──────────────────────────────────────────────────────────────────
-/vendor/
-/node_modules/
-/public/hot
-/public/storage
-/storage/*.key
+# Composer dependencies
+vendor/
+*/vendor/
+
+# Environment files
 .env
-.env.*
+*/.env
 !.env.example
-*.lock
-Homestead.json
-Homestead.yaml
-auth.json
-npm-debug.log
-yarn-error.log
-/.idea
-/.vscode
-*.swp
-*.swo
-.phpunit.result.cache
-.phpunit.cache/
+!*/.env.example
 
-# ─── React / Node ─────────────────────────────────────────────────────────────
-frontend/node_modules/
-frontend/build/
-frontend/.env
-frontend/.env.*
-!frontend/.env.example
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
+# Laravel cache
+bootstrap/cache/
+*/bootstrap/cache/
+storage/*.key
+*/storage/*.key
 
-# ─── Docker ───────────────────────────────────────────────────────────────────
-docker/mysql/data/
-docker/nginx/ssl/*.pem
-docker/nginx/ssl/*.crt
-docker/nginx/ssl/*.key
+# Build artifacts
+node_modules/
+*/node_modules/
+public/hot
+*/public/hot
+public/storage
+*/public/storage
 
-# ─── OS ───────────────────────────────────────────────────────────────────────
-.DS_Store
-.DS_Store?
-._*
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# ─── IDE ──────────────────────────────────────────────────────────────────────
+# IDE files
 .idea/
 .vscode/
-*.sublime-project
-*.sublime-workspace
-nbproject/
+*.swp
+*.swo
 
-# ─── Logs & Temp ─────────────────────────────────────────────────────────────
-*.log
-/tmp/
-*.tmp
-*.bak
-*.orig
+# OS files
+.DS_Store
+Thumbs.db
 
-# ─── Composer ─────────────────────────────────────────────────────────────────
-services/*/vendor/
-services/*/composer.lock
+# Test coverage
+coverage/
+.phpunit.result.cache
+*/coverage/
+*/.phpunit.result.cache
 
-# ─── Per-service .env files ───────────────────────────────────────────────────
-services/*/.env
-services/*/.env.*
-!services/*/.env.example
-
-# ─── Storage symlinks ─────────────────────────────────────────────────────────
-services/*/public/storage
-services/*/storage/logs/*.log
-services/*/storage/framework/cache/data/*
-services/*/storage/framework/sessions/*
-services/*/storage/framework/testing/*
-services/*/storage/framework/views/*
-!services/*/storage/framework/.gitkeep
-!services/*/storage/logs/.gitkeep
-!services/*/storage/app/.gitkeep
+# Docker override
+docker-compose.override.yml

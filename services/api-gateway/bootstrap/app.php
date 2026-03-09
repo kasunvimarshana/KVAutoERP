@@ -1,27 +1,32 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Http\Middleware\AuthenticateGateway;
+use App\Http\Middleware\RateLimitMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\RateLimitMiddleware;
-use App\Http\Middleware\RequestIdMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__ . '/../routes/web.php',
-        api: __DIR__ . '/../routes/api.php',
-        apiPrefix: 'api',
+        api:    __DIR__ . '/../routes/api.php',
+        health: '/health',
     )
-    ->withMiddleware(function (Middleware $middleware) {
-        // Apply request ID tracking globally on every HTTP request
-        $middleware->append(RequestIdMiddleware::class);
-
-        // Register custom rate-limiter alias
-        $middleware->alias([
-            'rate.limit' => RateLimitMiddleware::class,
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->api(prepend: [
+            RateLimitMiddleware::class,
+            AuthenticateGateway::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions) {
-        //
+    ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500);
+            }
+        });
     })
     ->create();

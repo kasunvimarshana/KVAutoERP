@@ -1,50 +1,50 @@
-FROM php:8.2-fpm
+FROM php:8.3-fpm-alpine
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
+RUN apk add --no-cache \
+    nginx \
+    supervisor \
     curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    libzip-dev \
-    libssl-dev \
-    librabbitmq-dev \
+    git \
     zip \
     unzip \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    libwebp-dev \
+    libzip-dev \
+    icu-dev \
+    oniguruma-dev \
+    libxml2-dev \
+    linux-headers \
+    $PHPIZE_DEPS
+
+RUN docker-php-ext-configure gd --with-jpeg --with-webp \
     && docker-php-ext-install \
+        pdo \
         pdo_mysql \
         mbstring \
         exif \
         pcntl \
         bcmath \
+        gd \
         zip \
-        sockets \
-    && pecl install redis amqp \
-    && docker-php-ext-enable redis amqp \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+        intl \
+        opcache \
+        sockets
 
-# Install Composer
-COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
+RUN pecl install redis && docker-php-ext-enable redis
+
+COPY --from=composer:2.9 /usr/bin/composer /usr/bin/composer
+
+COPY docker/php/php.ini /usr/local/etc/php/conf.d/custom.ini
+COPY docker/php/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/nginx/nginx.conf /etc/nginx/http.d/default.conf
 
 WORKDIR /var/www/html
 
-# Copy dependency manifests first to leverage Docker layer caching
-COPY composer.json composer.json
-RUN composer install --no-dev --no-scripts --no-autoloader --optimize-autoloader --prefer-dist
+COPY services/inventory-service/ .
 
-# Copy application source
-COPY . .
+RUN composer install --no-dev --optimize-autoloader
 
-# Generate optimised autoload and run post-install scripts
-RUN composer dump-autoload --no-dev --optimize \
-    && composer run-script post-autoload-dump || true
+EXPOSE 80
 
-# Set correct ownership
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true
-
-EXPOSE 8003
-
-CMD ["php-fpm"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

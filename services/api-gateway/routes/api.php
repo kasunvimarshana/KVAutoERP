@@ -1,22 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Controllers\GatewayController;
-use App\Http\Controllers\HealthCheckController;
+use App\Http\Controllers\HealthController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes – API Gateway
+| API Gateway Routes
 |--------------------------------------------------------------------------
+| All requests are proxied to the appropriate downstream microservice.
+| The gateway handles: authentication, rate limiting, request routing.
 */
 
-// Gateway self health-check
-Route::get('/health',          [HealthCheckController::class, 'check']);
-Route::get('/health/services', [HealthCheckController::class, 'checkAll']);
+Route::get('/health', HealthController::class);
 
-// All other requests are proxied to downstream services.
-// Rate limiting is applied via the middleware configured in bootstrap/app.php.
-Route::middleware(['throttle:api'])->group(function () {
-    Route::any('/{service}/{path?}', [GatewayController::class, 'proxy'])
-        ->where('path', '.*');
-});
+// Proxy all service requests
+Route::any('v1/{service}/{path?}', [GatewayController::class, 'proxy'])
+    ->where('path', '.*');

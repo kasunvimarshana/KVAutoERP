@@ -1,197 +1,125 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Application\Services;
 
-use App\Domain\Auth\Entities\User;
-use Illuminate\Support\Facades\Auth;
+use App\Application\DTOs\LoginDto;
+use App\Application\DTOs\RegisterDto;
+use App\Domain\Auth\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
-use Laravel\Passport\PersonalAccessTokenResult;
+use Saas\SharedKernel\Domain\Exceptions\UnauthorizedException;
+use Saas\SharedKernel\Domain\Exceptions\ValidationException;
+use Saas\SharedKernel\Infrastructure\MessageBroker\Contracts\MessageBrokerInterface;
+use Saas\SharedKernel\Infrastructure\Tenant\TenantContext;
 
-class AuthService
+/**
+ * Authentication application service.
+ * Handles registration, login, logout, and token refresh.
+ */
+final class AuthService
 {
-    // -------------------------------------------------------------------------
-    // Authentication
-    // -------------------------------------------------------------------------
+    public function __construct(
+        private readonly MessageBrokerInterface $messageBroker,
+        private readonly TenantContext          $tenantContext
+    ) {}
 
     /**
-     * Authenticate and issue a Passport access token.
+     * Register a new user and issue an access token.
      *
-     * @throws ValidationException
+     * @return array{user: User, token: string, token_type: string}
      */
-    public function login(array $credentials): array
+    public function register(RegisterDto $dto): array
     {
-        $user = User::where('email', $credentials['email'])
-            ->forTenant($credentials['tenant_id'])
+        return DB::transaction(function () use ($dto): array {
+            // Check email uniqueness within the tenant
+            $exists = User::where('tenant_id', $this->tenantContext->getTenantId())
+                ->where('email', $dto->email)
+                ->exists();
+
+            if ($exists) {
+                throw new ValidationException(['email' => ['This email is already registered.']]);
+            }
+
+            $user = User::create([
+                'tenant_id' => $this->tenantContext->getTenantId(),
+                'name'      => $dto->name,
+                'email'     => $dto->email,
+                'password'  => $dto->password, // already hashed via cast
+                'status'    => 'active',
+            ]);
+
+            // Assign default tenant role
+            $user->assignRole('tenant-user');
+
+            $token = $user->createToken($dto->deviceName ?? 'web')->accessToken;
+
+            $this->messageBroker->publish('auth.user.registered', [
+                'tenant_id' => $this->tenantContext->getTenantId(),
+                'user_id'   => $user->id,
+                'email'     => $user->email,
+            ]);
+
+            return [
+                'user'       => $user,
+                'token'      => $token,
+                'token_type' => 'Bearer',
+            ];
+        });
+    }
+
+    /**
+     * Authenticate a user and return an access token.
+     *
+     * @return array{user: User, token: string, token_type: string}
+     */
+    public function login(LoginDto $dto): array
+    {
+        $user = User::where('tenant_id', $this->tenantContext->getTenantId())
+            ->where('email', $dto->email)
             ->first();
 
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
+        if (!$user || !Hash::check($dto->password, $user->password)) {
+            throw new UnauthorizedException('authenticate with the provided credentials');
         }
 
         if (!$user->isActive()) {
-            throw ValidationException::withMessages([
-                'email' => ['Your account has been deactivated. Please contact support.'],
-            ]);
+            throw new UnauthorizedException('access this account – it is suspended or inactive');
         }
 
-        // Revoke all prior tokens to enforce single-session per user (optional)
-        // $user->tokens()->delete();
+        $token = $user->createToken($dto->deviceName ?? 'web')->accessToken;
 
-        $tokenResult = $this->createPassportToken($user, 'personal-access');
-
-        $user->update(['last_login_at' => now()]);
-
-        Log::info("User [{$user->id}] logged in for tenant [{$user->tenant_id}]");
+        $this->messageBroker->publish('auth.user.logged_in', [
+            'tenant_id' => $this->tenantContext->getTenantId(),
+            'user_id'   => $user->id,
+        ]);
 
         return [
-            'token_type'   => 'Bearer',
-            'access_token' => $tokenResult->accessToken,
-            'expires_at'   => $tokenResult->token->expires_at?->toIso8601String(),
-            'user'         => $user->load('roles', 'permissions'),
+            'user'       => $user,
+            'token'      => $token,
+            'token_type' => 'Bearer',
         ];
     }
 
     /**
-     * Revoke the current user's token.
+     * Revoke the current user's access token (logout).
      */
     public function logout(User $user): void
     {
         $user->token()->revoke();
-        Log::info("User [{$user->id}] logged out");
+
+        $this->messageBroker->publish('auth.user.logged_out', [
+            'tenant_id' => $this->tenantContext->getTenantId(),
+            'user_id'   => $user->id,
+        ]);
     }
 
     /**
-     * Issue a fresh token (simple re-issue via personal access token).
-     */
-    public function refresh(User $user): array
-    {
-        // Revoke old token
-        $user->token()->revoke();
-
-        $tokenResult = $this->createPassportToken($user, 'refresh');
-
-        return [
-            'token_type'   => 'Bearer',
-            'access_token' => $tokenResult->accessToken,
-            'expires_at'   => $tokenResult->token->expires_at?->toIso8601String(),
-        ];
-    }
-
-    /**
-     * Return the authenticated user with roles/permissions.
+     * Return the currently authenticated user with roles/permissions.
      */
     public function me(User $user): User
     {
         return $user->load('roles', 'permissions');
-    }
-
-    // -------------------------------------------------------------------------
-    // Registration
-    // -------------------------------------------------------------------------
-
-    /**
-     * Register a new user within a tenant context.
-     */
-    public function register(array $data): array
-    {
-        $user = User::create([
-            'tenant_id'  => $data['tenant_id'],
-            'name'       => $data['name'],
-            'email'      => $data['email'],
-            'password'   => Hash::make($data['password']),
-            'is_active'  => true,
-        ]);
-
-        // Assign default role for new registrations
-        $defaultRole = $data['role'] ?? 'viewer';
-        if (in_array($defaultRole, ['viewer', 'staff'], true)) {
-            $user->assignRole($defaultRole);
-        }
-
-        Log::info("New user [{$user->id}] registered for tenant [{$user->tenant_id}]");
-
-        $tokenResult = $this->createPassportToken($user, 'registration');
-
-        return [
-            'token_type'   => 'Bearer',
-            'access_token' => $tokenResult->accessToken,
-            'expires_at'   => $tokenResult->token->expires_at?->toIso8601String(),
-            'user'         => $user->load('roles', 'permissions'),
-        ];
-    }
-
-    // -------------------------------------------------------------------------
-    // Token verification
-    // -------------------------------------------------------------------------
-
-    /**
-     * Verify a raw bearer token and return the associated user.
-     *
-     * @throws \RuntimeException
-     */
-    public function verifyToken(string $rawToken): array
-    {
-        // Use Passport's built-in guard to resolve the token
-        $user = Auth::guard('api')->setToken($rawToken)->user();
-
-        if (!$user) {
-            throw new \RuntimeException('Invalid or expired token', 401);
-        }
-
-        return [
-            'valid'       => true,
-            'user_id'     => $user->id,
-            'tenant_id'   => $user->tenant_id,
-            'email'       => $user->email,
-            'roles'       => $user->getRoleNames(),
-            'permissions' => $user->getAllPermissions()->pluck('name'),
-            'claims'      => $user->getCustomClaims(),
-        ];
-    }
-
-    // -------------------------------------------------------------------------
-    // SSO
-    // -------------------------------------------------------------------------
-
-    /**
-     * Issue a short-lived SSO token for cross-service authentication.
-     */
-    public function ssoToken(User $user): array
-    {
-        $tokenResult = $this->createPassportToken($user, 'sso', now()->addMinutes(5));
-
-        Log::info("SSO token issued for user [{$user->id}] tenant [{$user->tenant_id}]");
-
-        return [
-            'sso_token'  => $tokenResult->accessToken,
-            'expires_at' => $tokenResult->token->expires_at?->toIso8601String(),
-            'claims'     => $user->getCustomClaims(),
-        ];
-    }
-
-    /**
-     * Validate an SSO token and return its decoded claims.
-     */
-    public function validateSsoToken(string $token): array
-    {
-        return $this->verifyToken($token);
-    }
-
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
-
-    private function createPassportToken(User $user, string $tokenName, ?\Carbon\Carbon $expiresAt = null): PersonalAccessTokenResult
-    {
-        $scopes      = $user->getAllPermissions()->pluck('name')->toArray();
-        $expiresAt ??= now()->addMinutes(config('passport.token_expire_in', 60));
-
-        $tokenResult = $user->createToken($tokenName, $scopes, $expiresAt);
-
-        return $tokenResult;
     }
 }

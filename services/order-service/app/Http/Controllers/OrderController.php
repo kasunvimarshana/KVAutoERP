@@ -1,94 +1,68 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Application\DTOs\CreateOrderDto;
 use App\Application\Services\OrderService;
-use App\Http\Requests\CreateOrderRequest;
 use App\Http\Resources\OrderResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Saas\SharedKernel\Application\DTOs\PaginationDto;
 
-class OrderController extends Controller
+/**
+ * Thin order controller.
+ */
+final class OrderController extends Controller
 {
     public function __construct(private readonly OrderService $orderService) {}
 
-    /**
-     * GET /api/v1/orders
-     */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request): JsonResponse
     {
-        $tenantId = $request->header('X-Tenant-ID');
-        $filters  = $request->only(['status', 'customer_id', 'from_date', 'to_date']);
-        $perPage  = min((int) $request->query('per_page', 15), 100);
+        $pagination = PaginationDto::fromArray($request->all());
+        $filters    = $request->only(['status', 'customer_id']);
+        $result     = $this->orderService->list($pagination, $filters);
 
-        $orders = $this->orderService->listOrders($tenantId, $perPage, $filters);
-
-        return OrderResource::collection($orders);
-    }
-
-    /**
-     * GET /api/v1/orders/{id}
-     */
-    public function show(Request $request, int $id): OrderResource
-    {
-        $order = $this->orderService->getOrder($id, $request->header('X-Tenant-ID'));
-
-        return new OrderResource($order);
-    }
-
-    /**
-     * POST /api/v1/orders
-     */
-    public function store(CreateOrderRequest $request): JsonResponse
-    {
-        $payload = array_merge($request->validated(), [
-            'tenant_id'  => $request->header('X-Tenant-ID'),
-            'auth_token' => $request->bearerToken(),
-        ]);
-
-        $result = $this->orderService->createOrder($payload);
-
-        return response()->json([
-            'message'  => 'Order created successfully',
-            'data'     => new OrderResource($result['order']),
-            'saga_id'  => $result['saga_id'],
-        ], 201);
-    }
-
-    /**
-     * POST /api/v1/orders/{id}/cancel
-     */
-    public function cancel(Request $request, int $id): JsonResponse
-    {
-        $order = $this->orderService->cancelOrder(
-            $id,
-            $request->header('X-Tenant-ID'),
-            $request->input('reason', '')
-        );
-
-        return response()->json([
-            'message' => 'Order cancelled successfully',
-            'data'    => new OrderResource($order),
-        ]);
-    }
-
-    /**
-     * GET /api/v1/orders/{id}/saga-status
-     */
-    public function sagaStatus(Request $request, int $id): JsonResponse
-    {
-        $order = $this->orderService->getOrder($id, $request->header('X-Tenant-ID'));
-
-        if (!$order->saga_id) {
-            return response()->json(['message' => 'No saga associated with this order'], 404);
+        if (method_exists($result, 'currentPage')) {
+            $result->through(fn($o) => new OrderResource($o));
+            return response()->json(['success' => true, 'data' => $result->items(), 'meta' => ['total' => $result->total()]]);
         }
 
-        $status = $this->orderService->getSagaStatus(
-            $order->saga_id,
-            $request->header('X-Tenant-ID')
-        );
+        return response()->json(['success' => true, 'data' => OrderResource::collection($result)]);
+    }
 
-        return response()->json(['data' => $status]);
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'customer_id'               => ['required', 'string'],
+            'items'                     => ['required', 'array', 'min:1'],
+            'items.*.product_id'        => ['required', 'uuid'],
+            'items.*.product_name'      => ['required', 'string'],
+            'items.*.product_sku'       => ['required', 'string'],
+            'items.*.quantity'          => ['required', 'integer', 'min:1'],
+            'items.*.unit_price'        => ['required', 'integer', 'min:0'],
+            'items.*.warehouse_id'      => ['sometimes', 'uuid'],
+            'shipping_address'          => ['sometimes', 'array'],
+            'currency'                  => ['sometimes', 'string', 'size:3'],
+            'shipping_cost'             => ['sometimes', 'integer', 'min:0'],
+            'warehouse_id'              => ['sometimes', 'uuid'],
+        ]);
+
+        $order = $this->orderService->create(CreateOrderDto::fromArray($data));
+        return response()->json(['success' => true, 'data' => new OrderResource($order->load('items'))], 201);
+    }
+
+    public function show(string $id): JsonResponse
+    {
+        $order = $this->orderService->get($id);
+        return response()->json(['success' => true, 'data' => new OrderResource($order->load('items'))]);
+    }
+
+    public function cancel(Request $request, string $id): JsonResponse
+    {
+        $data  = $request->validate(['reason' => ['sometimes', 'string', 'max:500']]);
+        $order = $this->orderService->cancel($id, $data['reason'] ?? '');
+        return response()->json(['success' => true, 'data' => new OrderResource($order)]);
     }
 }

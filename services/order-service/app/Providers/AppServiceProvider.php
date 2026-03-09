@@ -1,24 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
-use App\Domain\Order\Repositories\EloquentOrderRepository;
-use App\Domain\Order\Repositories\OrderRepositoryInterface;
 use Illuminate\Support\ServiceProvider;
+use App\Domain\Order\Repositories\Contracts\OrderRepositoryInterface;
+use App\Infrastructure\Repositories\EloquentOrderRepository;
 
-class AppServiceProvider extends ServiceProvider
+final class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void
-    {
-        // Bind repository interface to Eloquent implementation
-        $this->app->bind(
-            OrderRepositoryInterface::class,
-            EloquentOrderRepository::class
-        );
-    }
+    public array $bindings = [
+        OrderRepositoryInterface::class => EloquentOrderRepository::class,
+    ];
 
-    public function boot(): void
-    {
-        //
-    }
+    public function register(): void {}
+    public function boot(): void {}
 }
