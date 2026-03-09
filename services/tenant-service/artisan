@@ -1,0 +1,25 @@
+#!/usr/bin/env php
+<?php
+
+define('LARAVEL_START', microtime(true));
+
+/*
+|--------------------------------------------------------------------------
+| Register The Auto Loader
+|--------------------------------------------------------------------------
+*/
+
+require __DIR__ . '/vendor/autoload.php';
+
+$status = (function (): int {
+    $app = require_once __DIR__ . '/bootstrap/app.php';
+
+    $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+
+    return $kernel->handle(
+        new Symfony\Component\Console\Input\ArgvInput(),
+        new Symfony\Component\Console\Output\ConsoleOutput()
+    );
+})();
+
+exit($status);

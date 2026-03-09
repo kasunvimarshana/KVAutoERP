@@ -1,22 +1,29 @@
 {
-    "name": "saas/auth-service",
-    "description": "Authentication & SSO microservice with Laravel Passport",
+    "name": "saas-platform/auth-service",
+    "description": "Enterprise multi-tenant SaaS authentication service with SSO, RBAC/ABAC, and cross-service token validation",
+    "keywords": ["laravel", "saas", "multi-tenant", "sso", "rbac", "passport"],
+    "license": "proprietary",
     "type": "project",
-    "license": "MIT",
     "require": {
-        "php": "^8.3",
-        "laravel/framework": "^11.0",
-        "laravel/passport": "^12.0",
-        "laravel/tinker": "^2.9",
-        "saas/shared-kernel": "*",
-        "spatie/laravel-permission": "^6.0"
+        "php": "^8.2",
+        "ext-json": "*",
+        "ext-pdo": "*",
+        "ext-redis": "*",
+        "guzzlehttp/guzzle": "^7.8",
+        "laravel/framework": "^10.0",
+        "laravel/passport": "^11.0",
+        "laravel/tinker": "^2.8",
+        "predis/predis": "^2.2",
+        "spatie/laravel-activitylog": "^4.7",
+        "spatie/laravel-permission": "^6.0",
+        "tymon/jwt-auth": "^2.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
         "laravel/pint": "^1.13",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.0",
-        "phpunit/phpunit": "^11.0"
+        "nunomaduro/collision": "^7.10",
+        "phpunit/phpunit": "^10.5"
     },
     "autoload": {
         "psr-4": {
@@ -30,22 +37,35 @@
             "Tests\\": "tests/"
         }
     },
-    "repositories": [
-        {
-            "type": "path",
-            "url": "../../packages/shared-kernel"
-        }
-    ],
     "scripts": {
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ],
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "post-create-project-cmd": [
+            "@php artisan key:generate --ansi",
+            "@php artisan jwt:secret --ansi"
         ]
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
     },
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
     },
     "minimum-stability": "stable",
     "prefer-stable": true
