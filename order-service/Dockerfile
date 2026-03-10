@@ -1,41 +1,24 @@
-FROM php:8.2-fpm-alpine
+FROM php:8.2-cli-alpine
 
-WORKDIR /var/www/html
-
-# Install system dependencies
 RUN apk add --no-cache \
-    git \
-    curl \
-    libpng-dev \
-    oniguruma-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    mysql-client \
-    rabbitmq-c-dev \
-    autoconf \
-    g++ \
-    make
-
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath sockets
+        linux-headers \
+        $PHPIZE_DEPS \
+        libpq-dev \
+        libzip-dev \
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql zip pcntl \
+    && apk del $PHPIZE_DEPS
 
 # Install Composer
-COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy project files
+WORKDIR /var/www
+
 COPY . .
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 
-# Create storage directories
-RUN mkdir -p storage/logs bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
-
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN php artisan config:cache || true
 
 EXPOSE 8000
 
-ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]

@@ -1,12 +1,6 @@
-FROM node:20-alpine
+FROM nginx:1.25-alpine
 
-WORKDIR /app
+COPY nginx.conf /etc/nginx/nginx.conf
 
-COPY package.json ./
-RUN npm install --omit=dev
-
-COPY . .
-
-EXPOSE 8000
-
-CMD ["node", "src/index.js"]
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

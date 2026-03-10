@@ -1,247 +1,239 @@
-version: "3.9"
+version: '3.8'
 
 networks:
   microservices_net:
     driver: bridge
 
 volumes:
-  user_mysql_data:
-  order_mysql_data:
-  product_mongo_data:
-  payment_postgres_data:
-  rabbitmq_data:
+  order_db_data:
+  inventory_db_data:
+  payment_db_data:
+  notification_db_data:
+  redis_data:
 
 services:
-  # ─────────────────────────────────────────────
-  # Message Broker
-  # ─────────────────────────────────────────────
-  rabbitmq:
-    image: rabbitmq:3.12-management
-    container_name: rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    networks:
-      - microservices_net
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
   # ─────────────────────────────────────────────
-  # User Service Database
+  # API GATEWAY  (Nginx reverse-proxy)
   # ─────────────────────────────────────────────
-  user_db:
-    image: mysql:8.0
-    container_name: user_db
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: users_db
-      MYSQL_USER: user_svc
-      MYSQL_PASSWORD: user_pass
-    volumes:
-      - user_mysql_data:/var/lib/mysql
-    networks:
-      - microservices_net
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  # ─────────────────────────────────────────────
-  # User Service (Laravel/Lumen + MySQL)
-  # ─────────────────────────────────────────────
-  user_service:
+  api-gateway:
     build:
-      context: ./user-service
+      context: ./api-gateway
       dockerfile: Dockerfile
-    container_name: user_service
+    container_name: api-gateway
+    ports:
+      - "8080:80"
+    depends_on:
+      - order-service
+      - inventory-service
+      - payment-service
+      - notification-service
+    networks:
+      - microservices_net
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # ORDER SERVICE  (Laravel / PHP 8.2)
+  # ─────────────────────────────────────────────
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order-service
     ports:
       - "8001:8000"
     environment:
       APP_ENV: local
-      APP_KEY: base64:SomeRandomAppKeyForUserService123==
+      APP_DEBUG: "true"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       DB_CONNECTION: mysql
-      DB_HOST: user_db
+      DB_HOST: order-db
       DB_PORT: 3306
-      DB_DATABASE: users_db
-      DB_USERNAME: user_svc
-      DB_PASSWORD: user_pass
-      JWT_SECRET: user_service_jwt_secret_key_2024
+      DB_DATABASE: orders_db
+      DB_USERNAME: order_user
+      DB_PASSWORD: order_pass
+      INVENTORY_SERVICE_URL: http://inventory-service:8000
+      PAYMENT_SERVICE_URL: http://payment-service:3000
+      NOTIFICATION_SERVICE_URL: http://notification-service:5000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      QUEUE_CONNECTION: redis
     depends_on:
-      user_db:
+      order-db:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - microservices_net
+    restart: unless-stopped
+    # Horizontal scaling: `docker-compose up --scale order-service=3`
 
-  # ─────────────────────────────────────────────
-  # Product Service Database
-  # ─────────────────────────────────────────────
-  product_db:
-    image: mongo:7.0
-    container_name: product_db
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: prod_user
-      MONGO_INITDB_ROOT_PASSWORD: prod_pass
-      MONGO_INITDB_DATABASE: products_db
-    volumes:
-      - product_mongo_data:/data/db
-    networks:
-      - microservices_net
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  # ─────────────────────────────────────────────
-  # Product Service (Node.js Express + MongoDB)
-  # ─────────────────────────────────────────────
-  product_service:
-    build:
-      context: ./product-service
-      dockerfile: Dockerfile
-    container_name: product_service
-    ports:
-      - "8002:8000"
-    environment:
-      PORT: 8000
-      MONGO_URI: mongodb://prod_user:prod_pass@product_db:27017/products_db?authSource=admin
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
-      SERVICE_NAME: product-service
-    depends_on:
-      product_db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - microservices_net
-
-  # ─────────────────────────────────────────────
-  # Order Service Database
-  # ─────────────────────────────────────────────
-  order_db:
+  order-db:
     image: mysql:8.0
-    container_name: order_db
+    container_name: order-db
     environment:
-      MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: orders_db
-      MYSQL_USER: order_svc
+      MYSQL_USER: order_user
       MYSQL_PASSWORD: order_pass
+      MYSQL_ROOT_PASSWORD: root_pass
     volumes:
-      - order_mysql_data:/var/lib/mysql
+      - order_db_data:/var/lib/mysql
     networks:
       - microservices_net
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
 
-  # ─────────────────────────────────────────────
-  # Order Service (Laravel/Lumen + MySQL, Saga Orchestrator)
-  # ─────────────────────────────────────────────
-  order_service:
+  order-worker:
     build:
       context: ./order-service
       dockerfile: Dockerfile
-    container_name: order_service
-    ports:
-      - "8003:8000"
+    container_name: order-worker
+    command: php artisan queue:work --tries=3
     environment:
       APP_ENV: local
-      APP_KEY: base64:SomeRandomAppKeyForOrderService123==
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       DB_CONNECTION: mysql
-      DB_HOST: order_db
+      DB_HOST: order-db
       DB_PORT: 3306
       DB_DATABASE: orders_db
-      DB_USERNAME: order_svc
+      DB_USERNAME: order_user
       DB_PASSWORD: order_pass
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: guest
-      RABBITMQ_PASS: guest
-      JWT_SECRET: user_service_jwt_secret_key_2024
-      PRODUCT_SERVICE_URL: http://product_service:8000
-      USER_SERVICE_URL: http://user_service:8000
+      INVENTORY_SERVICE_URL: http://inventory-service:8000
+      PAYMENT_SERVICE_URL: http://payment-service:3000
+      NOTIFICATION_SERVICE_URL: http://notification-service:5000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      QUEUE_CONNECTION: redis
     depends_on:
-      order_db:
-        condition: service_healthy
-      rabbitmq:
+      - order-service
+      - redis
+    networks:
+      - microservices_net
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # INVENTORY SERVICE  (Laravel / PHP 8.2)
+  # ─────────────────────────────────────────────
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    ports:
+      - "8002:8000"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: base64:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=
+      DB_CONNECTION: pgsql
+      DB_HOST: inventory-db
+      DB_PORT: 5432
+      DB_DATABASE: inventory_db
+      DB_USERNAME: inv_user
+      DB_PASSWORD: inv_pass
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      inventory-db:
         condition: service_healthy
     networks:
       - microservices_net
+    restart: unless-stopped
+
+  inventory-db:
+    image: postgres:15-alpine
+    container_name: inventory-db
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: inv_user
+      POSTGRES_PASSWORD: inv_pass
+    volumes:
+      - inventory_db_data:/var/lib/postgresql/data
+    networks:
+      - microservices_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inv_user -d inventory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ─────────────────────────────────────────────
-  # Payment Service Database
+  # PAYMENT SERVICE  (Node.js / Express)
   # ─────────────────────────────────────────────
-  payment_db:
-    image: postgres:16
-    container_name: payment_db
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    ports:
+      - "8003:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: payment-db
+      DB_PORT: 5432
+      DB_NAME: payments_db
+      DB_USER: pay_user
+      DB_PASS: pay_pass
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      payment-db:
+        condition: service_healthy
+    networks:
+      - microservices_net
+    restart: unless-stopped
+
+  payment-db:
+    image: postgres:15-alpine
+    container_name: payment-db
     environment:
       POSTGRES_DB: payments_db
       POSTGRES_USER: pay_user
       POSTGRES_PASSWORD: pay_pass
     volumes:
-      - payment_postgres_data:/var/lib/postgresql/data
+      - payment_db_data:/var/lib/postgresql/data
     networks:
       - microservices_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pay_user -d payments_db"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
 
   # ─────────────────────────────────────────────
-  # Payment Service (Python FastAPI + PostgreSQL)
+  # NOTIFICATION SERVICE  (Python / Flask)
   # ─────────────────────────────────────────────
-  payment_service:
+  notification-service:
     build:
-      context: ./payment-service
+      context: ./notification-service
       dockerfile: Dockerfile
-    container_name: payment_service
+    container_name: notification-service
     ports:
-      - "8004:8000"
+      - "8004:5000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://pay_user:pay_pass@payment_db:5432/payments_db
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
-      SERVICE_NAME: payment-service
+      FLASK_ENV: development
+      DATABASE_URL: sqlite:////app/notifications.db
+      REDIS_URL: redis://redis:6379/0
     depends_on:
-      payment_db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - redis
     networks:
       - microservices_net
+    restart: unless-stopped
 
   # ─────────────────────────────────────────────
-  # API Gateway (Node.js Express)
+  # SHARED INFRASTRUCTURE
   # ─────────────────────────────────────────────
-  api_gateway:
-    build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
-    container_name: api_gateway
+  redis:
+    image: redis:7-alpine
+    container_name: redis
     ports:
-      - "8000:8000"
-    environment:
-      PORT: 8000
-      USER_SERVICE_URL: http://user_service:8000
-      PRODUCT_SERVICE_URL: http://product_service:8000
-      ORDER_SERVICE_URL: http://order_service:8000
-      PAYMENT_SERVICE_URL: http://payment_service:8000
-      JWT_SECRET: user_service_jwt_secret_key_2024
-    depends_on:
-      - user_service
-      - product_service
-      - order_service
-      - payment_service
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
     networks:
       - microservices_net
+    restart: unless-stopped
