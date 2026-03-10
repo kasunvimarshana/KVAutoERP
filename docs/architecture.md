@@ -1,677 +1,398 @@
-# Architecture Documentation
+# Microservices Architecture Documentation
 
-## Table of Contents
+## Overview
 
-1. [System Overview](#system-overview)
-2. [Service Boundaries and Responsibilities](#service-boundaries-and-responsibilities)
-3. [Service Interaction Flows](#service-interaction-flows)
-4. [Database Schemas](#database-schemas)
-5. [Saga Pattern Implementation](#saga-pattern-implementation)
-6. [Event-Driven Communication](#event-driven-communication)
-7. [Security Architecture](#security-architecture)
-8. [Infrastructure Configuration](#infrastructure-configuration)
+This system demonstrates a **production-grade microservices architecture** centered around Laravel, showcasing how independent services collaborate in a loosely coupled, highly scalable system. Each service owns its own technology stack and database, communicating through well-defined interfaces.
 
 ---
 
-## System Overview
-
-The SSO_SAAS platform is a **polyglot microservices architecture** in which each domain service:
-
-- Owns exactly one database instance (database-per-service pattern)
-- Is deployed as a separate Docker container
-- Communicates synchronously with other services via HTTP (for request/response) and asynchronously via RabbitMQ (for domain events)
-- Is independently deployable and horizontally scalable
-
-All external traffic enters through a single **API Gateway** (port 3000), which performs rate limiting, CORS enforcement, security header injection, and transparent HTTP proxying to the correct upstream service.
+## Service Architecture
 
 ```
-                   External Traffic
-                         │
-                    ┌────▼─────┐
-                    │  API GW  │  Port 3000
-                    │ Node.js  │  Rate-limit: 100 req/15 min
-                    │ Express  │  CORS, Helmet, HTTP Proxy
-                    └────┬─────┘
-                         │
-         ┌───────────────┼───────────────────────┐
-         │               │               │        │        │
-    ┌────▼───┐      ┌────▼───┐      ┌───▼──┐  ┌──▼──────┐ ┌──▼────┐
-    │  Auth  │      │  User  │      │Prod. │  │Inventory│ │Order  │
-    │ :3001  │      │ :3002  │      │:3003 │  │  :3004  │ │ :3005 │
-    │Node.js │      │Node.js │      │  Go  │  │ Python  │ │Node.js│
-    └────┬───┘      └────┬───┘      └───┬──┘  └──┬──────┘ └──┬────┘
-         │               │              │         │            │
-    ┌────▼──┐        ┌───▼──┐       ┌──▼───┐  ┌──▼───┐   ┌───▼──┐
-    │PG auth│        │PG usr│       │PG prd│  │Mongo │   │MySQL │
-    └───────┘        └──────┘       └──────┘  └──────┘   └──────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                         API Gateway (Node.js)                        │
+│                    Port: 8000  |  Rate-limiting, JWT auth            │
+└────────┬─────────────┬──────────────┬──────────────────┬────────────┘
+         │             │              │                  │
+         ▼             ▼              ▼                  ▼
+  ┌────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+  │    User    │ │   Product    │ │    Order     │ │   Payment    │
+  │  Service   │ │   Service    │ │   Service    │ │   Service    │
+  │  (Lumen)   │ │  (Node.js)   │ │  (Lumen)     │ │  (Python)    │
+  │  Port 8001 │ │  Port 8002   │ │  Port 8003   │ │  Port 8004   │
+  └─────┬──────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘
+        │               │                │                 │
+        ▼               ▼                ▼                 ▼
+   ┌─────────┐    ┌──────────┐    ┌──────────┐    ┌──────────────┐
+   │  MySQL  │    │ MongoDB  │    │  MySQL   │    │ PostgreSQL   │
+   │users_db │    │products  │    │orders_db │    │payments_db   │
+   └─────────┘    └──────────┘    └──────────┘    └──────────────┘
 
-              ┌────────────────────────────────────────────┐
-              │  RabbitMQ  5672/15672  (topic exchanges)   │
-              │  Redis     6379        (cache / sessions)  │
-              └────────────────────────────────────────────┘
+                         ┌─────────────────┐
+                         │    RabbitMQ     │
+                         │  (Message Broker│
+                         │   Port 5672)    │
+                         └────────┬────────┘
+                                  │
+          ┌───────────────────────┼────────────────────────┐
+          ▼                       ▼                         ▼
+  Product Service           Order Service            Payment Service
+  (inventory events)      (saga coordinator)        (payment events)
 ```
 
 ---
 
-## Service Boundaries and Responsibilities
+## Technology Stack
 
-### API Gateway (`services/api-gateway`)
+| Service          | Language  | Framework     | Database    | Communication         |
+|------------------|-----------|---------------|-------------|----------------------|
+| API Gateway      | Node.js   | Express       | -           | REST (proxy)         |
+| User Service     | PHP       | Lumen (Laravel)| MySQL       | REST                 |
+| Product Service  | Node.js   | Express       | MongoDB     | REST + AMQP          |
+| Order Service    | PHP       | Lumen (Laravel)| MySQL       | REST + AMQP          |
+| Payment Service  | Python    | FastAPI       | PostgreSQL  | REST + AMQP          |
+| Message Broker   | -         | RabbitMQ      | -           | AMQP/Topic Exchange  |
 
-**Technology:** Node.js, Express, http-proxy-middleware  
-**Port:** 3000  
-**Role:** The single entry point for all client traffic.
+---
 
-Responsibilities:
-- Route requests to the correct upstream service based on the URL path prefix
-- Enforce rate limits (express-rate-limit, 100 requests per 15-minute window per IP)
-- Inject security headers via Helmet (CSP, HSTS, XSS-protection, etc.)
-- Enforce CORS policy (configurable `CORS_ALLOWED_ORIGINS`)
-- Forward the original client IP via `X-Forwarded-For`
-- Add a gateway request ID via `X-Gateway-Request-Id`
-- Return `502 Bad Gateway` with a structured error when an upstream is unreachable
-- Expose a `/health` endpoint that aggregates health from all upstreams
+## Service Responsibilities
 
-The gateway does **not** perform authentication — that responsibility lives in each service.
+### API Gateway (Node.js Express)
+- **Single entry point** for all client requests
+- **JWT validation** — verifies tokens before forwarding requests
+- **Rate limiting** — prevents abuse (200 req/15 min)
+- **Request routing** — forwards to appropriate downstream service
+- **Error handling** — returns 502 if downstream is unavailable
 
-Path routing table:
+### User Service (Lumen + MySQL)
+- **User registration** with hashed passwords (bcrypt)
+- **JWT issuance** via `firebase/php-jwt` (HS256)
+- **Authentication** — returns signed JWT tokens
+- **User profile management** (CRUD)
+- **Owns**: `users_db` (MySQL)
+
+### Product Service (Node.js Express + MongoDB)
+- **Product catalog** — CRUD for products
+- **Inventory management** — tracks stock and reserved quantities
+- **Saga participant** — listens for `order.created` events
+- **Atomic reservation** — uses MongoDB atomic update for race-free inventory reservation
+- **Compensation** — listens for `inventory.release` to undo reservations
+- **Owns**: `products_db` (MongoDB)
+
+### Order Service (Lumen + MySQL, Saga Orchestrator)
+- **Order management** — create, view, cancel orders
+- **Saga coordinator** — publishes events and monitors saga progress
+- **Status tracking** — maintains `saga_state` field throughout the saga
+- **Compensation trigger** — on payment failure, triggers `inventory.release`
+- **Owns**: `orders_db` (MySQL)
+
+### Payment Service (Python FastAPI + PostgreSQL)
+- **Payment processing** — simulates payment gateway calls
+- **Saga participant** — listens for `inventory.reserved` events
+- **Async consumer** — uses `aio-pika` for async AMQP processing
+- **Payment records** — stores all payment attempts
+- **Owns**: `payments_db` (PostgreSQL)
+
+---
+
+## Interaction Flows
+
+### 1. User Registration + Login (Synchronous REST)
+
 ```
-/api/auth/*       → http://auth-service:3001
-/api/users/*      → http://user-service:3002
-/api/products/*   → http://product-service:3003
-/api/inventory/*  → http://inventory-service:3004
-/api/orders/*     → http://order-service:3005
+Client → POST /api/users/register → API Gateway → User Service
+                                                        │
+                                              Save user to MySQL
+                                                        │
+                                              Return JWT token
+                                                        │
+Client ← 201 { token, user } ─────────────────────────┘
+```
+
+### 2. Browse Products (Synchronous REST)
+
+```
+Client → GET /api/products → API Gateway → Product Service
+                             (JWT check)         │
+                                           Fetch from MongoDB
+                                                  │
+Client ← 200 { products } ────────────────────────┘
+```
+
+### 3. Place Order – Saga Pattern (Asynchronous Choreography)
+
+```
+Client → POST /api/orders → API Gateway → Order Service
+                            (JWT check)        │
+                                        Create order (status=PENDING)
+                                               │
+                                     Publish order.created → RabbitMQ
+                                               │
+                                               ▼
+                                    ┌─── RabbitMQ Exchange ───┐
+                                    │      (saga.events)       │
+                                    └──────────┬───────────────┘
+                                               │ order.created
+                                               ▼
+                                       Product Service
+                                               │
+                               Check: stock - reserved >= quantity ?
+                                       ┌──────┴──────┐
+                                      YES            NO
+                                       │              │
+                              reserve inventory    publish
+                                       │        inventory.reservation.failed
+                              publish inventory.reserved
+                                       │
+                                       ▼
+                               Payment Service
+                                       │
+                               Process payment
+                                ┌──────┴──────┐
+                               SUCCESS       FAILURE
+                                │              │
+                        publish payment.     publish payment.
+                        processed            failed
+                                │              │
+                                ▼              ▼
+                          Order Service   Order Service
+                                │              │
+                      status=COMPLETED   Publish inventory.release
+                                         status=FAILED
+                                               │
+                                               ▼
+                                       Product Service
+                                               │
+                                    Release reserved inventory
+                                    (compensation/rollback)
 ```
 
 ---
 
-### Auth Service (`services/auth-service`)
+## Distributed Transaction: Saga Pattern
 
-**Technology:** Node.js, Express, Sequelize ORM  
-**Database:** PostgreSQL (`auth_db`)  
-**Port:** 3001  
-**RabbitMQ Exchange:** `user_events` (topic)
+### Pattern Type: **Choreography-based Saga**
 
-The Auth Service is the identity authority of the platform. It is the **only** service that stores passwords and issues JWT tokens.
+In a choreography-based Saga, there is **no central orchestrator**. Instead, each service **reacts to events** and publishes new events, creating a chain of reactions.
 
-**Token strategy:**
-- **Access tokens**: short-lived (default 15 min), signed with `JWT_ACCESS_SECRET`, include `{ userId, email, role }`
-- **Refresh tokens**: long-lived (default 7 d), signed with `JWT_REFRESH_SECRET`, stored in the `refresh_tokens` table
-- **Rotation**: each call to `/refresh` destroys the old refresh token and issues a new pair
+### Events Published
 
-Other services validate access tokens by calling `GET /api/auth/validate` with the `Authorization: Bearer` header. This provides a single source of truth for token validity — if a user is deactivated, the validate endpoint will return `401` even for a cryptographically valid token.
+| Event                          | Publisher        | Subscribers            |
+|-------------------------------|------------------|------------------------|
+| `order.created`               | Order Service    | Product Service        |
+| `inventory.reserved`          | Product Service  | Payment Service, Order Service |
+| `inventory.reservation.failed`| Product Service  | Order Service          |
+| `payment.processed`           | Payment Service  | Order Service          |
+| `payment.failed`              | Payment Service  | Order Service          |
+| `inventory.release`           | Order Service    | Product Service        |
 
----
-
-### User Service (`services/user-service`)
-
-**Technology:** Node.js, Express, Sequelize ORM  
-**Database:** PostgreSQL (`users_db`)  
-**Port:** 3002  
-**RabbitMQ Exchange:** consumes from `user_events`
-
-The User Service maintains the **profile layer** on top of authentication identities. It does not know passwords; it receives user creation events from the Auth Service via RabbitMQ and maintains its own user table with extended profile data.
-
-**Authorization logic:**
-- `GET /me`, `PUT /me`: any authenticated user can access their own profile
-- `GET /:id`, `PUT /:id`: admin or the user themselves
-- `GET /`, `POST /`, `DELETE /:id`: admin only
-
-**Soft delete:** `DELETE /:id` sets `is_active = false`, never hard-deletes rows.
-
----
-
-### Product Service (`services/product-service`)
-
-**Technology:** Go 1.23, Gin framework, GORM  
-**Database:** PostgreSQL (`products_db`)  
-**Port:** 3003  
-**RabbitMQ Exchange:** `product_events` (topic)
-
-The Product Service owns the product catalog. It publishes domain events when products change so that other services (e.g. Inventory) can react without coupling.
-
-**Authentication:** Uses the `AuthRequired` Gin middleware, which calls the Auth Service's validate endpoint. The `AdminOnly` middleware then checks `role == "admin"` from the validated token payload.
-
-**Soft delete:** GORM's `DeletedAt` (`gorm.DeletedAt`) field; deleted products are excluded from list queries automatically via GORM's default scope.
-
-**SKU uniqueness:** Enforced at both the DB level (unique index) and application level (checked before insert/update to return a clean 409).
-
----
-
-### Inventory Service (`services/inventory-service`)
-
-**Technology:** Python 3.12, FastAPI, Motor (async MongoDB driver), Pika (RabbitMQ)  
-**Database:** MongoDB (`inventory_db`)  
-**Port:** 3004  
-**RabbitMQ Exchange (publish):** `inventory_events` (topic)  
-**RabbitMQ Exchange (consume):** `product_events`, queue `inventory_product_events`, key `product.deleted`
-
-The Inventory Service tracks stock levels per product per warehouse. It exposes three reservation lifecycle operations used by the Order Saga:
-
-1. **Reserve** (`/reserve`): atomically decrements available quantity and creates a reservation record with status `pending`
-2. **Confirm** (`/confirm`): marks the reservation as `confirmed`, permanently consuming the stock
-3. **Release** (`/release`): marks the reservation as `released`, restoring the available quantity
-
-The consumer thread runs in a separate daemon thread (using `pika.BlockingConnection`) and handles `product.deleted` events by deleting all inventory records for the given product. Reconnection is automatic with 5 s backoff.
-
----
-
-### Order Service (`services/order-service`)
-
-**Technology:** Node.js, Express, Sequelize ORM  
-**Database:** MySQL 8.0 (`orders_db`)  
-**Port:** 3005  
-**RabbitMQ Exchange:** `order_events` (topic)
-
-The Order Service orchestrates the full order lifecycle. It calls the Auth, Product, and Inventory services synchronously during saga execution, and publishes events to RabbitMQ at key lifecycle transitions.
-
-MySQL was chosen for the Order Service to provide strong ACID guarantees for financial data (order totals, payment states) and to leverage Sequelize's transaction support for atomic order + saga-state writes.
-
----
-
-## Service Interaction Flows
-
-### Authentication Flow
+### Saga States (Order entity)
 
 ```
-Client                  API Gateway             Auth Service            PostgreSQL
-  │                          │                       │                       │
-  │── POST /api/auth/login ──▶                        │                       │
-  │                          │── proxy ──────────────▶                       │
-  │                          │                       │── SELECT users ───────▶
-  │                          │                       │◀── user row ──────────│
-  │                          │                       │── bcrypt.compare ─────┤
-  │                          │                       │── INSERT refresh_tokens▶
-  │                          │                       │◀── ok ────────────────│
-  │                          │◀── { accessToken, ────│
-  │                          │     refreshToken }    │
-  │◀── 200 tokens ───────────│                       │
-```
-
-### Token Validation Flow (used by every protected service)
-
-```
-Client                  API Gateway          Product Service          Auth Service
-  │                          │                     │                       │
-  │── GET /api/products ─────▶                     │                       │
-  │                          │── proxy ────────────▶                       │
-  │                          │                     │── GET /api/auth/validate ─▶
-  │                          │                     │   Authorization: Bearer...  │
-  │                          │                     │◀── { userId, role } ──────│
-  │                          │                     │── handle request ─────┤
-  │                          │◀── products ────────│                       │
-  │◀── 200 products ─────────│                     │                       │
-```
-
-### Order Creation Flow (Saga)
-
-```
-Client         API GW      Order Service     Auth Svc    Product Svc    Inventory Svc    MySQL
-  │              │               │               │             │               │            │
-  │─POST /orders▶│               │               │             │               │            │
-  │              │──proxy────────▶               │             │               │            │
-  │              │               │──VALIDATE_USER─▶            │               │            │
-  │              │               │◀─{userId}─────│             │               │            │
-  │              │               │               │             │               │            │
-  │              │               │  [for each item]:           │               │            │
-  │              │               │──GET_PRODUCT───────────────▶               │            │
-  │              │               │◀─{product}─────────────────│               │            │
-  │              │               │──RESERVE_INVENTORY──────────────────────────▶            │
-  │              │               │◀─{reservationId}────────────────────────────│            │
-  │              │               │                             │               │            │
-  │              │               │──CREATE_ORDER (status=pending)──────────────────────────▶│
-  │              │               │◀─{order}────────────────────────────────────────────────│
-  │              │               │──Publish: order.created                                  │
-  │              │               │                             │               │            │
-  │              │               │  [for each reservation]:    │               │            │
-  │              │               │──CONFIRM_INVENTORY──────────────────────────▶            │
-  │              │               │◀─{ok}───────────────────────────────────────│            │
-  │              │               │                             │               │            │
-  │              │               │──CONFIRM_ORDER (status=confirmed)───────────────────────▶│
-  │              │               │──Publish: order.confirmed                               │
-  │◀─201 order───│◀─────────────│                             │               │            │
-```
-
-### Product Deletion Cascade
-
-```
-Admin           API GW       Product Svc     RabbitMQ         Inventory Svc      MongoDB
-  │               │               │               │                 │                │
-  │─DELETE /prod──▶               │               │                 │                │
-  │               │──proxy────────▶               │                 │                │
-  │               │               │──Soft delete──┤                 │                │
-  │               │               │──Publish: product.deleted ──────▶                │
-  │◀─200 ok───────│◀──────────────│               │                 │                │
-  │               │               │               │──deliver────────▶                │
-  │               │               │               │                 │──DELETE inventory
-  │               │               │               │                 │   by product_id▶
-  │               │               │               │                 │◀─ok────────────│
+order_created
+    │
+    ├─► inventory_reserved ──► (payment_service_processing)
+    │                               │
+    │                        ┌──────┴──────┐
+    │                   payment_processed  payment_failed_compensated
+    │                   (COMPLETED)        (FAILED)
+    │
+    └─► inventory_reservation_failed
+        (FAILED)
 ```
 
 ---
 
-## Database Schemas
+## RabbitMQ Exchange Configuration
 
-### Auth Service — PostgreSQL (`auth_db`)
-
-**Table: `users`**
-
-| Column          | Type             | Constraints                    |
-|-----------------|------------------|--------------------------------|
-| `id`            | UUID             | PRIMARY KEY, default gen_random_uuid() |
-| `name`          | VARCHAR(100)     | NOT NULL                       |
-| `email`         | VARCHAR(255)     | NOT NULL, UNIQUE               |
-| `password_hash` | VARCHAR(255)     | NOT NULL                       |
-| `role`          | ENUM(user,admin) | NOT NULL, DEFAULT 'user'       |
-| `is_active`     | BOOLEAN          | NOT NULL, DEFAULT true         |
-| `created_at`    | TIMESTAMP        | auto                           |
-| `updated_at`    | TIMESTAMP        | auto                           |
-
-**Indexes:** `email (UNIQUE)`, `role`, `is_active`
-
-**Table: `refresh_tokens`**
-
-| Column       | Type      | Constraints               |
-|--------------|-----------|---------------------------|
-| `id`         | UUID      | PRIMARY KEY               |
-| `user_id`    | UUID      | FK → users(id)            |
-| `token`      | TEXT      | NOT NULL, UNIQUE          |
-| `expires_at` | TIMESTAMP | NOT NULL                  |
-| `created_at` | TIMESTAMP | auto                      |
-
-**Indexes:** `token (UNIQUE)`, `user_id`, `expires_at`
-
----
-
-### User Service — PostgreSQL (`users_db`)
-
-**Table: `users`**
-
-| Column       | Type              | Constraints                    |
-|--------------|-------------------|--------------------------------|
-| `id`         | UUID              | PRIMARY KEY, default UUIDV4    |
-| `name`       | VARCHAR(255)      | NOT NULL                       |
-| `email`      | VARCHAR(255)      | NOT NULL, UNIQUE               |
-| `role`       | ENUM(admin,user)  | NOT NULL, DEFAULT 'user'       |
-| `is_active`  | BOOLEAN           | NOT NULL, DEFAULT true         |
-| `profile`    | JSONB             | nullable, default `{}`         |
-| `created_at` | TIMESTAMP         | auto                           |
-| `updated_at` | TIMESTAMP         | auto                           |
-
-`profile` JSONB structure:
-```json
-{
-  "bio": "string (max 1000 chars)",
-  "avatar_url": "string (valid URL)",
-  "phone": "string (valid mobile phone number)"
-}
 ```
+Exchange: saga.events
+Type: topic (supports pattern-based routing)
+Durable: true
 
-**Indexes:** `email (UNIQUE)`, `role`, `is_active`
-
----
-
-### Product Service — PostgreSQL (`products_db`)
-
-**Table: `products`**
-
-| Column        | Type               | Constraints                    |
-|---------------|--------------------|--------------------------------|
-| `id`          | UUID               | PRIMARY KEY, default UUIDV4    |
-| `name`        | VARCHAR(255)       | NOT NULL                       |
-| `description` | TEXT               | nullable                       |
-| `price`       | DECIMAL(10,2)      | NOT NULL                       |
-| `category`    | VARCHAR(100)       | NOT NULL, indexed              |
-| `sku`         | VARCHAR(100)       | NOT NULL, UNIQUE               |
-| `images`      | JSONB              | NOT NULL, default `[]`         |
-| `is_active`   | BOOLEAN            | NOT NULL, default true         |
-| `created_at`  | TIMESTAMP          | auto                           |
-| `updated_at`  | TIMESTAMP          | auto                           |
-| `deleted_at`  | TIMESTAMP          | nullable (GORM soft-delete)    |
-
-**Indexes:** `sku (UNIQUE)`, `category`, `deleted_at`
-
-`images` JSONB is an array of URL strings:
-```json
-["https://cdn.example.com/product-1.jpg", "https://cdn.example.com/product-2.jpg"]
+Bindings:
+  Queue: product.reserve         ← routing key: order.created
+  Queue: product.release         ← routing key: inventory.release
+  Queue: payment.process         ← routing key: inventory.reserved
+  Queue: order.inventory.reserved           ← routing key: inventory.reserved
+  Queue: order.inventory.reservation.failed ← routing key: inventory.reservation.failed
+  Queue: order.payment.processed            ← routing key: payment.processed
+  Queue: order.payment.failed               ← routing key: payment.failed
 ```
 
 ---
 
-### Inventory Service — MongoDB (`inventory_db`)
+## Failure Handling & Rollback
 
-**Collection: `inventory`**
+### Scenario 1: Insufficient Stock
 
-```json
-{
-  "_id": "ObjectId",
-  "product_id": "string (UUID reference to product service)",
-  "warehouse_id": "string",
-  "quantity": "integer (total stock)",
-  "reserved_quantity": "integer (held by pending reservations)",
-  "low_stock_threshold": "integer",
-  "reservations": [
-    {
-      "id": "string (UUID)",
-      "order_id": "string",
-      "quantity": "integer",
-      "status": "pending | confirmed | released",
-      "created_at": "datetime",
-      "updated_at": "datetime"
-    }
-  ],
-  "created_at": "datetime",
-  "updated_at": "datetime"
-}
+```
+order.created published
+    ↓
+Product Service: stock check FAILS
+    ↓
+inventory.reservation.failed published
+    ↓
+Order Service: order.status = FAILED
+              order.failure_reason = "Insufficient stock"
+              order.saga_state = "inventory_reservation_failed"
+
+→ No compensation needed (no state was changed)
 ```
 
-**Available stock** = `quantity - reserved_quantity`
+### Scenario 2: Payment Declined
 
-**Indexes:** `product_id`, `warehouse_id`, compound `{ product_id, warehouse_id }`
+```
+order.created published
+    ↓
+Product Service: inventory reserved (stock decremented)
+    ↓
+inventory.reserved published
+    ↓
+Payment Service: payment DECLINED
+    ↓
+payment.failed published
+    ↓
+Order Service:
+  1. Publishes inventory.release (compensation)
+  2. Updates order.status = FAILED
+     order.saga_state = "payment_failed_compensated"
+    ↓
+Product Service: inventory.release received
+  → reserved quantity decremented (rollback)
+```
+
+### Scenario 3: Service Unavailable
+
+- **RabbitMQ messages are durable** — messages survive broker restarts
+- **Queues are durable** — messages are not lost if a consumer is down
+- **Retry logic** — consumers reconnect automatically on failure
+- **Dead-letter queues** can be added for messages that fail repeatedly (future enhancement)
 
 ---
 
-### Order Service — MySQL 8.0 (`orders_db`)
+## Scalability
 
-**Table: `orders`**
+### Horizontal Scaling
 
-| Column             | Type                                                        | Constraints         |
-|--------------------|-------------------------------------------------------------|---------------------|
-| `id`               | CHAR(36)                                                    | PRIMARY KEY (UUID)  |
-| `user_id`          | VARCHAR(255)                                                | NOT NULL, indexed   |
-| `status`           | ENUM(pending,confirmed,shipped,delivered,cancelled,failed)  | NOT NULL            |
-| `total_amount`     | DECIMAL(12,2)                                               | NOT NULL            |
-| `shipping_address` | JSON                                                        | NOT NULL            |
-| `created_at`       | DATETIME                                                    | auto                |
-| `updated_at`       | DATETIME                                                    | auto                |
+Each service is **stateless** (state stored in its own database) and can be scaled independently:
 
-`shipping_address` JSON structure:
-```json
-{
-  "street": "string",
-  "city": "string",
-  "state": "string (optional)",
-  "zip": "string (optional)",
-  "country": "string"
-}
+```bash
+# Scale product service to 3 instances
+docker compose up --scale product_service=3
+
+# Scale payment service to 2 instances
+docker compose up --scale payment_service=2
 ```
 
-**Table: `order_items`**
+RabbitMQ queues use **competing consumer** pattern — multiple instances of the same service will process messages in parallel without duplication.
 
-| Column         | Type          | Constraints                  |
-|----------------|---------------|------------------------------|
-| `id`           | CHAR(36)      | PRIMARY KEY (UUID)           |
-| `order_id`     | CHAR(36)      | FK → orders(id) ON DELETE CASCADE |
-| `product_id`   | VARCHAR(255)  | NOT NULL                     |
-| `product_name` | VARCHAR(500)  | NOT NULL (snapshotted at order time) |
-| `quantity`     | INT UNSIGNED  | NOT NULL                     |
-| `unit_price`   | DECIMAL(12,2) | NOT NULL                     |
-| `total_price`  | DECIMAL(12,2) | NOT NULL                     |
+### Vertical Scaling
 
-> `product_name` and `unit_price` are **snapshotted** at order creation time so that subsequent product updates do not affect historical orders.
+Each service can independently increase CPU/memory resources via Docker Compose `deploy.resources` settings.
 
-**Table: `saga_state`**
+### Database Scaling
 
-| Column      | Type                                           | Constraints          |
-|-------------|------------------------------------------------|----------------------|
-| `id`        | CHAR(36)                                       | PRIMARY KEY (UUID)   |
-| `order_id`  | CHAR(36)                                       | NOT NULL, indexed    |
-| `saga_step` | VARCHAR(100)                                   | NOT NULL             |
-| `status`    | ENUM(pending,completed,failed,compensated)     | NOT NULL             |
-| `data`      | JSON                                           | nullable             |
-| `created_at`| DATETIME                                       | auto                 |
+- **MySQL** (User/Order): Read replicas via `DB_READ_HOST` env var
+- **MongoDB** (Product): Replica sets and sharding
+- **PostgreSQL** (Payment): Read replicas and connection pooling (PgBouncer)
 
 ---
 
-## Saga Pattern Implementation
+## API Reference
 
-### Design Principles
+### User Service (`/api/users`)
 
-The Order Service implements an **orchestrator-style saga** — one central component (the Order Service) coordinates all steps sequentially, knows the overall goal, and is responsible for compensating on failure.
+| Method | Path              | Auth | Description          |
+|--------|-------------------|------|----------------------|
+| POST   | /register         | No   | Register new user    |
+| POST   | /login            | No   | Login, get JWT       |
+| GET    | /me               | Yes  | Get own profile      |
+| GET    | /{id}             | Yes  | Get user by ID       |
+| PUT    | /{id}             | Yes  | Update user profile  |
 
-This differs from a **choreography-based saga** where services react to each other's events. The orchestrator approach was chosen because:
-- It centralizes business logic in one place, making it easier to reason about and test
-- It provides a clear audit trail (the `saga_state` table records every step)
-- It makes compensation straightforward — the orchestrator knows exactly which steps succeeded
+### Product Service (`/api/products`)
 
-### Step Identification
+| Method | Path              | Auth | Description          |
+|--------|-------------------|------|----------------------|
+| GET    | /                 | Yes  | List products        |
+| GET    | /{id}             | Yes  | Get product by ID    |
+| POST   | /                 | Yes  | Create product       |
+| PUT    | /{id}             | Yes  | Update product       |
+| DELETE | /{id}             | Yes  | Delete product       |
 
-Each saga step is recorded with a unique `saga_step` string. For per-item steps, the product UUID is appended:
+### Order Service (`/api/orders`)
 
-```
-VALIDATE_USER
-GET_PRODUCT:a1b2c3d4-...
-RESERVE_INVENTORY:a1b2c3d4-...
-CREATE_ORDER
-CONFIRM_INVENTORY:a1b2c3d4-...
-CONFIRM_ORDER
-COMPENSATE_INVENTORY:a1b2c3d4-...   ← compensation step
-CANCEL_ORDER                         ← cancellation saga
-```
+| Method | Path              | Auth | Description          |
+|--------|-------------------|------|----------------------|
+| GET    | /                 | Yes  | List my orders       |
+| POST   | /                 | Yes  | Create order (Saga)  |
+| GET    | /{id}             | Yes  | Get order by ID      |
+| PATCH  | /{id}/cancel      | Yes  | Cancel pending order |
 
-### State Machine per Step
+### Payment Service (`/api/payments`)
 
-Each step entry follows this state machine:
-
-```
-         ┌─────────┐
-         │ pending │
-         └────┬────┘
-              │
-     ┌────────┴──────────┐
-     │                   │
-     ▼                   ▼
-┌─────────┐         ┌────────┐
-│completed│         │ failed │
-└─────────┘         └────────┘
-                         │
-                         ▼
-                   ┌────────────┐
-                   │compensated │
-                   └────────────┘
-```
-
-### Compensation Guarantee
-
-The `compensate()` function iterates all successful reservations and calls `releaseInventory()` for each. Failures during compensation are logged and recorded as `failed` in `saga_state` — they do not prevent other compensations from running (best-effort, not all-or-nothing compensation).
-
-This means it is possible for compensation to partially succeed. In a production system, a dead-letter queue or background reconciliation job would handle stuck compensations.
-
-### Idempotency Considerations
-
-The Order ID is generated with `uuidv4()` **before** any remote calls. Saga state rows use this ID as their `order_id` foreign key from the very first step. If the process crashes mid-saga, the incomplete saga steps are visible in `saga_state`, but re-running the saga will generate a new Order ID — the old partial state serves as an audit log only.
+| Method | Path                    | Auth | Description              |
+|--------|-------------------------|------|--------------------------|
+| GET    | /                       | Yes  | List payments            |
+| GET    | /{id}                   | Yes  | Get payment by ID        |
+| GET    | /order/{order_id}       | Yes  | Get payments for order   |
+| POST   | /                       | Yes  | Create payment (manual)  |
 
 ---
 
-## Event-Driven Communication
+## Running the System
 
-### Exchange Topology
+### Prerequisites
+- Docker Engine 24+
+- Docker Compose v2+
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│                        RabbitMQ                                │
-│                                                                │
-│  Exchange: user_events       (topic, durable)                  │
-│    routing key: user.registered                                │
-│    → no bound queues by default                                │
-│                                                                │
-│  Exchange: product_events    (topic, durable)                  │
-│    routing key: product.created                                │
-│    routing key: product.updated                                │
-│    routing key: product.deleted                                │
-│      → Queue: inventory_product_events  (durable)              │
-│                                                                │
-│  Exchange: inventory_events  (topic, durable)                  │
-│    routing key: inventory.reserved                             │
-│    routing key: inventory.released                             │
-│    routing key: inventory.confirmed                            │
-│      → Queue: order_service_events  (durable)                  │
-│                                                                │
-│  Exchange: order_events      (topic, durable)                  │
-│    routing key: order.created                                  │
-│    routing key: order.confirmed                                │
-│    routing key: order.cancelled                                │
-│    routing key: order.failed                                   │
-│    routing key: order.shipped                                  │
-│    routing key: order.delivered                                │
-│      → no bound queues by default                              │
-└────────────────────────────────────────────────────────────────┘
+### Quick Start
+
+```bash
+# Clone and start all services
+git clone https://github.com/kasunvimarshana/KV_SSO_SAAS.git
+cd KV_SSO_SAAS
+
+docker compose up -d --build
+
+# Wait ~30s for all services to be healthy
+docker compose ps
 ```
 
-### Event Payload Schemas
+### Demo Workflow
 
-**`user.registered`** (published by Auth Service)
-```json
-{
-  "userId": "uuid",
-  "name": "string",
-  "email": "string",
-  "role": "user | admin",
-  "registeredAt": "ISO8601 datetime"
-}
+```bash
+BASE_URL="http://localhost:8000"
+
+# 1. Register a user
+curl -X POST $BASE_URL/api/users/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice","email":"alice@example.com","password":"password123"}'
+
+# 2. Login and get token
+TOKEN=$(curl -s -X POST $BASE_URL/api/users/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"password123"}' | jq -r .token)
+
+# 3. Create a product
+PRODUCT_ID=$(curl -s -X POST $BASE_URL/api/products \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Widget","price":29.99,"stock":100}' | jq -r .product._id)
+
+# 4. Place an order (triggers Saga)
+curl -X POST $BASE_URL/api/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"product_id\":\"$PRODUCT_ID\",\"quantity\":2}"
+
+# 5. Check order status (poll until completed/failed)
+curl -H "Authorization: Bearer $TOKEN" $BASE_URL/api/orders/1
 ```
 
-**`product.created` / `product.updated`** (published by Product Service)
-```json
-{
-  "event": "product.created",
-  "payload": {
-    "id": "uuid",
-    "name": "string",
-    "price": 0.00,
-    "category": "string",
-    "sku": "string",
-    "is_active": true
-  },
-  "timestamp": "ISO8601 datetime"
-}
-```
+### Monitoring
 
-**`product.deleted`** (published by Product Service)
-```json
-{
-  "event": "product.deleted",
-  "payload": { "id": "uuid" },
-  "timestamp": "ISO8601 datetime"
-}
-```
-
-**`order.created`** (published by Order Service)
-```json
-{
-  "orderId": "uuid",
-  "userId": "uuid",
-  "totalAmount": 0.00,
-  "items": [
-    { "product_id": "uuid", "product_name": "string", "quantity": 1, "unit_price": 0.00, "total_price": 0.00 }
-  ]
-}
-```
-
-**`order.confirmed` / `order.cancelled` / `order.failed`** (published by Order Service)
-```json
-{
-  "orderId": "uuid",
-  "userId": "uuid",
-  "totalAmount": 0.00
-}
-```
-
----
-
-## Security Architecture
-
-### Token Flow
-
-```
-┌──────────┐        ┌─────────────┐       ┌──────────────────────┐
-│  Client  │        │ Auth Service│       │ Protected Service    │
-└──────────┘        └─────────────┘       └──────────────────────┘
-     │                     │                          │
-     │── POST /login ──────▶                          │
-     │◀─ { accessToken,    │                          │
-     │     refreshToken }  │                          │
-     │                     │                          │
-     │── GET /api/products ────────────────────────────▶
-     │   Authorization: Bearer <accessToken>          │
-     │                     │                          │──GET /api/auth/validate──▶
-     │                     │                          │◀─{ userId, role }────────│
-     │                     │                          │
-     │◀── response ──────────────────────────────────│
-```
-
-### Authentication Middleware Pattern
-
-Each service implements its own `auth` middleware that:
-1. Extracts the `Authorization: Bearer <token>` header
-2. Makes an HTTP GET request to `AUTH_SERVICE_URL/api/auth/validate`
-3. On success: attaches `req.user = { id, email, role }` (Node.js) or sets user in request context (Go/Python)
-4. On failure: returns `401 Unauthorized`
-
-This means the Auth Service is on the hot path for every authenticated request. In a higher-scale deployment, services could instead verify tokens locally using the shared `JWT_SECRET`, falling back to the Auth Service only when the token is expired or the user needs to be confirmed active.
-
-### Admin Authorization
-
-After authentication, admin-only routes check `req.user.role === 'admin'`. The role is embedded in the JWT payload at login time and re-verified by the Auth Service on each validate call.
-
-### Network Isolation
-
-All services communicate on the internal Docker bridge network `microservices-net`. No database or RabbitMQ port is exposed to the host except the API Gateway (`:3000`), RabbitMQ management UI (`:15672` — for development only), and RabbitMQ AMQP (`:5672`). In production, the management UI and AMQP ports should be accessible only from within a private VPC.
-
----
-
-## Infrastructure Configuration
-
-### Docker Compose Dependency Chain
-
-```
-rabbitmq ──────────────────────────────────────────┐
-postgres-auth ──────────────────────────────────────┤
-postgres-users ─────────────────────────────────────┤
-postgres-products ──────────────────────────────────┤
-mongodb ─────────────────────────────────────────────┤
-mysql-orders ────────────────────────────────────────┤
-redis ──────────────────────────────────────────────┘
-         │  (all healthy)
-         ├──▶ auth-service (depends on: postgres-auth [healthy], rabbitmq [healthy])
-         ├──▶ user-service (depends on: postgres-users [healthy], rabbitmq [healthy], auth-service [started])
-         ├──▶ product-service (depends on: postgres-products [healthy], rabbitmq [healthy], auth-service [started])
-         ├──▶ inventory-service (depends on: mongodb [healthy], rabbitmq [healthy], auth-service [started])
-         ├──▶ order-service (depends on: mysql-orders [healthy], rabbitmq [healthy],
-         │                              auth-service [started], product-service [started],
-         │                              inventory-service [started])
-         └──▶ api-gateway (depends on: all 5 services [started])
-```
-
-### Health Checks
-
-| Container          | Check command                               | Interval | Retries |
-|--------------------|---------------------------------------------|----------|---------|
-| `rabbitmq`         | `rabbitmq-diagnostics check_port_connectivity` | 30 s  | 5       |
-| `postgres-auth`    | `pg_isready -U auth_user -d auth_db`        | 10 s     | 5       |
-| `postgres-users`   | `pg_isready -U users_user -d users_db`      | 10 s     | 5       |
-| `postgres-products`| `pg_isready -U products_user -d products_db`| 10 s     | 5       |
-| `mongodb`          | `mongosh --eval "db.adminCommand('ping')"`  | 15 s     | 5       |
-| `mysql-orders`     | `mysqladmin ping -h localhost`              | 15 s     | 5       |
-| `redis`            | `redis-cli ping`                            | 10 s     | 5       |
-
-### Volumes
-
-| Volume                  | Used by             |
-|-------------------------|---------------------|
-| `rabbitmq_data`         | RabbitMQ            |
-| `postgres_auth_data`    | Auth Service DB     |
-| `postgres_users_data`   | User Service DB     |
-| `postgres_products_data`| Product Service DB  |
-| `mongodb_data`          | Inventory Service DB|
-| `mysql_orders_data`     | Order Service DB    |
-| `redis_data`            | Redis cache         |
-
-All volumes use the default `local` driver and are persisted across container restarts.
-
-### Logging
-
-All containers use the `json-file` log driver with rotation settings:
-- `max-size: 10m` — rotate when log file reaches 10 MB
-- `max-file: 3` — keep the 3 most recent log files per container
-
-Access logs with: `docker-compose logs -f <service-name>`
+- **RabbitMQ Management UI**: http://localhost:15672 (guest/guest)
+- **API Gateway Health**: http://localhost:8000/health
+- **Service Logs**: `docker compose logs -f <service_name>`

@@ -1,352 +1,247 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# Shared extension fields
-# ─────────────────────────────────────────────────────────────────────────────
-x-restart-policy: &restart-policy
-  restart: unless-stopped
+version: "3.9"
 
-x-logging: &default-logging
-  logging:
-    driver: json-file
-    options:
-      max-size: "10m"
-      max-file: "3"
+networks:
+  microservices_net:
+    driver: bridge
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Services
-# ─────────────────────────────────────────────────────────────────────────────
+volumes:
+  user_mysql_data:
+  order_mysql_data:
+  product_mongo_data:
+  payment_postgres_data:
+  rabbitmq_data:
+
 services:
-
-  # ── Infrastructure ──────────────────────────────────────────────────────────
-
+  # ─────────────────────────────────────────────
+  # Message Broker
+  # ─────────────────────────────────────────────
   rabbitmq:
-    image: rabbitmq:3.12-management-alpine
+    image: rabbitmq:3.12-management
     container_name: rabbitmq
-    <<: [*restart-policy, *default-logging]
     ports:
-      - "5672:5672"     # AMQP
-      - "15672:15672"   # Management UI
+      - "5672:5672"
+      - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
     networks:
-      - microservices-net
-
-  postgres-auth:
-    image: postgres:15-alpine
-    container_name: postgres-auth
-    <<: [*restart-policy, *default-logging]
-    environment:
-      POSTGRES_DB: auth_db
-      POSTGRES_USER: auth_user
-      POSTGRES_PASSWORD: auth_password
-    volumes:
-      - postgres_auth_data:/var/lib/postgresql/data
+      - microservices_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 20s
-    networks:
-      - microservices-net
+      retries: 10
 
-  postgres-users:
-    image: postgres:15-alpine
-    container_name: postgres-users
-    <<: [*restart-policy, *default-logging]
-    environment:
-      POSTGRES_DB: users_db
-      POSTGRES_USER: users_user
-      POSTGRES_PASSWORD: users_password
-    volumes:
-      - postgres_users_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U users_user -d users_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    networks:
-      - microservices-net
-
-  postgres-products:
-    image: postgres:15-alpine
-    container_name: postgres-products
-    <<: [*restart-policy, *default-logging]
-    environment:
-      POSTGRES_DB: products_db
-      POSTGRES_USER: products_user
-      POSTGRES_PASSWORD: products_password
-    volumes:
-      - postgres_products_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U products_user -d products_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    networks:
-      - microservices-net
-
-  mongodb:
-    image: mongo:7-jammy
-    container_name: mongodb
-    <<: [*restart-policy, *default-logging]
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
-    volumes:
-      - mongodb_data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--quiet"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    networks:
-      - microservices-net
-
-  mysql-orders:
+  # ─────────────────────────────────────────────
+  # User Service Database
+  # ─────────────────────────────────────────────
+  user_db:
     image: mysql:8.0
-    container_name: mysql-orders
-    <<: [*restart-policy, *default-logging]
+    container_name: user_db
     environment:
-      MYSQL_DATABASE: orders_db
-      MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_USER: orders_user
-      MYSQL_PASSWORD: orders_password
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: users_db
+      MYSQL_USER: user_svc
+      MYSQL_PASSWORD: user_pass
     volumes:
-      - mysql_orders_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "orders_user", "--password=orders_password"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
+      - user_mysql_data:/var/lib/mysql
     networks:
-      - microservices-net
-
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    <<: [*restart-policy, *default-logging]
-    volumes:
-      - redis_data:/data
+      - microservices_net
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - microservices-net
+      retries: 10
 
-  # ── Application Services ────────────────────────────────────────────────────
-
-  auth-service:
+  # ─────────────────────────────────────────────
+  # User Service (Laravel/Lumen + MySQL)
+  # ─────────────────────────────────────────────
+  user_service:
     build:
-      context: ./services/auth-service
+      context: ./user-service
       dockerfile: Dockerfile
-    container_name: auth-service
-    <<: [*restart-policy, *default-logging]
-    environment:
-      NODE_ENV: production
-      PORT: 3001
-      DB_HOST: postgres-auth
-      DB_PORT: 5432
-      DB_NAME: auth_db
-      DB_USER: auth_user
-      DB_PASSWORD: auth_password
-      RABBITMQ_URL: amqp://admin:password@rabbitmq:5672
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-change_me_in_production_auth_secret}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
-      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
-    depends_on:
-      postgres-auth:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - microservices-net
-
-  user-service:
-    build:
-      context: ./services/user-service
-      dockerfile: Dockerfile
-    container_name: user-service
-    <<: [*restart-policy, *default-logging]
-    environment:
-      NODE_ENV: production
-      PORT: 3002
-      DB_HOST: postgres-users
-      DB_PORT: 5432
-      DB_NAME: users_db
-      DB_USER: users_user
-      DB_PASSWORD: users_password
-      RABBITMQ_URL: amqp://admin:password@rabbitmq:5672
-      REDIS_URL: redis://redis:6379
-      AUTH_SERVICE_URL: http://auth-service:3001
-      JWT_SECRET: ${JWT_SECRET:-change_me_in_production_auth_secret}
-    depends_on:
-      postgres-users:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      auth-service:
-        condition: service_started
-    networks:
-      - microservices-net
-
-  product-service:
-    build:
-      context: ./services/product-service
-      dockerfile: Dockerfile
-    container_name: product-service
-    <<: [*restart-policy, *default-logging]
-    environment:
-      NODE_ENV: production
-      PORT: 3003
-      DB_HOST: postgres-products
-      DB_PORT: 5432
-      DB_NAME: products_db
-      DB_USER: products_user
-      DB_PASSWORD: products_password
-      RABBITMQ_URL: amqp://admin:password@rabbitmq:5672
-      REDIS_URL: redis://redis:6379
-      AUTH_SERVICE_URL: http://auth-service:3001
-      JWT_SECRET: ${JWT_SECRET:-change_me_in_production_auth_secret}
-    depends_on:
-      postgres-products:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      auth-service:
-        condition: service_started
-    networks:
-      - microservices-net
-
-  inventory-service:
-    build:
-      context: ./services/inventory-service
-      dockerfile: Dockerfile
-    container_name: inventory-service
-    <<: [*restart-policy, *default-logging]
-    environment:
-      NODE_ENV: production
-      PORT: 3004
-      MONGO_URI: mongodb://admin:password@mongodb:27017/inventory_db?authSource=admin
-      RABBITMQ_URL: amqp://admin:password@rabbitmq:5672
-      REDIS_URL: redis://redis:6379
-      AUTH_SERVICE_URL: http://auth-service:3001
-      JWT_SECRET: ${JWT_SECRET:-change_me_in_production_auth_secret}
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      auth-service:
-        condition: service_started
-    networks:
-      - microservices-net
-
-  order-service:
-    build:
-      context: ./services/order-service
-      dockerfile: Dockerfile
-    container_name: order-service
-    <<: [*restart-policy, *default-logging]
-    environment:
-      NODE_ENV: production
-      PORT: 3005
-      DB_HOST: mysql-orders
-      DB_PORT: 3306
-      DB_NAME: orders_db
-      DB_USER: orders_user
-      DB_PASSWORD: orders_password
-      RABBITMQ_URL: amqp://admin:password@rabbitmq:5672
-      REDIS_URL: redis://redis:6379
-      AUTH_SERVICE_URL: http://auth-service:3001
-      PRODUCT_SERVICE_URL: http://product-service:3003
-      INVENTORY_SERVICE_URL: http://inventory-service:3004
-      JWT_SECRET: ${JWT_SECRET:-change_me_in_production_auth_secret}
-    depends_on:
-      mysql-orders:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      auth-service:
-        condition: service_started
-      product-service:
-        condition: service_started
-      inventory-service:
-        condition: service_started
-    networks:
-      - microservices-net
-
-  api-gateway:
-    build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
-    container_name: api-gateway
-    <<: [*restart-policy, *default-logging]
+    container_name: user_service
     ports:
-      - "3000:3000"
+      - "8001:8000"
     environment:
-      NODE_ENV: production
-      PORT: 3000
-      HOST: 0.0.0.0
-      AUTH_SERVICE_URL: http://auth-service:3001
-      USER_SERVICE_URL: http://user-service:3002
-      PRODUCT_SERVICE_URL: http://product-service:3003
-      INVENTORY_SERVICE_URL: http://inventory-service:3004
-      ORDER_SERVICE_URL: http://order-service:3005
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      APP_ENV: local
+      APP_KEY: base64:SomeRandomAppKeyForUserService123==
+      DB_CONNECTION: mysql
+      DB_HOST: user_db
+      DB_PORT: 3306
+      DB_DATABASE: users_db
+      DB_USERNAME: user_svc
+      DB_PASSWORD: user_pass
+      JWT_SECRET: user_service_jwt_secret_key_2024
     depends_on:
-      auth-service:
-        condition: service_started
-      user-service:
-        condition: service_started
-      product-service:
-        condition: service_started
-      inventory-service:
-        condition: service_started
-      order-service:
-        condition: service_started
+      user_db:
+        condition: service_healthy
     networks:
-      - microservices-net
+      - microservices_net
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Volumes
-# ─────────────────────────────────────────────────────────────────────────────
-volumes:
-  rabbitmq_data:
-    driver: local
-  postgres_auth_data:
-    driver: local
-  postgres_users_data:
-    driver: local
-  postgres_products_data:
-    driver: local
-  mongodb_data:
-    driver: local
-  mysql_orders_data:
-    driver: local
-  redis_data:
-    driver: local
+  # ─────────────────────────────────────────────
+  # Product Service Database
+  # ─────────────────────────────────────────────
+  product_db:
+    image: mongo:7.0
+    container_name: product_db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: prod_user
+      MONGO_INITDB_ROOT_PASSWORD: prod_pass
+      MONGO_INITDB_DATABASE: products_db
+    volumes:
+      - product_mongo_data:/data/db
+    networks:
+      - microservices_net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Networks
-# ─────────────────────────────────────────────────────────────────────────────
-networks:
-  microservices-net:
-    driver: bridge
-    name: microservices-net
+  # ─────────────────────────────────────────────
+  # Product Service (Node.js Express + MongoDB)
+  # ─────────────────────────────────────────────
+  product_service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product_service
+    ports:
+      - "8002:8000"
+    environment:
+      PORT: 8000
+      MONGO_URI: mongodb://prod_user:prod_pass@product_db:27017/products_db?authSource=admin
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      SERVICE_NAME: product-service
+    depends_on:
+      product_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - microservices_net
+
+  # ─────────────────────────────────────────────
+  # Order Service Database
+  # ─────────────────────────────────────────────
+  order_db:
+    image: mysql:8.0
+    container_name: order_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: orders_db
+      MYSQL_USER: order_svc
+      MYSQL_PASSWORD: order_pass
+    volumes:
+      - order_mysql_data:/var/lib/mysql
+    networks:
+      - microservices_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ─────────────────────────────────────────────
+  # Order Service (Laravel/Lumen + MySQL, Saga Orchestrator)
+  # ─────────────────────────────────────────────
+  order_service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order_service
+    ports:
+      - "8003:8000"
+    environment:
+      APP_ENV: local
+      APP_KEY: base64:SomeRandomAppKeyForOrderService123==
+      DB_CONNECTION: mysql
+      DB_HOST: order_db
+      DB_PORT: 3306
+      DB_DATABASE: orders_db
+      DB_USERNAME: order_svc
+      DB_PASSWORD: order_pass
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      JWT_SECRET: user_service_jwt_secret_key_2024
+      PRODUCT_SERVICE_URL: http://product_service:8000
+      USER_SERVICE_URL: http://user_service:8000
+    depends_on:
+      order_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - microservices_net
+
+  # ─────────────────────────────────────────────
+  # Payment Service Database
+  # ─────────────────────────────────────────────
+  payment_db:
+    image: postgres:16
+    container_name: payment_db
+    environment:
+      POSTGRES_DB: payments_db
+      POSTGRES_USER: pay_user
+      POSTGRES_PASSWORD: pay_pass
+    volumes:
+      - payment_postgres_data:/var/lib/postgresql/data
+    networks:
+      - microservices_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pay_user -d payments_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ─────────────────────────────────────────────
+  # Payment Service (Python FastAPI + PostgreSQL)
+  # ─────────────────────────────────────────────
+  payment_service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment_service
+    ports:
+      - "8004:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://pay_user:pay_pass@payment_db:5432/payments_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      SERVICE_NAME: payment-service
+    depends_on:
+      payment_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - microservices_net
+
+  # ─────────────────────────────────────────────
+  # API Gateway (Node.js Express)
+  # ─────────────────────────────────────────────
+  api_gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api_gateway
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: 8000
+      USER_SERVICE_URL: http://user_service:8000
+      PRODUCT_SERVICE_URL: http://product_service:8000
+      ORDER_SERVICE_URL: http://order_service:8000
+      PAYMENT_SERVICE_URL: http://payment_service:8000
+      JWT_SECRET: user_service_jwt_secret_key_2024
+    depends_on:
+      - user_service
+      - product_service
+      - order_service
+      - payment_service
+    networks:
+      - microservices_net
