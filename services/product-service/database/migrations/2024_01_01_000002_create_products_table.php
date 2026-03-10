@@ -10,33 +10,34 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('products', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->string('tenant_id')->index();
-            $table->foreignUuid('category_id')->constrained('categories');
+        Schema::create('products', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id')->index();
+            $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
             $table->string('name');
-            $table->string('code')->comment('Internal product code');
-            $table->string('sku')->nullable()->comment('Stock Keeping Unit');
-            $table->string('barcode')->nullable();
+            $table->string('code')->index();
+            $table->string('slug')->index();
             $table->text('description')->nullable();
-            $table->decimal('price', 12, 4)->default(0);
-            $table->decimal('cost_price', 12, 4)->default(0);
-            $table->string('currency', 3)->default('USD');
-            $table->string('unit')->nullable();
-            $table->decimal('weight', 8, 3)->nullable();
+            $table->string('short_description', 500)->nullable();
+            $table->decimal('price', 15, 4)->default(0);
+            $table->decimal('cost_price', 15, 4)->nullable();
+            $table->decimal('compare_price', 15, 4)->nullable();
+            $table->string('sku')->nullable()->index();
+            $table->string('barcode')->nullable()->index();
+            $table->string('unit', 20)->default('pcs');
+            $table->decimal('weight', 10, 4)->nullable();
             $table->json('dimensions')->nullable();
-            $table->string('status')->default('active');
+            $table->json('images')->nullable();
             $table->json('attributes')->nullable();
+            $table->json('tags')->nullable();
+            $table->boolean('is_active')->default(true)->index();
+            $table->boolean('is_featured')->default(false)->index();
             $table->json('metadata')->nullable();
-            $table->string('image_url')->nullable();
-            $table->boolean('is_trackable')->default(true);
             $table->timestamps();
             $table->softDeletes();
 
             $table->unique(['tenant_id', 'code']);
-            $table->unique(['tenant_id', 'sku']);
-            $table->index(['tenant_id', 'status']);
-            $table->index(['tenant_id', 'category_id']);
+            $table->index(['tenant_id', 'is_active', 'is_featured']);
         });
     }
 

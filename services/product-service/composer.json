@@ -1,28 +1,32 @@
 {
-    "name": "kvsaas/product-service",
-    "description": "KV-SAAS Product Microservice — DDD, Clean Architecture, dynamic repository",
+    "name": "kv-microservice/product-service",
+    "description": "KV Microservice - Product Catalog Service",
     "type": "project",
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "ext-json": "*",
+        "ext-pdo": "*",
         "laravel/framework": "^11.0",
-        "predis/predis": "^2.2",
-        "php-amqplib/php-amqplib": "^3.6",
-        "ramsey/uuid": "^4.7",
-        "guzzlehttp/guzzle": "^7.8"
+        "laravel/passport": "^12.0",
+        "laravel/tinker": "^2.9",
+        "predis/predis": "^2.0",
+        "php-amqplib/php-amqplib": "^3.5",
+        "spatie/laravel-permission": "^6.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
         "laravel/pint": "^1.13",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.1",
-        "phpunit/phpunit": "^11.0"
+        "nunomaduro/collision": "^8.0",
+        "phpunit/phpunit": "^11.0.1"
     },
     "autoload": {
         "psr-4": {
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
-            "Database\\Seeders\\": "database/seeders/"
+            "Database\\Seeders\\": "database/seeders/",
+            "Shared\\": "../../shared/"
         }
     },
     "autoload-dev": {
@@ -34,16 +38,20 @@
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
+        ],
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
         ]
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
     },
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",
-        "sort-packages": true,
-        "allow-plugins": {
-            "pestphp/pest-plugin": true,
-            "php-http/discovery": true
-        }
+        "sort-packages": true
     },
     "minimum-stability": "stable",
     "prefer-stable": true

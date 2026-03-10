@@ -6,32 +6,30 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Create user_profiles table (User Service)
- */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('user_profiles', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->string('tenant_id')->index();
-            $table->string('auth_user_id')->comment('Cross-service Auth Service user ID');
-            $table->string('name');
-            $table->string('email');
-            $table->string('phone')->nullable();
-            $table->string('avatar_url')->nullable();
+        Schema::create('user_profiles', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id')->index();
+            $table->unsignedBigInteger('tenant_id')->index();
+            $table->string('avatar')->nullable();
+            $table->text('bio')->nullable();
+            $table->string('phone', 30)->nullable();
             $table->json('address')->nullable();
             $table->json('preferences')->nullable();
+            $table->json('notification_settings')->nullable();
+            $table->string('timezone', 50)->default('UTC');
+            $table->string('locale', 10)->default('en');
+            $table->string('theme', 20)->default('light');
+            $table->json('extra_permissions')->nullable();
+            $table->boolean('is_active')->default(true)->index();
             $table->json('metadata')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->string('timezone')->default('UTC');
-            $table->string('locale')->default('en');
             $table->timestamps();
             $table->softDeletes();
 
-            $table->unique(['tenant_id', 'auth_user_id']);
-            $table->unique(['tenant_id', 'email']);
+            $table->unique(['user_id', 'tenant_id']);
             $table->index(['tenant_id', 'is_active']);
         });
     }

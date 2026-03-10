@@ -1,78 +1,63 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# Auth Service – Multi-stage Docker build
-# ─────────────────────────────────────────────────────────────────────────────
+FROM php:8.2-fpm-alpine
 
-# ── Stage 1: Composer dependencies ───────────────────────────────────────────
-FROM composer:2.7 AS composer_stage
-
-WORKDIR /app
-
-COPY composer.json composer.lock ./
-RUN composer install \
-        --no-dev \
-        --no-scripts \
-        --no-autoloader \
-        --ignore-platform-reqs \
-        --prefer-dist
-
-COPY . .
-RUN composer dump-autoload --optimize --classmap-authoritative
-
-# ── Stage 2: Production image ─────────────────────────────────────────────────
-FROM php:8.2-fpm-alpine AS production
-
-LABEL maintainer="KV-SAAS" \
-      service="auth-service"
-
-# Install system dependencies and PHP extensions
+# Install system dependencies
 RUN apk add --no-cache \
-        nginx \
-        supervisor \
-        curl \
-        libpng-dev \
-        libjpeg-turbo-dev \
-        libwebp-dev \
-        libzip-dev \
-        icu-dev \
-        oniguruma-dev \
-        freetype-dev \
-        zip \
-        unzip \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install -j$(nproc) \
+    nginx \
+    supervisor \
+    curl \
+    git \
+    zip \
+    unzip \
+    libpng-dev \
+    libzip-dev \
+    oniguruma-dev \
+    icu-dev \
+    && docker-php-ext-install \
         pdo_mysql \
+        mbstring \
+        exif \
+        pcntl \
         bcmath \
+        gd \
         zip \
         intl \
-        mbstring \
-        opcache \
-        gd \
-        pcntl \
-        sockets \
-    && pecl install redis-6.0.2 \
-    && docker-php-ext-enable redis \
-    && rm -rf /tmp/pear
+        opcache
 
-# Copy PHP configuration
-COPY docker/php.ini        /usr/local/etc/php/php.ini
-COPY docker/www.conf       /usr/local/etc/php-fpm.d/www.conf
-COPY docker/nginx.conf     /etc/nginx/nginx.conf
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Install Redis extension
+RUN pecl install redis && docker-php-ext-enable redis
 
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Set working directory
 WORKDIR /var/www/html
 
-COPY --from=composer_stage /app .
+# Copy composer files first for layer caching
+COPY composer.json composer.lock* ./
 
-RUN chown -R www-data:www-data \
-        /var/www/html/storage \
-        /var/www/html/bootstrap/cache \
-    && chmod -R 775 \
-        /var/www/html/storage \
-        /var/www/html/bootstrap/cache
+# Install PHP dependencies
+RUN composer install --no-dev --optimize-autoloader --no-scripts
+
+# Copy application code
+COPY . .
+
+# Run post-install scripts
+RUN composer run-script post-autoload-dump
+
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html/storage \
+    && chmod -R 755 /var/www/html/bootstrap/cache
+
+# Copy nginx configuration
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+
+# Copy supervisor configuration
+COPY docker/supervisord.conf /etc/supervisord.conf
+
+# Copy PHP configuration
+COPY docker/php.ini /usr/local/etc/php/conf.d/app.ini
 
 EXPOSE 8001
 
-HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
-    CMD curl -f http://localhost:8001/api/health || exit 1
-
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

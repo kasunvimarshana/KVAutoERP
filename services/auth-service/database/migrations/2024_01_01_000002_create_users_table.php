@@ -7,32 +7,32 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Create users table (Auth Service)
+ * Create Users table.
+ * Multi-tenant aware - tenant_id scopes all queries.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('tenant_id')
-                  ->constrained('tenants')
-                  ->cascadeOnDelete();
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->string('name');
             $table->string('email');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->string('role')->default('user'); // super_admin, admin, manager, user
             $table->boolean('is_active')->default(true);
             $table->json('metadata')->nullable();
+            $table->timestamp('last_login_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
 
-            // Email must be unique per tenant
+            // Unique email per tenant (not globally unique)
             $table->unique(['tenant_id', 'email']);
-            $table->index('tenant_id');
-            $table->index('email');
-            $table->index('is_active');
+            $table->index(['tenant_id', 'role']);
+            $table->index(['tenant_id', 'is_active']);
         });
     }
 

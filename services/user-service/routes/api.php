@@ -2,29 +2,20 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\HealthController;
-use App\Http\Controllers\UserController;
+use App\Presentation\Controllers\HealthController;
+use App\Presentation\Controllers\RoleController;
+use App\Presentation\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes — User Service
-|--------------------------------------------------------------------------
-*/
+Route::get('/health', [HealthController::class, 'health']);
+Route::get('/health/ready', [HealthController::class, 'ready']);
 
-Route::get('/health', HealthController::class)->name('health');
+Route::middleware(['tenant', 'auth.service'])->group(function () {
+    Route::apiResource('users', UserController::class);
+    Route::post('/users/{userId}/roles', [UserController::class, 'assignRole']);
+    Route::get('/users/{userId}/permissions', [UserController::class, 'permissions']);
+    Route::post('/users/{userId}/activate', [UserController::class, 'activate']);
+    Route::post('/users/{userId}/deactivate', [UserController::class, 'deactivate']);
 
-Route::middleware(['resolve.tenant'])->group(function (): void {
-
-    Route::middleware('auth:api')->group(function (): void {
-
-        Route::prefix('users')->name('users.')->group(function (): void {
-            Route::get('/',                       [UserController::class, 'index'])->name('index');
-            Route::get('/{id}',                   [UserController::class, 'show'])->name('show');
-            Route::put('/{id}',                   [UserController::class, 'update'])->name('update');
-            Route::delete('/{id}',                [UserController::class, 'destroy'])->name('destroy');
-            Route::patch('/{id}/preferences',     [UserController::class, 'updatePreferences'])->name('preferences');
-            Route::post('/{id}/roles',            [UserController::class, 'assignRole'])->name('assignRole');
-        });
-    });
+    Route::apiResource('roles', RoleController::class);
 });
