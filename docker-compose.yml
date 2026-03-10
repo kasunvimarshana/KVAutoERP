@@ -1,256 +1,327 @@
-version: '3.8'
+networks:
+  microservices_network:
+    driver: bridge
+
+volumes:
+  auth_db_data:
+  user_db_data:
+  product_db_data:
+  inventory_db_data:
+  order_db_data:
+  redis_data:
+  rabbitmq_data:
 
 services:
-  # Infrastructure Services
-  mysql:
-    image: mysql:8.0
-    container_name: kv_mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: auth_db
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "3306:3306"
-    networks:
-      - microservices_net
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-psecret"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres:
-    image: postgres:15
-    container_name: kv_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: product_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
-    networks:
-      - microservices_net
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # ─── Infrastructure ──────────────────────────────────────────────────────────
 
   redis:
     image: redis:7-alpine
-    container_name: kv_redis
-    restart: unless-stopped
-    command: redis-server --requirepass secret
+    container_name: saas_redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     networks:
-      - microservices_net
+      - microservices_network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "secret", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: saas_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - microservices_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Application Services
-  auth-service:
-    build:
-      context: ./auth-service
-      dockerfile: Dockerfile
-    container_name: kv_auth_service
-    restart: unless-stopped
+  # ─── Databases ───────────────────────────────────────────────────────────────
+
+  auth_db:
+    image: mysql:8.0
+    container_name: saas_auth_db
     environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_KEY: base64:auth_service_app_key_32_chars_xx=
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: auth_db
-      DB_USERNAME: root
-      DB_PASSWORD: secret
-      REDIS_HOST: redis
-      REDIS_PASSWORD: secret
-      JWT_SECRET: shared_jwt_secret_for_all_services_must_be_32_chars
-      JWT_TTL: 1440
-      CACHE_DRIVER: redis
-      SESSION_DRIVER: redis
-      QUEUE_CONNECTION: redis
+      MYSQL_ROOT_PASSWORD: ${AUTH_DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${AUTH_DB_DATABASE:-auth_db}
+      MYSQL_USER: ${AUTH_DB_USERNAME:-auth_user}
+      MYSQL_PASSWORD: ${AUTH_DB_PASSWORD:-auth_pass}
+    volumes:
+      - auth_db_data:/var/lib/mysql
+    networks:
+      - microservices_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  user_db:
+    image: mysql:8.0
+    container_name: saas_user_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${USER_DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${USER_DB_DATABASE:-user_db}
+      MYSQL_USER: ${USER_DB_USERNAME:-user_user}
+      MYSQL_PASSWORD: ${USER_DB_PASSWORD:-user_pass}
+    volumes:
+      - user_db_data:/var/lib/mysql
+    networks:
+      - microservices_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  product_db:
+    image: mysql:8.0
+    container_name: saas_product_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${PRODUCT_DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${PRODUCT_DB_DATABASE:-product_db}
+      MYSQL_USER: ${PRODUCT_DB_USERNAME:-product_user}
+      MYSQL_PASSWORD: ${PRODUCT_DB_PASSWORD:-product_pass}
+    volumes:
+      - product_db_data:/var/lib/mysql
+    networks:
+      - microservices_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  inventory_db:
+    image: mysql:8.0
+    container_name: saas_inventory_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${INVENTORY_DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${INVENTORY_DB_DATABASE:-inventory_db}
+      MYSQL_USER: ${INVENTORY_DB_USERNAME:-inventory_user}
+      MYSQL_PASSWORD: ${INVENTORY_DB_PASSWORD:-inventory_pass}
+    volumes:
+      - inventory_db_data:/var/lib/mysql
+    networks:
+      - microservices_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order_db:
+    image: mysql:8.0
+    container_name: saas_order_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${ORDER_DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${ORDER_DB_DATABASE:-order_db}
+      MYSQL_USER: ${ORDER_DB_USERNAME:-order_user}
+      MYSQL_PASSWORD: ${ORDER_DB_PASSWORD:-order_pass}
+    volumes:
+      - order_db_data:/var/lib/mysql
+    networks:
+      - microservices_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Microservices ────────────────────────────────────────────────────────────
+
+  auth_service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: saas_auth_service
     ports:
       - "8001:80"
-    networks:
-      - microservices_net
+    environment:
+      APP_NAME: "Auth Service"
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${AUTH_APP_KEY:-base64:changeThisKeyForAuthService=}
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8001
+      DB_CONNECTION: mysql
+      DB_HOST: auth_db
+      DB_PORT: 3306
+      DB_DATABASE: ${AUTH_DB_DATABASE:-auth_db}
+      DB_USERNAME: ${AUTH_DB_USERNAME:-auth_user}
+      DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth_pass}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_DRIVER: redis
+      QUEUE_CONNECTION: sync
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASS:-guest}
     depends_on:
-      mysql:
+      auth_db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./auth-service:/var/www/html
+    networks:
+      - microservices_network
 
-  user-service:
+  user_service:
     build:
-      context: ./user-service
+      context: ./services/user-service
       dockerfile: Dockerfile
-    container_name: kv_user_service
-    restart: unless-stopped
-    environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_KEY: base64:user_service_app_key_32_chars_xx=
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: user_db
-      DB_USERNAME: root
-      DB_PASSWORD: secret
-      REDIS_HOST: redis
-      REDIS_PASSWORD: secret
-      JWT_SECRET: shared_jwt_secret_for_all_services_must_be_32_chars
-      AUTH_SERVICE_URL: http://auth-service/api
-      CACHE_DRIVER: redis
-      QUEUE_CONNECTION: redis
+    container_name: saas_user_service
     ports:
       - "8002:80"
-    networks:
-      - microservices_net
+    environment:
+      APP_NAME: "User Service"
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${USER_APP_KEY:-base64:changeThisKeyForUserService=}
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8002
+      DB_CONNECTION: mysql
+      DB_HOST: user_db
+      DB_PORT: 3306
+      DB_DATABASE: ${USER_DB_DATABASE:-user_db}
+      DB_USERNAME: ${USER_DB_USERNAME:-user_user}
+      DB_PASSWORD: ${USER_DB_PASSWORD:-user_pass}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_DRIVER: redis
+      QUEUE_CONNECTION: sync
+      AUTH_SERVICE_URL: http://auth_service
     depends_on:
-      mysql:
+      user_db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./user-service:/var/www/html
+    networks:
+      - microservices_network
 
-  product-service:
+  product_service:
     build:
-      context: ./product-service
+      context: ./services/product-service
       dockerfile: Dockerfile
-    container_name: kv_product_service
-    restart: unless-stopped
-    environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_KEY: base64:product_service_app_key_32_chars=
-      DB_CONNECTION: pgsql
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_DATABASE: product_db
-      DB_USERNAME: postgres
-      DB_PASSWORD: secret
-      REDIS_HOST: redis
-      REDIS_PASSWORD: secret
-      JWT_SECRET: shared_jwt_secret_for_all_services_must_be_32_chars
-      CACHE_DRIVER: redis
-      QUEUE_CONNECTION: redis
+    container_name: saas_product_service
     ports:
       - "8003:80"
-    networks:
-      - microservices_net
+    environment:
+      APP_NAME: "Product Service"
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${PRODUCT_APP_KEY:-base64:changeThisKeyForProductService=}
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8003
+      DB_CONNECTION: mysql
+      DB_HOST: product_db
+      DB_PORT: 3306
+      DB_DATABASE: ${PRODUCT_DB_DATABASE:-product_db}
+      DB_USERNAME: ${PRODUCT_DB_USERNAME:-product_user}
+      DB_PASSWORD: ${PRODUCT_DB_PASSWORD:-product_pass}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_DRIVER: redis
+      QUEUE_CONNECTION: sync
+      AUTH_SERVICE_URL: http://auth_service
     depends_on:
-      postgres:
+      product_db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./product-service:/var/www/html
+    networks:
+      - microservices_network
 
-  inventory-service:
+  inventory_service:
     build:
-      context: ./inventory-service
+      context: ./services/inventory-service
       dockerfile: Dockerfile
-    container_name: kv_inventory_service
-    restart: unless-stopped
-    environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_KEY: base64:inventory_service_app_key_32_chars=
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: inventory_db
-      DB_USERNAME: root
-      DB_PASSWORD: secret
-      REDIS_HOST: redis
-      REDIS_PASSWORD: secret
-      JWT_SECRET: shared_jwt_secret_for_all_services_must_be_32_chars
-      PRODUCT_SERVICE_URL: http://product-service/api
-      CACHE_DRIVER: redis
-      QUEUE_CONNECTION: redis
+    container_name: saas_inventory_service
     ports:
       - "8004:80"
-    networks:
-      - microservices_net
+    environment:
+      APP_NAME: "Inventory Service"
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${INVENTORY_APP_KEY:-base64:changeThisKeyForInventoryService=}
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8004
+      DB_CONNECTION: mysql
+      DB_HOST: inventory_db
+      DB_PORT: 3306
+      DB_DATABASE: ${INVENTORY_DB_DATABASE:-inventory_db}
+      DB_USERNAME: ${INVENTORY_DB_USERNAME:-inventory_user}
+      DB_PASSWORD: ${INVENTORY_DB_PASSWORD:-inventory_pass}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_DRIVER: redis
+      QUEUE_CONNECTION: sync
+      AUTH_SERVICE_URL: http://auth_service
+      PRODUCT_SERVICE_URL: http://product_service
     depends_on:
-      mysql:
+      inventory_db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./inventory-service:/var/www/html
+    networks:
+      - microservices_network
 
-  order-service:
+  order_service:
     build:
-      context: ./order-service
+      context: ./services/order-service
       dockerfile: Dockerfile
-    container_name: kv_order_service
-    restart: unless-stopped
-    environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_KEY: base64:order_service_app_key_32_chars_xx=
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: order_db
-      DB_USERNAME: root
-      DB_PASSWORD: secret
-      REDIS_HOST: redis
-      REDIS_PASSWORD: secret
-      JWT_SECRET: shared_jwt_secret_for_all_services_must_be_32_chars
-      PRODUCT_SERVICE_URL: http://product-service/api
-      INVENTORY_SERVICE_URL: http://inventory-service/api
-      USER_SERVICE_URL: http://user-service/api
-      CACHE_DRIVER: redis
-      QUEUE_CONNECTION: redis
+    container_name: saas_order_service
     ports:
       - "8005:80"
-    networks:
-      - microservices_net
+    environment:
+      APP_NAME: "Order Service"
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${ORDER_APP_KEY:-base64:changeThisKeyForOrderService=}
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8005
+      DB_CONNECTION: mysql
+      DB_HOST: order_db
+      DB_PORT: 3306
+      DB_DATABASE: ${ORDER_DB_DATABASE:-order_db}
+      DB_USERNAME: ${ORDER_DB_USERNAME:-order_user}
+      DB_PASSWORD: ${ORDER_DB_PASSWORD:-order_pass}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CACHE_DRIVER: redis
+      QUEUE_CONNECTION: sync
+      AUTH_SERVICE_URL: http://auth_service
+      PRODUCT_SERVICE_URL: http://product_service
+      INVENTORY_SERVICE_URL: http://inventory_service
     depends_on:
-      mysql:
+      order_db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./order-service:/var/www/html
-
-  api-gateway:
-    build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
-    container_name: kv_api_gateway
-    restart: unless-stopped
-    ports:
-      - "8000:80"
     networks:
-      - microservices_net
+      - microservices_network
+
+  # ─── API Gateway ──────────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: saas_gateway
+    ports:
+      - "8080:80"
     depends_on:
-      - auth-service
-      - user-service
-      - product-service
-      - inventory-service
-      - order-service
-
-volumes:
-  mysql_data:
-  postgres_data:
-
-networks:
-  microservices_net:
-    driver: bridge
+      - auth_service
+      - user_service
+      - product_service
+      - inventory_service
+      - order_service
+    networks:
+      - microservices_network
