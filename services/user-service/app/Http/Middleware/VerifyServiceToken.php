@@ -9,84 +9,45 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Simplified service token middleware.
+ * Validates that an incoming request carries a valid service-to-service token.
+ * Used to protect internal API routes that should only be called by the Auth service
+ * (or other trusted microservices).
  *
- * Decodes the JWT payload (base64url) and injects tenant/user context
- * into request attributes so controllers can perform tenant-scoped queries.
- *
- * Signature verification is delegated to the API gateway layer.
- * This middleware only ensures a token is present and parseable.
+ * Token lookup priority:
+ *  1. Authorization: Bearer {token}
+ *  2. X-Service-Token: {token}
  */
 class VerifyServiceToken
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $token = $request->bearerToken();
+        $token = $request->bearerToken() ?? $request->header('X-Service-Token');
 
-        if ($token === null) {
-            return $this->unauthorized('No token provided.');
+        if (! $token) {
+            return $this->forbidden('Missing service token');
         }
 
-        $payload = $this->decodePayload($token);
+        $expected = config('services.auth_service_token', '');
 
-        if ($payload === null) {
-            return $this->unauthorized('Invalid token format.');
+        if (! $expected) {
+            return $this->forbidden('Service token not configured');
         }
 
-        if (empty($payload['tenant_id'])) {
-            return $this->unauthorized('Token is missing required tenant_id claim.');
+        if (! hash_equals($expected, $token)) {
+            return $this->forbidden('Invalid service token');
         }
-
-        if (empty($payload['sub']) && empty($payload['user_id'])) {
-            return $this->unauthorized('Token is missing required user identity claim.');
-        }
-
-        $request->attributes->set('jwt_payload', $payload);
-        $request->attributes->set('tenant_id', $payload['tenant_id']);
-        $request->attributes->set('user_id', $payload['user_id'] ?? $payload['sub'] ?? '');
 
         return $next($request);
     }
 
-    /**
-     * Decode the JWT payload section (second segment) from base64url.
-     * Returns null if the token structure is invalid or JSON is malformed.
-     */
-    private function decodePayload(string $token): ?array
-    {
-        $parts = explode('.', $token);
-
-        if (count($parts) !== 3) {
-            return null;
-        }
-
-        $payloadBase64 = $this->base64UrlDecode($parts[1]);
-
-        if ($payloadBase64 === false) {
-            return null;
-        }
-
-        $payload = json_decode($payloadBase64, true);
-
-        return is_array($payload) ? $payload : null;
-    }
-
-    private function base64UrlDecode(string $data): string|false
-    {
-        $remainder = strlen($data) % 4;
-        if ($remainder !== 0) {
-            $data .= str_repeat('=', 4 - $remainder);
-        }
-
-        return base64_decode(strtr($data, '-_', '+/'), true);
-    }
-
-    private function unauthorized(string $message): Response
+    private function forbidden(string $message): Response
     {
         return response()->json([
             'success' => false,
-            'message' => $message,
-            'error'   => 'UNAUTHORIZED',
-        ], 401);
+            'data'    => null,
+            'meta'    => [],
+            'errors'  => ['service_token' => $message],
+            'message' => 'Forbidden',
+        ], 403);
     }
 }

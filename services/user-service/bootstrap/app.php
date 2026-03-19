@@ -1,46 +1,38 @@
 <?php
 
-declare(strict_types=1);
-
+use App\Exceptions\AuthenticationException;
+use App\Http\Middleware\RequireAbacPolicy;
+use App\Http\Middleware\RequirePermission;
+use App\Http\Middleware\VerifyJwtToken;
 use App\Http\Middleware\VerifyServiceToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        api: __DIR__ . '/../routes/api.php',
-        apiPrefix: '',
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
+            'auth.jwt'             => VerifyJwtToken::class,
             'verify.service.token' => VerifyServiceToken::class,
+            'require.permission'   => RequirePermission::class,
+            'abac'                 => RequireAbacPolicy::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->render(function (\App\Exceptions\UserException $e, Request $request) {
-            return response()->json([
+        $exceptions->render(function (AuthenticationException $e) {
+            return new JsonResponse([
                 'success' => false,
-                'message' => $e->getMessage(),
-                'error'   => 'USER_SERVICE_ERROR',
-            ], $e->getCode() ?: 422);
+                'data'    => null,
+                'meta'    => [],
+                'errors'  => ['authentication' => $e->getMessage()],
+                'message' => 'Authentication failed',
+            ], 401);
         });
-
-        $exceptions->render(function (\Illuminate\Validation\ValidationException $e, Request $request) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed.',
-                'errors'  => $e->errors(),
-            ], 422);
-        });
-
-        $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, Request $request) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Resource not found.',
-                'error'   => 'NOT_FOUND',
-            ], 404);
-        });
-    })
-    ->create();
+    })->create();

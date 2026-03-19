@@ -1,0 +1,14 @@
+# Laravel vendor directories
+services/*/vendor/
+services/*/node_modules/
+services/*/.env
+services/*/storage/logs/
+services/*/storage/framework/cache/
+services/*/storage/framework/sessions/
+services/*/storage/framework/views/
+services/*/bootstrap/cache/
+services/*/storage/keys/
+
+# Build artifacts
+*.log
+.DS_Store

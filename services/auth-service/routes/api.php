@@ -2,80 +2,73 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\RolePermissionController;
-use App\Http\Controllers\SessionController;
-use App\Http\Middleware\TenantAwareRateLimit;
-use App\Http\Middleware\VerifyJwtToken;
+use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\SessionController;
+use App\Http\Controllers\Api\V1\SsoController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Auth Service API Routes  –  /api/v1/auth/...
+| Auth Service API Routes — versioned under /api/v1
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('api/v1')->group(function () {
+Route::prefix('v1')->group(function () {
 
-    // ----------------------------------------------------------------
-    // Health Check (unauthenticated)
-    // ----------------------------------------------------------------
-    Route::get('/health', fn () => response()->json([
-        'status'  => 'ok',
-        'service' => 'auth-service',
-        'version' => '1.0.0',
-        'time'    => now()->toIso8601String(),
+    // ──────────────────────────────────────────────
+    // Health check (no auth required)
+    // ──────────────────────────────────────────────
+    Route::get('/health', static fn () => response()->json([
+        'success' => true,
+        'data'    => ['status' => 'ok', 'service' => 'auth-service'],
+        'meta'    => [],
+        'errors'  => null,
+        'message' => 'Service is healthy',
     ]));
 
-    // ----------------------------------------------------------------
-    // Authentication – public endpoints with rate limiting
-    // ----------------------------------------------------------------
+    // ──────────────────────────────────────────────
+    // Public auth endpoints
+    // ──────────────────────────────────────────────
     Route::prefix('auth')->group(function () {
 
-        Route::post('/login', [AuthController::class, 'login'])
-            ->middleware(TenantAwareRateLimit::class . ':login');
+        // Login — throttled to prevent brute-force
+        Route::post('/login',   [AuthController::class, 'login'])
+            ->middleware('throttle:60,1');
 
-        Route::post('/register', [AuthController::class, 'register'])
-            ->middleware(TenantAwareRateLimit::class . ':register');
-
+        // Refresh — tighter limit since tokens are short-lived
         Route::post('/refresh', [AuthController::class, 'refresh'])
-            ->middleware(TenantAwareRateLimit::class . ':refresh');
+            ->middleware('throttle:30,1');
 
-        Route::post('/password/forgot', [AuthController::class, 'forgotPassword']);
+        // Service-to-service token issuance — internal services only
+        Route::post('/service-token', [AuthController::class, 'serviceToken'])
+            ->middleware('throttle:30,1');
 
-        Route::post('/password/reset', [AuthController::class, 'resetPassword']);
+        // Public key endpoint for downstream service verification
+        Route::get('/public-key', [AuthController::class, 'publicKey']);
 
-        // ----------------------------------------------------------------
-        // Authenticated endpoints
-        // ----------------------------------------------------------------
-        Route::middleware(VerifyJwtToken::class)->group(function () {
+        // JWKS endpoint — standard JSON Web Key Set for token verification
+        Route::get('/.well-known/jwks.json', [AuthController::class, 'jwks']);
 
-            Route::post('/logout', [AuthController::class, 'logout']);
-            Route::post('/logout/all', [AuthController::class, 'logoutAll']);
-            Route::get('/me', [AuthController::class, 'me']);
-
-            // Sessions
-            Route::prefix('sessions')->group(function () {
-                Route::get('/', [SessionController::class, 'index']);
-                Route::delete('/{sessionId}', [SessionController::class, 'destroy']);
-                Route::delete('/device/{deviceId}', [SessionController::class, 'destroyDevice']);
-            });
-
-            // Roles & Permissions (admin-only in production)
-            Route::prefix('roles')->group(function () {
-                Route::post('/', [RolePermissionController::class, 'createRole']);
-                Route::post('/{roleId}/permissions', [RolePermissionController::class, 'assignPermissionToRole']);
-            });
-
-            Route::prefix('permissions')->group(function () {
-                Route::post('/', [RolePermissionController::class, 'createPermission']);
-            });
-
-            Route::prefix('users/{userId}')->group(function () {
-                Route::post('/roles', [RolePermissionController::class, 'assignRole']);
-                Route::delete('/roles/{roleId}', [RolePermissionController::class, 'revokeRole']);
-            });
-
+        // ──────────────────────────────────────────
+        // Protected auth endpoints (require valid JWT)
+        // ──────────────────────────────────────────
+        Route::middleware('auth.jwt')->group(function () {
+            Route::post('/logout',          [AuthController::class, 'logout']);
+            Route::get('/verify',           [AuthController::class, 'verify']);
+            Route::get('/sessions',         [SessionController::class, 'devices']);
+            Route::delete('/sessions/{deviceId}', [SessionController::class, 'revokeDevice']);
+            Route::delete('/sessions',      [SessionController::class, 'revokeAll']);
         });
+    });
+
+    // ──────────────────────────────────────────────
+    // SSO / Federated login endpoints
+    // Session middleware is required for CSRF state management in the OAuth2
+    // redirect/callback flow.
+    // ──────────────────────────────────────────────
+    Route::prefix('sso')->middleware(\Illuminate\Session\Middleware\StartSession::class)->group(function () {
+        Route::get('/redirect',  [SsoController::class, 'redirect']);
+        Route::get('/callback',  [SsoController::class, 'callback']);
+        Route::get('/providers', [SsoController::class, 'providers']);
     });
 });

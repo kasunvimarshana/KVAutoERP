@@ -4,71 +4,54 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Contracts\Services\TokenServiceInterface;
-use App\Exceptions\TokenException;
+use App\Contracts\TokenServiceContract;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Verifies the JWT access token locally without calling the Auth service.
- * Decodes the token, checks signature (public key), expiry, and revocation list.
- * Embeds the decoded payload in request attributes for downstream use.
+ * Verifies the RS256 JWT on every protected request.
+ * Downstream microservices use this middleware to validate tokens locally
+ * without calling the Auth service.
  */
 class VerifyJwtToken
 {
     public function __construct(
-        private readonly TokenServiceInterface $tokenService,
+        private readonly TokenServiceContract $tokenService,
     ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
-        $token = $this->extractToken($request);
+        $token = $request->bearerToken();
 
-        if ($token === null) {
-            return $this->unauthorized('No token provided.');
+        if (! $token) {
+            return $this->unauthorized('Missing bearer token');
         }
 
         try {
-            $payload = $this->tokenService->decodeAccessToken($token);
-        } catch (TokenException $e) {
-            return $this->unauthorized($e->getMessage(), $e->getCode());
+            $claims = $this->tokenService->verify($token);
+
+            // Attach decoded claims to the request for downstream use
+            $request->attributes->set('jwt_claims', $claims);
+            $request->attributes->set('user_id', $claims['sub'] ?? null);
+            $request->attributes->set('tenant_id', $claims['tenant_id'] ?? null);
+            $request->attributes->set('roles', $claims['roles'] ?? []);
+            $request->attributes->set('permissions', $claims['permissions'] ?? []);
+        } catch (\Throwable $e) {
+            return $this->unauthorized($e->getMessage());
         }
-
-        // Validate required claims
-        if (empty($payload['tenant_id']) || empty($payload['user_id'] ?? $payload['sub'] ?? '')) {
-            return $this->unauthorized('Token is missing required claims.');
-        }
-
-        // Token version check is implicit via token_version claim vs user record
-        // (handled by the Auth service during token issuance — stale tokens
-        //  are naturally invalid once token_version increments)
-
-        // Attach payload and helper values to the request for controllers
-        $request->attributes->set('jwt_payload', $payload);
-        $request->attributes->set('session_id', $payload['session_id'] ?? '');
-        $request->attributes->set('token_remaining_ttl', $this->tokenService->getRemainingTtl($payload));
 
         return $next($request);
     }
 
-    private function extractToken(Request $request): ?string
-    {
-        $bearer = $request->bearerToken();
-        if ($bearer !== null) {
-            return $bearer;
-        }
-
-        // Support token via query string for SSE/download scenarios (signed URLs only)
-        return $request->query('token');
-    }
-
-    private function unauthorized(string $message, int $code = 401): Response
+    private function unauthorized(string $message): Response
     {
         return response()->json([
             'success' => false,
-            'message' => $message,
-            'error'   => 'UNAUTHORIZED',
+            'data'    => null,
+            'meta'    => [],
+            'errors'  => ['token' => $message],
+            'message' => 'Unauthenticated',
         ], 401);
     }
 }

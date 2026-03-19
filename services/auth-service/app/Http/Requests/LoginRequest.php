@@ -16,25 +16,21 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email'           => ['required', 'email', 'max:255'],
-            'password'        => ['required', 'string', 'min:8', 'max:255'],
-            'tenant_id'       => ['required', 'uuid'],
-            'device_id'       => ['required', 'string', 'max:255'],
-            'device_name'     => ['nullable', 'string', 'max:100'],
-            'organisation_id' => ['nullable', 'uuid'],
-            'branch_id'       => ['nullable', 'uuid'],
-            'remember_me'     => ['boolean'],
+            'email'        => ['required_without:code', 'email', 'max:255'],
+            'password'     => ['required_if:provider,local'],
+            'provider'     => ['sometimes', 'string', 'in:local,okta,keycloak,azure_ad,oauth2'],
+            'tenant_id'    => ['sometimes', 'string', 'max:255'],
+            'code'         => ['required_if:provider,okta,keycloak,azure_ad,oauth2'],
+            'redirect_uri' => ['sometimes', 'url'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'email.required'     => 'Email address is required.',
-            'password.required'  => 'Password is required.',
-            'tenant_id.required' => 'Tenant identifier is required.',
-            'tenant_id.uuid'     => 'Tenant identifier must be a valid UUID.',
-            'device_id.required' => 'Device identifier is required.',
+            'email.required_without' => 'Email is required for local authentication.',
+            'password.required_if'   => 'Password is required for local authentication.',
+            'code.required_if'       => 'Authorization code is required for federated authentication.',
         ];
     }
 }

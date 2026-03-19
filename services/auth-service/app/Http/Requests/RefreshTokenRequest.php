@@ -16,8 +16,7 @@ class RefreshTokenRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'refresh_token' => ['required', 'string'],
-            'device_id'     => ['required', 'string', 'max:255'],
+            'refresh_token' => ['required', 'string', 'min:32'],
         ];
     }
 }

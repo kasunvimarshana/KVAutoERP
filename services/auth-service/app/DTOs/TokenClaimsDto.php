@@ -7,36 +7,52 @@ namespace App\DTOs;
 final readonly class TokenClaimsDto
 {
     public function __construct(
+        public string $jti,
         public string $userId,
         public string $tenantId,
-        public ?string $organisationId,
-        public ?string $branchId,
-        public ?string $locationId,
-        public ?string $departmentId,
-        public array $roles,
-        public array $permissions,
+        public string $organizationId,
+        public string $branchId,
+        public array  $roles,
+        public array  $permissions,
         public string $deviceId,
-        public int $tokenVersion,
-        public ?int $ttlMinutes = null,
-        public string $jti = '',
-        public array $customClaims = [],
+        public int    $tokenVersion,
+        public string $provider,
+        public string $issuer,
+        public int    $exp,
+        public int    $iat,
     ) {}
+
+    public function hasRole(string $role): bool
+    {
+        return in_array($role, $this->roles, true);
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        return in_array($permission, $this->permissions, true);
+    }
+
+    public function isExpired(): bool
+    {
+        return time() > $this->exp;
+    }
 
     public function toArray(): array
     {
         return [
-            'sub'             => $this->userId,
-            'user_id'         => $this->userId,
-            'tenant_id'       => $this->tenantId,
-            'organization_id' => $this->organisationId,
-            'branch_id'       => $this->branchId,
-            'location_id'     => $this->locationId,
-            'department_id'   => $this->departmentId,
-            'roles'           => $this->roles,
-            'permissions'     => $this->permissions,
-            'device_id'       => $this->deviceId,
-            'token_version'   => $this->tokenVersion,
-            'jti'             => $this->jti ?: \Ramsey\Uuid\Uuid::uuid4()->toString(),
-        ] + $this->customClaims;
+            'jti'           => $this->jti,
+            'sub'           => $this->userId,
+            'tenant_id'     => $this->tenantId,
+            'org_id'        => $this->organizationId,
+            'branch_id'     => $this->branchId,
+            'roles'         => $this->roles,
+            'permissions'   => $this->permissions,
+            'device_id'     => $this->deviceId,
+            'token_version' => $this->tokenVersion,
+            'provider'      => $this->provider,
+            'iss'           => $this->issuer,
+            'exp'           => $this->exp,
+            'iat'           => $this->iat,
+        ];
     }
 }

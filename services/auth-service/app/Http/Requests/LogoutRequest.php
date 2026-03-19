@@ -10,11 +10,13 @@ class LogoutRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // Authorization is handled by VerifyJwtToken middleware
+        return true;
     }
 
     public function rules(): array
     {
-        return [];
+        return [
+            'all_devices' => ['sometimes', 'boolean'],
+        ];
     }
 }

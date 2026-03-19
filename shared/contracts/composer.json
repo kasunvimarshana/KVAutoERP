@@ -1,0 +1,15 @@
+{
+    "name": "kv-saas/contracts",
+    "description": "Shared contracts, interfaces, and DTOs for KV-SAAS-APP microservices",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "KvSaas\\Contracts\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^8.2"
+    },
+    "minimum-stability": "stable"
+}

@@ -17,15 +17,11 @@ class UpdateUserRequest extends FormRequest
     {
         return [
             'name'            => ['sometimes', 'string', 'max:255'],
-            'email'           => ['sometimes', 'email', 'max:255'],
-            'phone'           => ['nullable', 'string', 'max:50'],
-            'avatar'          => ['nullable', 'url', 'max:2048'],
-            'organisation_id' => ['nullable', 'uuid'],
-            'branch_id'       => ['nullable', 'uuid'],
-            'location_id'     => ['nullable', 'uuid'],
-            'department_id'   => ['nullable', 'uuid'],
-            'is_active'       => ['boolean'],
-            'metadata'        => ['nullable', 'array'],
+            'email'           => ['sometimes', 'email'],
+            'status'          => ['sometimes', 'in:active,inactive,suspended'],
+            'phone'           => ['sometimes', 'string', 'max:50'],
+            'organization_id' => ['sometimes', 'uuid'],
+            'branch_id'       => ['sometimes', 'uuid'],
         ];
     }
 }

@@ -1,45 +1,45 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Database\Factories;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
-use Ramsey\Uuid\Uuid;
+use Illuminate\Support\Str;
 
+/**
+ * @extends Factory<User>
+ */
 class UserFactory extends Factory
 {
-    protected $model = User::class;
+    /**
+     * The current password being used by the factory.
+     */
+    protected static ?string $password;
 
+    /**
+     * Define the model's default state.
+     *
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
         return [
-            'id'        => Uuid::uuid4()->toString(),
-            'tenant_id' => Uuid::uuid4()->toString(),
-            'name'      => $this->faker->name(),
-            'email'     => $this->faker->unique()->safeEmail(),
-            'password'  => Hash::make('password'),
-            'phone'     => $this->faker->optional()->phoneNumber(),
-            'avatar'    => $this->faker->optional()->imageUrl(200, 200, 'people'),
-            'is_active' => true,
-            'metadata'  => null,
+            'name' => fake()->name(),
+            'email' => fake()->unique()->safeEmail(),
+            'email_verified_at' => now(),
+            'password' => static::$password ??= Hash::make('password'),
+            'remember_token' => Str::random(10),
         ];
     }
 
-    public function inactive(): static
+    /**
+     * Indicate that the model's email address should be unverified.
+     */
+    public function unverified(): static
     {
-        return $this->state(['is_active' => false]);
-    }
-
-    public function withMetadata(array $metadata): static
-    {
-        return $this->state(['metadata' => $metadata]);
-    }
-
-    public function forTenant(string $tenantId): static
-    {
-        return $this->state(['tenant_id' => $tenantId]);
+        return $this->state(fn (array $attributes) => [
+            'email_verified_at' => null,
+        ]);
     }
 }

@@ -17,28 +17,13 @@ class CreateUserRequest extends FormRequest
     {
         return [
             'name'            => ['required', 'string', 'max:255'],
-            'email'           => ['required', 'email', 'max:255'],
-            'password'        => ['required', 'string', 'min:8', 'max:255', 'confirmed'],
-            'phone'           => ['nullable', 'string', 'max:50'],
-            'avatar'          => ['nullable', 'url', 'max:2048'],
-            'organisation_id' => ['nullable', 'uuid'],
-            'branch_id'       => ['nullable', 'uuid'],
-            'location_id'     => ['nullable', 'uuid'],
-            'department_id'   => ['nullable', 'uuid'],
-            'is_active'       => ['boolean'],
-            'metadata'        => ['nullable', 'array'],
-        ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'name.required'     => 'Full name is required.',
-            'email.required'    => 'Email address is required.',
-            'email.email'       => 'A valid email address is required.',
-            'password.required' => 'Password is required.',
-            'password.min'      => 'Password must be at least 8 characters.',
-            'password.confirmed' => 'Password confirmation does not match.',
+            'email'           => ['required', 'email', 'unique:users,email'],
+            'password'        => ['required', 'string', 'min:8'],
+            'tenant_id'       => ['required', 'uuid'],
+            'organization_id' => ['sometimes', 'uuid'],
+            'branch_id'       => ['sometimes', 'uuid'],
+            'role_ids'        => ['sometimes', 'array'],
+            'role_ids.*'      => ['uuid'],
         ];
     }
 }

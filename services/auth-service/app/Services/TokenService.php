@@ -4,228 +4,198 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Contracts\Repositories\TokenRevocationRepositoryInterface;
-use App\Contracts\Services\TokenServiceInterface;
-use App\DTOs\TokenClaimsDto;
-use App\Exceptions\TokenException;
+use App\Contracts\TokenServiceContract;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
-use Ramsey\Uuid\Uuid;
+use RuntimeException;
 
-class TokenService implements TokenServiceInterface
+class TokenService implements TokenServiceContract
 {
-    private string $algorithm;
-    private string $issuer;
+    private readonly string $privateKey;
+    private readonly string $publicKey;
+    private readonly string $issuer;
 
-    public function __construct(
-        private readonly TokenRevocationRepositoryInterface $revocationRepository,
-    ) {
-        $this->algorithm = config('jwt.algo', 'RS256');
-        $this->issuer = config('jwt.issuer', config('app.url'));
+    public function __construct()
+    {
+        $privateKeyPath = config('jwt.private_key_path');
+        $publicKeyPath  = config('jwt.public_key_path');
+
+        if (! file_exists($privateKeyPath) || ! file_exists($publicKeyPath)) {
+            // In test/CI environments the keys may not exist yet
+            $this->privateKey = '';
+            $this->publicKey  = '';
+        } else {
+            $this->privateKey = (string) file_get_contents($privateKeyPath);
+            $this->publicKey  = (string) file_get_contents($publicKeyPath);
+        }
+
+        $this->issuer = (string) config('jwt.issuer', 'kv-saas-auth');
     }
 
-    public function issueAccessToken(TokenClaimsDto $claims): string
+    public function issue(array $claims, int $ttl): string
     {
-        $now = time();
-        $ttlMinutes = $claims->ttlMinutes ?? config('jwt.ttl.access', 15);
-        $jti = $claims->jti ?: Uuid::uuid4()->toString();
+        if (empty($this->privateKey)) {
+            throw new RuntimeException('JWT private key not configured. Run: php artisan jwt:generate-keys');
+        }
 
-        $payload = array_merge($claims->toArray(), [
+        $now     = time();
+        $payload = array_merge($claims, [
+            'jti' => $claims['jti'] ?? (string) Str::uuid(),
             'iss' => $this->issuer,
             'iat' => $now,
+            'exp' => $now + $ttl,
             'nbf' => $now,
-            'exp' => $now + ($ttlMinutes * 60),
-            'jti' => $jti,
         ]);
 
-        $privateKey = $this->getPrivateKey();
-
-        return JWT::encode($payload, $privateKey, $this->algorithm);
+        return JWT::encode($payload, $this->privateKey, 'RS256');
     }
 
-    public function issueRefreshToken(string $userId, string $sessionId): string
+    public function issueRefreshToken(string $userId, string $deviceId, string $jti): string
     {
-        return Str::random(64) . '.' . base64_encode($userId . '.' . now()->timestamp);
-    }
+        $refreshToken = Str::random(64);
+        $ttl          = (int) config('jwt.refresh_ttl', 2592000);
 
-    public function decodeAccessToken(string $token): array
-    {
-        try {
-            $publicKey = $this->getPublicKey();
-            $decoded = JWT::decode($token, new Key($publicKey, $this->algorithm));
-            $payload = (array) $decoded;
+        Redis::setex("refresh:{$refreshToken}", $ttl, json_encode([
+            'user_id'    => $userId,
+            'device_id'  => $deviceId,
+            'jti'        => $jti,
+            'created_at' => time(),
+        ]));
 
-            // Check token revocation
-            $jti = $payload['jti'] ?? null;
-            if ($jti && $this->isRevoked($jti)) {
-                throw new TokenException('Token has been revoked.', 401);
-            }
+        // Track active devices for session management
+        $deviceKey = "devices:{$userId}";
+        $devices   = json_decode((string) (Redis::get($deviceKey) ?? '[]'), true);
 
-            return $payload;
-        } catch (TokenException $e) {
-            throw $e;
-        } catch (\Firebase\JWT\ExpiredException $e) {
-            throw new TokenException('Token has expired.', 401);
-        } catch (\Firebase\JWT\SignatureInvalidException $e) {
-            throw new TokenException('Token signature is invalid.', 401);
-        } catch (\Exception $e) {
-            throw new TokenException('Token is invalid: ' . $e->getMessage(), 401);
-        }
-    }
-
-    public function verifyRefreshToken(string $rawRefreshToken, string $hashedToken): bool
-    {
-        return hash_equals($hashedToken, $this->hashRefreshToken($rawRefreshToken));
-    }
-
-    public function hashRefreshToken(string $rawRefreshToken): string
-    {
-        return hash('sha256', $rawRefreshToken);
-    }
-
-    public function issueServiceToken(string $serviceId, string $tenantId): string
-    {
-        $now = time();
-        $ttl = config('jwt.ttl.service', 5) * 60;
-
-        $payload = [
-            'iss'        => $this->issuer,
-            'sub'        => $serviceId,
-            'service_id' => $serviceId,
-            'tenant_id'  => $tenantId,
-            'iat'        => $now,
-            'nbf'        => $now,
-            'exp'        => $now + $ttl,
-            'jti'        => Uuid::uuid4()->toString(),
-            'type'       => 'service',
+        $devices[$deviceId] = [
+            'jti'           => $jti,
+            'refresh_token' => $refreshToken,
+            'last_active'   => time(),
         ];
 
-        return JWT::encode($payload, $this->getPrivateKey(), $this->algorithm);
+        Redis::setex($deviceKey, $ttl, json_encode($devices));
+
+        return $refreshToken;
     }
 
-    public function verifyServiceToken(string $token): array
+    public function verify(string $token): array
     {
-        $payload = $this->decodeAccessToken($token);
-
-        if (($payload['type'] ?? '') !== 'service') {
-            throw new TokenException('Not a valid service token.', 401);
+        if (empty($this->publicKey)) {
+            throw new RuntimeException('JWT public key not configured');
         }
 
-        return $payload;
+        try {
+            $decoded = JWT::decode($token, new Key($this->publicKey, 'RS256'));
+            $claims  = (array) $decoded;
+
+            if ($this->isRevoked($claims['jti'] ?? '')) {
+                throw new RuntimeException('Token has been revoked');
+            }
+
+            return $claims;
+        } catch (RuntimeException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new RuntimeException('Token verification failed: ' . $e->getMessage(), 0, $e);
+        }
     }
 
-    public function revokeByJti(string $jti, string $userId, int $expiresInSeconds, string $reason = 'logout'): void
+    public function decode(string $token, bool $verify = true): array
     {
-        // Store in both database and Redis for fast lookup
-        $expiresAt = now()->addSeconds($expiresInSeconds);
+        if ($verify) {
+            return $this->verify($token);
+        }
 
-        $this->revocationRepository->revoke($jti, $userId, $expiresAt, $reason);
+        $parts = explode('.', $token);
 
-        // Also cache in Redis for O(1) lookup
-        Cache::put(
-            config('jwt.revocation.prefix') . $jti,
-            ['revoked_at' => now()->toIso8601String(), 'reason' => $reason],
-            $expiresInSeconds,
-        );
+        if (count($parts) !== 3) {
+            throw new RuntimeException('Invalid token format');
+        }
+
+        $payload = base64_decode(strtr($parts[1], '-_', '+/'));
+
+        return (array) json_decode($payload, true);
+    }
+
+    public function revoke(string $jti): void
+    {
+        if (empty($jti)) {
+            return;
+        }
+
+        $ttl = (int) config('jwt.ttl', 900);
+        Redis::setex("revoked:{$jti}", $ttl + 300, '1');
     }
 
     public function isRevoked(string $jti): bool
     {
-        $cacheKey = config('jwt.revocation.prefix') . $jti;
-
-        // Fast Redis lookup first
-        if (Cache::has($cacheKey)) {
-            return true;
-        }
-
-        // Fallback to database
-        $isRevoked = $this->revocationRepository->isRevoked($jti);
-
-        if ($isRevoked) {
-            // Warm the cache to prevent repeated DB lookups
-            Cache::put($cacheKey, true, 300);
-        }
-
-        return $isRevoked;
-    }
-
-    public function getRemainingTtl(array $payload): int
-    {
-        $exp = $payload['exp'] ?? 0;
-        return max(0, $exp - time());
-    }
-
-    public function issueSignedUrlToken(string $url, string $userId, int $ttlSeconds): string
-    {
-        $now = time();
-        $payload = [
-            'iss'     => $this->issuer,
-            'sub'     => $userId,
-            'url'     => $url,
-            'url_hash' => hash('sha256', $url),
-            'iat'     => $now,
-            'exp'     => $now + $ttlSeconds,
-            'jti'     => Uuid::uuid4()->toString(),
-            'type'    => 'signed_url',
-        ];
-
-        return JWT::encode($payload, $this->getPrivateKey(), $this->algorithm);
-    }
-
-    public function verifySignedUrlToken(string $token, string $url): bool
-    {
-        try {
-            $payload = $this->decodeAccessToken($token);
-
-            if (($payload['type'] ?? '') !== 'signed_url') {
-                return false;
-            }
-
-            if (($payload['url_hash'] ?? '') !== hash('sha256', $url)) {
-                return false;
-            }
-
-            return true;
-        } catch (TokenException) {
+        if (empty($jti)) {
             return false;
         }
+
+        return (bool) Redis::exists("revoked:{$jti}");
     }
 
-    // -----------------------------------------------------------------
-    // Private Helpers
-    // -----------------------------------------------------------------
-
-    private function getPrivateKey(): string
+    public function getPublicKey(): string
     {
-        $path = base_path(config('jwt.keys.private'));
-
-        if (! file_exists($path)) {
-            throw new TokenException('JWT private key not found. Run: php artisan auth:generate-keys', 500);
-        }
-
-        $key = file_get_contents($path);
-        if ($key === false) {
-            throw new TokenException('Unable to read JWT private key.', 500);
-        }
-
-        return $key;
+        return $this->publicKey;
     }
 
-    private function getPublicKey(): string
+    /**
+     * Return the public key as a JSON Web Key Set (JWKS).
+     *
+     * Downstream microservices can call GET /api/v1/auth/.well-known/jwks.json
+     * to obtain the key and verify tokens locally using standard JWKS libraries.
+     */
+    public function getJwks(): array
     {
-        $path = base_path(config('jwt.keys.public'));
-
-        if (! file_exists($path)) {
-            throw new TokenException('JWT public key not found. Run: php artisan auth:generate-keys', 500);
+        if (empty($this->publicKey)) {
+            return ['keys' => []];
         }
 
-        $key = file_get_contents($path);
-        if ($key === false) {
-            throw new TokenException('Unable to read JWT public key.', 500);
+        $pubKey  = openssl_pkey_get_public($this->publicKey);
+
+        if (! $pubKey) {
+            return ['keys' => []];
         }
 
-        return $key;
+        $details = openssl_pkey_get_details($pubKey);
+
+        if (! $details || $details['type'] !== OPENSSL_KEYTYPE_RSA) {
+            return ['keys' => []];
+        }
+
+        $rsa = $details['rsa'];
+
+        return [
+            'keys' => [
+                [
+                    'kty' => 'RSA',
+                    'use' => 'sig',
+                    'alg' => 'RS256',
+                    'kid' => hash('sha256', $this->publicKey),
+                    'n'   => rtrim(strtr(base64_encode($rsa['n']), '+/', '-_'), '='),
+                    'e'   => rtrim(strtr(base64_encode($rsa['e']), '+/', '-_'), '='),
+                ],
+            ],
+        ];
+    }
+
+    public function buildClaims(array $user, string $deviceId, string $tenantId): array
+    {
+        return [
+            'jti'           => (string) Str::uuid(),
+            'sub'           => $user['id'],
+            'tenant_id'     => $tenantId ?: ($user['tenant_id'] ?? ''),
+            'org_id'        => $user['organization_id'] ?? '',
+            'branch_id'     => $user['branch_id'] ?? '',
+            'roles'         => $user['roles'] ?? [],
+            'permissions'   => $user['permissions'] ?? [],
+            'device_id'     => $deviceId,
+            'token_version' => $user['token_version'] ?? 1,
+            'provider'      => $user['iam_provider'] ?? 'local',
+            'type'          => 'access',
+        ];
     }
 }

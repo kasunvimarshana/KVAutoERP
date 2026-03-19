@@ -1,30 +1,25 @@
 {
-    "name": "kv-enterprise/auth-service",
-    "description": "Centralized Authentication and Authorization Microservice for KV Enterprise SaaS",
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "laravel/laravel",
     "type": "project",
-    "keywords": ["laravel", "auth", "jwt", "microservice", "saas", "multi-tenant"],
+    "description": "The skeleton application for the Laravel framework.",
+    "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
-        "laravel/framework": "^11.0",
-        "laravel/passport": "^12.0",
-        "predis/predis": "^2.2",
-        "tymon/jwt-auth": "^2.1",
-        "spatie/laravel-permission": "^6.0",
-        "laravel/horizon": "^5.24",
-        "laravel/telescope": "^5.1",
-        "guzzlehttp/guzzle": "^7.8",
-        "league/fractal": "^0.20",
-        "ramsey/uuid": "^4.7"
+        "php": "^8.3",
+        "firebase/php-jwt": "^6.11",
+        "guzzlehttp/guzzle": "^7.9",
+        "laravel/framework": "^13.0",
+        "laravel/tinker": "^3.0",
+        "predis/predis": "^2.3"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
-        "laravel/pint": "^1.13",
+        "laravel/pail": "^1.2.5",
+        "laravel/pint": "^1.27",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.0",
-        "nunomaduro/larastan": "^2.7",
-        "phpunit/phpunit": "^11.0",
-        "laravel/sail": "^1.26"
+        "nunomaduro/collision": "^8.6",
+        "phpunit/phpunit": "^12.5.12"
     },
     "autoload": {
         "psr-4": {
@@ -39,6 +34,22 @@
         }
     },
     "scripts": {
+        "setup": [
+            "composer install",
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
+            "@php artisan key:generate",
+            "@php artisan migrate --force",
+            "npm install",
+            "npm run build"
+        ],
+        "dev": [
+            "Composer\\Config::disableProcessTimeout",
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
+        ],
+        "test": [
+            "@php artisan config:clear --ansi",
+            "@php artisan test"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
@@ -53,6 +64,9 @@
             "@php artisan key:generate --ansi",
             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --graceful --ansi"
+        ],
+        "pre-package-uninstall": [
+            "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
         ]
     },
     "extra": {
@@ -69,6 +83,6 @@
             "php-http/discovery": true
         }
     },
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "prefer-stable": true
 }

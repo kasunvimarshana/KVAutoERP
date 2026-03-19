@@ -9,19 +9,17 @@ final readonly class TokenPairDto
     public function __construct(
         public string $accessToken,
         public string $refreshToken,
-        public int $accessTokenExpiresIn,
-        public int $refreshTokenExpiresIn,
+        public int    $expiresIn,
         public string $tokenType = 'Bearer',
     ) {}
 
     public function toArray(): array
     {
         return [
-            'access_token'              => $this->accessToken,
-            'refresh_token'             => $this->refreshToken,
-            'token_type'                => $this->tokenType,
-            'expires_in'                => $this->accessTokenExpiresIn,
-            'refresh_token_expires_in'  => $this->refreshTokenExpiresIn,
+            'access_token'  => $this->accessToken,
+            'refresh_token' => $this->refreshToken,
+            'expires_in'    => $this->expiresIn,
+            'token_type'    => $this->tokenType,
         ];
     }
 }

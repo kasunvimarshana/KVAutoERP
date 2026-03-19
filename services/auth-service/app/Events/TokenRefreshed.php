@@ -12,8 +12,8 @@ class TokenRefreshed
     use Dispatchable, SerializesModels;
 
     public function __construct(
-        public readonly string $userId,
-        public readonly string $tenantId,
-        public readonly string $sessionId,
+        public readonly string             $userId,
+        public readonly string             $deviceId,
+        public readonly \DateTimeImmutable $occurredAt = new \DateTimeImmutable(),
     ) {}
 }

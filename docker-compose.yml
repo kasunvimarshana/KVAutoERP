@@ -1,139 +1,178 @@
 version: "3.9"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# KV Enterprise SaaS – Auth Service Docker Compose
+# KV-SAAS-APP — Docker Compose orchestration
+#
+# Services:
+#   auth-service  — JWT issuance, login/logout, SSO, token rotation   (:8000)
+#   user-service  — Users, tenants, roles, permissions, ABAC, files   (:8001)
+#   mysql         — Shared relational database (isolated per service)
+#   redis         — Token revocation, session state, rate-limit counters
+#
+# Usage:
+#   docker compose up --build          # start everything
+#   docker compose up auth-service     # start a single service
+#   docker compose down -v             # stop and remove volumes
 # ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  kv-saas-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
 
 services:
 
-  # ────────────────────────────────────────────────────────────────────
-  # Auth Service (Laravel)
-  # ────────────────────────────────────────────────────────────────────
-  auth-service:
-    build:
-      context: ./services/auth-service
-      dockerfile: ../../docker/auth-service/Dockerfile
-      target: production
-    container_name: kv-auth-service
-    restart: unless-stopped
-    ports:
-      - "8001:80"
-    environment:
-      APP_NAME: "KV Auth Service"
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_KEY: "${AUTH_APP_KEY}"
-      APP_URL: "http://localhost:8001"
-      DB_CONNECTION: mysql
-      DB_HOST: auth-mysql
-      DB_PORT: 3306
-      DB_DATABASE: kv_auth
-      DB_USERNAME: kv_auth
-      DB_PASSWORD: "${AUTH_DB_PASSWORD:-secret}"
-      CACHE_DRIVER: redis
-      QUEUE_CONNECTION: redis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      JWT_ALGO: RS256
-      JWT_TTL: 15
-      JWT_REFRESH_TTL: 43200
-      JWT_PUBLIC_KEY_PATH: storage/keys/public.pem
-      JWT_PRIVATE_KEY_PATH: storage/keys/private.pem
-    volumes:
-      - auth-keys:/app/storage/keys
-      - auth-logs:/app/storage/logs
-    depends_on:
-      auth-mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - kv-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/api/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # ────────────────────────────────────────────────────────────────────
-  # Auth Service Database (MySQL)
-  # ────────────────────────────────────────────────────────────────────
-  auth-mysql:
+  # ────────────────────────────────────────────────────────────
+  # MySQL 8
+  # ────────────────────────────────────────────────────────────
+  mysql:
     image: mysql:8.0
-    container_name: kv-auth-mysql
     restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: "${AUTH_DB_ROOT_PASSWORD:-rootsecret}"
-      MYSQL_DATABASE: kv_auth
-      MYSQL_USER: kv_auth
-      MYSQL_PASSWORD: "${AUTH_DB_PASSWORD:-secret}"
-    volumes:
-      - auth-mysql-data:/var/lib/mysql
     networks:
-      - kv-network
+      - kv-saas-network
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE:      ${MYSQL_DATABASE:-kv_saas}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${AUTH_DB_ROOT_PASSWORD:-rootsecret}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
 
-  # ────────────────────────────────────────────────────────────────────
-  # Shared Redis (used by all microservices for revocation list and cache)
-  # ────────────────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────
+  # Redis 7
+  # ────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: kv-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:-}"
+    networks:
+      - kv-saas-network
+    ports:
+      - "6379:6379"
     volumes:
       - redis-data:/data
-    networks:
-      - kv-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 3
-
-  # ────────────────────────────────────────────────────────────────────
-  # RabbitMQ (Message Broker for Outbox Pattern)
-  # ────────────────────────────────────────────────────────────────────
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: kv-rabbitmq
-    restart: unless-stopped
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USER:-admin}"
-      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASS:-secret}"
-      RABBITMQ_DEFAULT_VHOST: /
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-    networks:
-      - kv-network
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 30s
-      timeout: 10s
       retries: 5
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Volumes
-# ─────────────────────────────────────────────────────────────────────────────
-volumes:
-  auth-mysql-data:
-  auth-keys:
-  auth-logs:
-  redis-data:
-  rabbitmq-data:
+  # ────────────────────────────────────────────────────────────
+  # Auth Service  (port 8000)
+  # ────────────────────────────────────────────────────────────
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+      target: app
+    restart: unless-stopped
+    networks:
+      - kv-saas-network
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV:  ${APP_ENV:-production}
+      APP_KEY:  ${AUTH_APP_KEY:-base64:changeme}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL:  ${AUTH_APP_URL:-http://localhost:8000}
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Networks
-# ─────────────────────────────────────────────────────────────────────────────
-networks:
-  kv-network:
-    driver: bridge
+      DB_CONNECTION: mysql
+      DB_HOST:       mysql
+      DB_PORT:       3306
+      DB_DATABASE:   ${AUTH_DB_DATABASE:-auth_service}
+      DB_USERNAME:   ${MYSQL_USER:-root}
+      DB_PASSWORD:   ${MYSQL_ROOT_PASSWORD:-rootpassword}
+
+      REDIS_HOST:     redis
+      REDIS_PORT:     6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+
+      # Asymmetric JWT signing keys — mount via secrets in production
+      JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/var/www/html/storage/keys/private.pem}
+      JWT_PUBLIC_KEY_PATH:  ${JWT_PUBLIC_KEY_PATH:-/var/www/html/storage/keys/public.pem}
+      JWT_TTL:              ${JWT_TTL:-900}
+      JWT_REFRESH_TTL:      ${JWT_REFRESH_TTL:-604800}
+
+      # User service internal API
+      USER_SERVICE_URL:          ${USER_SERVICE_URL:-http://user-service:8001}
+      USER_SERVICE_TOKEN:        ${USER_SERVICE_TOKEN:-changeme-service-token}
+
+      # Suspicious activity detection
+      AUTH_MAX_ATTEMPTS: ${AUTH_MAX_ATTEMPTS:-5}
+      AUTH_LOCKOUT_TTL:  ${AUTH_LOCKOUT_TTL:-900}
+    volumes:
+      - ./services/auth-service/storage/keys:/var/www/html/storage/keys:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # ────────────────────────────────────────────────────────────
+  # User Service  (port 8001)
+  # ────────────────────────────────────────────────────────────
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+      target: app
+    restart: unless-stopped
+    networks:
+      - kv-saas-network
+    ports:
+      - "8001:8001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV:   ${APP_ENV:-production}
+      APP_KEY:   ${USER_APP_KEY:-base64:changeme}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL:   ${USER_APP_URL:-http://localhost:8001}
+
+      DB_CONNECTION: mysql
+      DB_HOST:       mysql
+      DB_PORT:       3306
+      DB_DATABASE:   ${USER_DB_DATABASE:-user_service}
+      DB_USERNAME:   ${MYSQL_USER:-root}
+      DB_PASSWORD:   ${MYSQL_ROOT_PASSWORD:-rootpassword}
+
+      REDIS_HOST:     redis
+      REDIS_PORT:     6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+
+      # Public key for verifying JWTs issued by auth-service
+      JWT_PUBLIC_KEY_PATH: ${JWT_PUBLIC_KEY_PATH:-/var/www/html/storage/keys/public.pem}
+
+      # Service-to-service token expected by VerifyServiceToken middleware
+      AUTH_SERVICE_TOKEN: ${USER_SERVICE_TOKEN:-changeme-service-token}
+
+      # File storage (S3 / local)
+      FILESYSTEM_DISK:       ${FILESYSTEM_DISK:-local}
+      AWS_ACCESS_KEY_ID:     ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION:    ${AWS_DEFAULT_REGION:-us-east-1}
+      AWS_BUCKET:            ${AWS_BUCKET:-}
+    volumes:
+      - ./services/auth-service/storage/keys:/var/www/html/storage/keys:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3

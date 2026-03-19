@@ -4,426 +4,291 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Contracts\Repositories\SessionRepositoryInterface;
-use App\Contracts\Repositories\TokenRevocationRepositoryInterface;
-use App\Contracts\Repositories\UserRepositoryInterface;
-use App\Contracts\Services\AuditServiceInterface;
-use App\Contracts\Services\AuthServiceInterface;
-use App\Contracts\Services\PermissionServiceInterface;
-use App\Contracts\Services\SessionServiceInterface;
-use App\Contracts\Services\TenantConfigServiceInterface;
-use App\Contracts\Services\TokenServiceInterface;
+use App\Contracts\AuthServiceContract;
+use App\Contracts\RevocationServiceContract;
+use App\Contracts\SuspiciousActivityServiceContract;
+use App\Contracts\TokenServiceContract;
+use App\Contracts\UserServiceClientContract;
 use App\DTOs\AuthResultDto;
-use App\DTOs\LoginCredentialsDto;
-use App\DTOs\LogoutContextDto;
 use App\DTOs\TokenClaimsDto;
 use App\DTOs\TokenPairDto;
+use App\Events\TokenRefreshed;
 use App\Events\UserLoggedIn;
 use App\Events\UserLoggedOut;
-use App\Events\TokenRefreshed;
-use App\Exceptions\AuthException;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
-use Ramsey\Uuid\Uuid;
+use App\Exceptions\AuthenticationException;
+use App\Exceptions\TokenException;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
-class AuthService implements AuthServiceInterface
+class AuthService implements AuthServiceContract
 {
     public function __construct(
-        private readonly UserRepositoryInterface $userRepository,
-        private readonly TokenServiceInterface $tokenService,
-        private readonly SessionServiceInterface $sessionService,
-        private readonly AuditServiceInterface $auditService,
-        private readonly PermissionServiceInterface $permissionService,
-        private readonly TenantConfigServiceInterface $tenantConfigService,
+        private readonly TokenServiceContract              $tokenService,
+        private readonly RevocationServiceContract         $revocationService,
+        private readonly UserServiceClientContract         $userServiceClient,
+        private readonly IdentityProviderManager           $identityProviderManager,
+        private readonly SuspiciousActivityServiceContract $suspiciousActivityService,
     ) {}
 
-    public function login(LoginCredentialsDto $credentials): AuthResultDto
+    public function login(array $credentials, string $deviceId, string $ipAddress): AuthResultDto
     {
-        // 1. Check suspicious activity before processing
-        if ($this->auditService->isSuspiciousActivity('', $credentials->ipAddress)) {
-            $this->auditService->logFailedLogin(
-                $credentials->email,
-                $credentials->tenantId,
-                $credentials->ipAddress,
-                $credentials->userAgent,
-                'IP rate-limited due to suspicious activity',
-            );
-            throw new AuthException('Too many authentication attempts. Please try again later.', 429);
+        $provider = $credentials['provider'] ?? 'local';
+        $tenantId = $credentials['tenant_id'] ?? '';
+        $email    = $credentials['email'] ?? '';
+
+        // ── Suspicious activity guard ──────────────────────────────────
+        if ($this->suspiciousActivityService->isBlocked($email) || $this->suspiciousActivityService->isBlocked($ipAddress)) {
+            throw new AuthenticationException('Too many failed attempts. Please try again later.');
         }
 
-        // 2. Find the user within the correct tenant scope
-        $user = $this->userRepository->findByEmail($credentials->email, $credentials->tenantId);
+        try {
+            // ── Resolve tenant IAM provider dynamically from user-service ──
+            if ($tenantId && $provider === 'local') {
+                $tenantConfig   = $this->userServiceClient->getTenantIamConfig($tenantId);
+                $tenantProvider = $tenantConfig['iam_provider'] ?? 'local';
 
-        if ($user === null) {
-            $this->auditService->logFailedLogin(
-                $credentials->email,
-                $credentials->tenantId,
-                $credentials->ipAddress,
-                $credentials->userAgent,
-                'User not found',
-            );
-            throw new AuthException('Invalid credentials.', 401);
-        }
+                // If the tenant is configured for a federated provider, redirect the login
+                if ($tenantProvider !== 'local') {
+                    $provider    = $tenantProvider;
+                    $iamConfig   = (array) ($tenantConfig['iam_config'] ?? []);
 
-        // 3. Check account status
-        if (! $user->is_active) {
-            throw new AuthException('Account is inactive.', 403);
-        }
-
-        if ($user->isLocked()) {
-            throw new AuthException('Account is temporarily locked. Please try again later.', 423);
-        }
-
-        // 4. Verify password
-        if (! Hash::check($credentials->password, $user->password)) {
-            $this->userRepository->incrementFailedLoginAttempts($user->id);
-            $this->auditService->logFailedLogin(
-                $credentials->email,
-                $credentials->tenantId,
-                $credentials->ipAddress,
-                $credentials->userAgent,
-                'Invalid password',
-            );
-
-            $failedAttempts = $user->failed_login_attempts + 1;
-            $maxAttempts = config('rate_limit.suspicious_activity.max_failed_logins', 5);
-
-            if ($failedAttempts >= $maxAttempts) {
-                $lockMinutes = config('rate_limit.suspicious_activity.lock_duration_minutes', 30);
-                $this->userRepository->lockUser($user->id, $lockMinutes);
-                $this->auditService->logSuspiciousActivity(
-                    $user->id,
-                    $credentials->tenantId,
-                    'account_locked_due_to_failed_logins',
-                    ['attempts' => $failedAttempts, 'ip' => $credentials->ipAddress],
-                );
-                throw new AuthException('Account has been temporarily locked due to too many failed attempts.', 423);
+                    // Dynamically register tenant-specific IAM config for this request
+                    $this->identityProviderManager->registerTenantConfig($tenantProvider, $tenantId, $iamConfig);
+                }
             }
 
-            throw new AuthException('Invalid credentials.', 401);
-        }
+            // Federated / SSO login via IAM provider adapter
+            if ($provider !== 'local') {
+                $idp       = $this->identityProviderManager->resolve($provider, $tenantId);
+                $userInfo  = null;
+                $tokenPair = null;
 
-        // 5. Reset failed login attempts on success
-        $this->userRepository->resetFailedLoginAttempts($user->id);
-        $this->userRepository->updateLastLoginAt($user->id, $credentials->ipAddress);
+                if (! empty($credentials['code'])) {
+                    // OAuth2 authorization-code flow
+                    $tokenPair = $idp->exchangeToken(
+                        $credentials['code'],
+                        $credentials['redirect_uri'] ?? ''
+                    );
+                    $userInfo  = $idp->getUserInfo($tokenPair->accessToken);
+                } else {
+                    // Resource-owner password flow (Okta, Keycloak)
+                    $authResult = $idp->authenticate($credentials);
 
-        // 6. Enforce device limit per tenant config
-        $maxDevices = $this->tenantConfigService->getMaxDevicesPerUser($credentials->tenantId);
-        $sessionService = $this->sessionService;
+                    return $authResult;
+                }
 
-        // 7. Build token claims
-        $roles = $this->permissionService->getUserRoles($user->id, $credentials->tenantId);
-        $permissions = $this->permissionService->getUserPermissions($user->id, $credentials->tenantId);
+                // Map external identity → internal user
+                $user = $this->userServiceClient->findByExternalId($userInfo->externalId, $provider)
+                    ?? $this->userServiceClient->findByEmail($userInfo->email);
 
-        $accessTtl = $this->tenantConfigService->getAccessTokenTtl($credentials->tenantId);
-        $refreshTtl = $this->tenantConfigService->getRefreshTokenTtl($credentials->tenantId);
+                if (! $user) {
+                    $this->suspiciousActivityService->recordFailedAttempt($email, $ipAddress);
+                    throw new AuthenticationException('User not found for federated identity');
+                }
 
-        $jti = Uuid::uuid4()->toString();
+                if (! $user->isActive()) {
+                    throw new AuthenticationException('Account is not active');
+                }
 
-        $claims = new TokenClaimsDto(
-            userId: $user->id,
-            tenantId: $credentials->tenantId,
-            organisationId: $credentials->organisationId ?? $user->organisation_id,
-            branchId: $credentials->branchId ?? $user->branch_id,
-            locationId: $user->location_id,
-            departmentId: $user->department_id,
-            roles: $roles,
-            permissions: $permissions,
-            deviceId: $credentials->deviceId,
-            tokenVersion: $user->token_version,
-            ttlMinutes: $accessTtl,
-            jti: $jti,
-        );
+                $ttl     = (int) config('jwt.ttl', 900);
+                $claims  = $this->tokenService->buildClaims($user->toArray(), $deviceId, $tenantId ?: $user->tenantId);
+                $access  = $this->tokenService->issue($claims, $ttl);
+                $refresh = $this->tokenService->issueRefreshToken($user->id, $deviceId, $claims['jti']);
 
-        // 8. Issue tokens
-        $accessToken = $this->tokenService->issueAccessToken($claims);
-        $rawRefreshToken = $this->tokenService->issueRefreshToken($user->id, '');
-        $hashedRefreshToken = $this->tokenService->hashRefreshToken($rawRefreshToken);
+                $this->suspiciousActivityService->resetFailedAttempts($email);
+                $this->userServiceClient->recordLoginEvent($user->id, $deviceId, $ipAddress);
+                event(new UserLoggedIn($user->id, $deviceId, $ipAddress, $user->tenantId));
 
-        $refreshExpiresAt = now()->addMinutes($refreshTtl);
+                return new AuthResultDto(
+                    accessToken:  $access,
+                    refreshToken: $refresh,
+                    expiresIn:    $ttl,
+                    claims:       $claims,
+                );
+            }
 
-        // 9. Create session
-        $session = $sessionService->createSession(
-            userId: $user->id,
-            tenantId: $credentials->tenantId,
-            deviceId: $credentials->deviceId,
-            deviceName: $credentials->deviceName,
-            ipAddress: $credentials->ipAddress,
-            userAgent: $credentials->userAgent,
-            hashedRefreshToken: $hashedRefreshToken,
-            refreshTokenExpiresAt: $refreshExpiresAt,
-        );
+            // Local authentication
+            $user = $this->userServiceClient->findByEmail($email);
 
-        // 10. Audit event
-        $this->auditService->log(
-            event: 'user.login',
-            userId: $user->id,
-            tenantId: $credentials->tenantId,
-            metadata: ['device_id' => $credentials->deviceId, 'session_id' => $session->id],
-            ipAddress: $credentials->ipAddress,
-            userAgent: $credentials->userAgent,
-        );
+            if (! $user) {
+                $this->suspiciousActivityService->recordFailedAttempt($email, $ipAddress);
+                throw new AuthenticationException('Invalid credentials');
+            }
 
-        event(new UserLoggedIn($user, $credentials->tenantId, $session->id, $credentials->ipAddress));
+            if (! $user->isActive()) {
+                throw new AuthenticationException('Account is not active');
+            }
 
-        return new AuthResultDto(
-            user: $user,
-            tokenPair: new TokenPairDto(
-                accessToken: $accessToken,
-                refreshToken: $rawRefreshToken,
-                accessTokenExpiresIn: $accessTtl * 60,
-                refreshTokenExpiresIn: $refreshTtl * 60,
-            ),
-            sessionId: $session->id,
-        );
-    }
+            if (! $this->userServiceClient->validateCredentials($user->id, $credentials['password'] ?? '')) {
+                $blocked = $this->suspiciousActivityService->recordFailedAttempt($email, $ipAddress);
 
-    public function logout(LogoutContextDto $context): void
-    {
-        // 1. Revoke the access token JTI
-        $this->tokenService->revokeByJti(
-            $context->accessTokenJti,
-            $context->userId,
-            $context->accessTokenRemainingTtlSeconds,
-            'logout',
-        );
+                $remaining = $this->suspiciousActivityService->remainingAttempts($email);
 
-        // 2. Revoke the device session (which invalidates the refresh token)
-        $this->sessionService->revokeSession($context->sessionId, $context->userId);
+                Log::warning('Failed login attempt', [
+                    'email'     => $email,
+                    'ip'        => $ipAddress,
+                    'remaining' => $remaining,
+                    'blocked'   => $blocked,
+                ]);
 
-        // 3. Audit
-        $this->auditService->log(
-            event: 'user.logout',
-            userId: $context->userId,
-            tenantId: $context->tenantId,
-            metadata: ['session_id' => $context->sessionId, 'device_id' => $context->deviceId],
-            ipAddress: $context->ipAddress,
-        );
+                throw new AuthenticationException('Invalid credentials');
+            }
 
-        event(new UserLoggedOut($context->userId, $context->tenantId, 'single_device'));
-    }
+            $ttl     = (int) config('jwt.ttl', 900);
+            $claims  = $this->tokenService->buildClaims($user->toArray(), $deviceId, $tenantId ?: $user->tenantId);
+            $access  = $this->tokenService->issue($claims, $ttl);
+            $refresh = $this->tokenService->issueRefreshToken($user->id, $deviceId, $claims['jti']);
 
-    public function logoutAllDevices(string $userId, string $tenantId): void
-    {
-        // Revoke all sessions — the token version increment handles existing access tokens
-        $this->sessionService->revokeAllSessions($userId);
-        $this->userRepository->incrementTokenVersion($userId);
-        $this->permissionService->invalidateCache($userId, $tenantId);
+            $this->suspiciousActivityService->resetFailedAttempts($email);
+            $this->userServiceClient->recordLoginEvent($user->id, $deviceId, $ipAddress);
+            event(new UserLoggedIn($user->id, $deviceId, $ipAddress, $user->tenantId));
 
-        $this->auditService->log(
-            event: 'user.logout_all',
-            userId: $userId,
-            tenantId: $tenantId,
-            metadata: ['reason' => 'global_logout'],
-        );
-
-        event(new UserLoggedOut($userId, $tenantId, 'all_devices'));
-    }
-
-    public function logoutDevice(string $userId, string $deviceId, string $tenantId): void
-    {
-        $this->sessionService->revokeDeviceSession($userId, $deviceId);
-
-        $this->auditService->log(
-            event: 'user.logout_device',
-            userId: $userId,
-            tenantId: $tenantId,
-            metadata: ['device_id' => $deviceId],
-        );
-    }
-
-    public function refreshTokens(string $refreshToken, string $deviceId): TokenPairDto
-    {
-        // 1. Find session by refresh token
-        $session = $this->sessionService->findByRefreshToken($refreshToken);
-
-        if ($session === null || ! $session->is_active || $session->isExpired()) {
-            throw new AuthException('Invalid or expired refresh token.', 401);
-        }
-
-        if ($session->device_id !== $deviceId) {
-            // Token theft detection: device mismatch
-            $this->auditService->logSuspiciousActivity(
-                $session->user_id,
-                $session->tenant_id,
-                'refresh_token_device_mismatch',
-                ['expected_device' => $session->device_id, 'provided_device' => $deviceId],
+            return new AuthResultDto(
+                accessToken:  $access,
+                refreshToken: $refresh,
+                expiresIn:    $ttl,
+                claims:       $claims,
             );
-            $this->sessionService->revokeAllSessions($session->user_id);
-            $this->userRepository->incrementTokenVersion($session->user_id);
-            throw new AuthException('Security violation detected. All sessions revoked.', 401);
+
+        } catch (AuthenticationException $e) {
+            Log::warning('Login failed', [
+                'email'  => $email,
+                'ip'     => $ipAddress,
+                'reason' => $e->getMessage(),
+            ]);
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Unexpected login error', ['error' => $e->getMessage()]);
+            throw new AuthenticationException('Authentication failed');
+        }
+    }
+
+    public function logout(string $accessToken, ?string $deviceId = null, bool $allDevices = false): void
+    {
+        try {
+            $claims = $this->tokenService->decode($accessToken, false);
+            $jti    = $claims['jti'] ?? '';
+            $userId = $claims['sub'] ?? '';
+
+            if ($jti) {
+                $this->tokenService->revoke($jti);
+            }
+
+            if ($allDevices) {
+                $this->revocationService->revokeAll($userId);
+            } elseif ($deviceId) {
+                $this->revocationService->revokeDevice($userId, $deviceId);
+            }
+
+            event(new UserLoggedOut($userId, $deviceId, $allDevices));
+        } catch (\Throwable $e) {
+            Log::warning('Logout error (non-fatal)', ['error' => $e->getMessage()]);
+        }
+    }
+
+    public function refreshToken(string $refreshToken, string $deviceId): TokenPairDto
+    {
+        $key  = "refresh:{$refreshToken}";
+        $data = Redis::get($key);
+
+        if (! $data) {
+            throw new TokenException('Invalid or expired refresh token');
         }
 
-        // 2. Verify the refresh token hash
-        if (! $this->tokenService->verifyRefreshToken($refreshToken, $session->refresh_token_hash)) {
-            throw new AuthException('Invalid refresh token.', 401);
+        $stored = (array) json_decode((string) $data, true);
+
+        if (($stored['device_id'] ?? '') !== $deviceId) {
+            throw new TokenException('Refresh token device mismatch');
         }
 
-        // 3. Load the user
-        $user = $this->userRepository->findById($session->user_id);
+        $userId = $stored['user_id'] ?? '';
+        $user   = $this->userServiceClient->findById($userId);
 
-        if ($user === null || ! $user->is_active || $user->isLocked()) {
-            throw new AuthException('User account is not accessible.', 403);
+        if (! $user || ! $user->isActive()) {
+            throw new TokenException('User not found or inactive');
         }
 
-        // 4. Issue new token pair
-        $roles = $this->permissionService->getUserRoles($user->id, $session->tenant_id);
-        $permissions = $this->permissionService->getUserPermissions($user->id, $session->tenant_id);
+        // Rotate: invalidate old refresh token
+        Redis::del($key);
 
-        $accessTtl = $this->tenantConfigService->getAccessTokenTtl($session->tenant_id);
-        $refreshTtl = $this->tenantConfigService->getRefreshTokenTtl($session->tenant_id);
+        $ttl     = (int) config('jwt.ttl', 900);
+        $claims  = $this->tokenService->buildClaims($user->toArray(), $deviceId, $user->tenantId);
+        $access  = $this->tokenService->issue($claims, $ttl);
+        $refresh = $this->tokenService->issueRefreshToken($userId, $deviceId, $claims['jti']);
 
-        $claims = new TokenClaimsDto(
-            userId: $user->id,
-            tenantId: $session->tenant_id,
-            organisationId: $user->organisation_id,
-            branchId: $user->branch_id,
-            locationId: $user->location_id,
-            departmentId: $user->department_id,
-            roles: $roles,
-            permissions: $permissions,
-            deviceId: $deviceId,
-            tokenVersion: $user->token_version,
-            ttlMinutes: $accessTtl,
-            jti: Uuid::uuid4()->toString(),
-        );
-
-        $newAccessToken = $this->tokenService->issueAccessToken($claims);
-        $newRawRefreshToken = $this->tokenService->issueRefreshToken($user->id, $session->id);
-        $newHashedRefreshToken = $this->tokenService->hashRefreshToken($newRawRefreshToken);
-        $newRefreshExpiresAt = now()->addMinutes($refreshTtl);
-
-        // 5. Rotate refresh token in session
-        $this->sessionService->rotateRefreshToken(
-            $session->id,
-            $newHashedRefreshToken,
-            $newRefreshExpiresAt,
-        );
-
-        $this->auditService->log(
-            event: 'token.refreshed',
-            userId: $user->id,
-            tenantId: $session->tenant_id,
-            metadata: ['session_id' => $session->id],
-        );
-
-        event(new TokenRefreshed($user->id, $session->tenant_id, $session->id));
+        event(new TokenRefreshed($userId, $deviceId));
 
         return new TokenPairDto(
-            accessToken: $newAccessToken,
-            refreshToken: $newRawRefreshToken,
-            accessTokenExpiresIn: $accessTtl * 60,
-            refreshTokenExpiresIn: $refreshTtl * 60,
+            accessToken:  $access,
+            refreshToken: $refresh,
+            expiresIn:    $ttl,
         );
     }
 
-    public function validateAccessToken(string $accessToken): array
+    public function revokeToken(string $jti): void
     {
-        return $this->tokenService->decodeAccessToken($accessToken);
+        $this->tokenService->revoke($jti);
     }
 
-    public function register(array $userData, string $tenantId): AuthResultDto
+    public function revokeAllUserTokens(string $userId): void
     {
-        if ($this->userRepository->existsByEmail($userData['email'], $tenantId)) {
-            throw new AuthException('Email address is already registered.', 409);
-        }
-
-        $user = $this->userRepository->create([
-            'tenant_id'           => $tenantId,
-            'name'                => $userData['name'],
-            'email'               => $userData['email'],
-            'password'            => $userData['password'],
-            'organisation_id'     => $userData['organisation_id'] ?? null,
-            'branch_id'           => $userData['branch_id'] ?? null,
-            'password_changed_at' => now(),
-        ]);
-
-        $this->auditService->log(
-            event: 'user.registered',
-            userId: $user->id,
-            tenantId: $tenantId,
-            metadata: ['email' => $userData['email']],
-        );
-
-        $credentials = LoginCredentialsDto::fromArray([
-            'email'       => $userData['email'],
-            'password'    => $userData['password'],
-            'tenant_id'   => $tenantId,
-            'device_id'   => $userData['device_id'] ?? Uuid::uuid4()->toString(),
-            'device_name' => $userData['device_name'] ?? 'Registration Device',
-            'ip_address'  => $userData['ip_address'] ?? '',
-            'user_agent'  => $userData['user_agent'] ?? '',
-        ]);
-
-        return $this->login($credentials);
+        $this->revocationService->revokeAll($userId);
     }
 
-    public function changePassword(string $userId, string $currentPassword, string $newPassword): void
+    public function verifyToken(string $accessToken): TokenClaimsDto
     {
-        $user = $this->userRepository->findById($userId);
+        $c = $this->tokenService->verify($accessToken);
 
-        if ($user === null) {
-            throw new AuthException('User not found.', 404);
-        }
-
-        if (! Hash::check($currentPassword, $user->password)) {
-            throw new AuthException('Current password is incorrect.', 422);
-        }
-
-        $this->userRepository->updatePassword($userId, Hash::make($newPassword));
-
-        if (config('jwt.version_on_password_change', true)) {
-            $this->userRepository->incrementTokenVersion($userId);
-            $this->sessionService->revokeAllSessions($userId);
-        }
-
-        $this->auditService->log(
-            event: 'user.password_changed',
-            userId: $userId,
-            tenantId: $user->tenant_id,
+        return new TokenClaimsDto(
+            jti:            $c['jti'] ?? '',
+            userId:         $c['sub'] ?? '',
+            tenantId:       $c['tenant_id'] ?? '',
+            organizationId: $c['org_id'] ?? '',
+            branchId:       $c['branch_id'] ?? '',
+            roles:          (array) ($c['roles'] ?? []),
+            permissions:    (array) ($c['permissions'] ?? []),
+            deviceId:       $c['device_id'] ?? '',
+            tokenVersion:   (int) ($c['token_version'] ?? 1),
+            provider:       $c['provider'] ?? 'local',
+            issuer:         $c['iss'] ?? '',
+            exp:            (int) ($c['exp'] ?? 0),
+            iat:            (int) ($c['iat'] ?? 0),
         );
     }
 
-    public function initiatePasswordReset(string $email, string $tenantId): void
+    public function issueServiceToken(string $serviceId, string $serviceSecret): TokenPairDto
     {
-        $user = $this->userRepository->findByEmail($email, $tenantId);
+        $services = (array) config('auth.service_credentials', []);
 
-        if ($user === null) {
-            // Silently succeed to prevent user enumeration
-            return;
+        if (! isset($services[$serviceId])) {
+            throw new AuthenticationException('Invalid service credentials');
         }
 
-        // Use Laravel's built-in password reset mechanism
-        Password::sendResetLink(['email' => $email]);
-
-        $this->auditService->log(
-            event: 'user.password_reset_initiated',
-            userId: $user->id,
-            tenantId: $tenantId,
-            metadata: ['email' => $email],
-        );
-    }
-
-    public function completePasswordReset(string $resetToken, string $newPassword): void
-    {
-        $status = Password::reset(
-            ['token' => $resetToken, 'password' => $newPassword, 'password_confirmation' => $newPassword],
-            function (User $user, string $password) {
-                $this->userRepository->updatePassword($user->id, Hash::make($password));
-                $this->userRepository->incrementTokenVersion($user->id);
-                $this->sessionService->revokeAllSessions($user->id);
-
-                $this->auditService->log(
-                    event: 'user.password_reset_completed',
-                    userId: $user->id,
-                    tenantId: $user->tenant_id,
-                );
-            },
-        );
-
-        if ($status !== Password::PASSWORD_RESET) {
-            throw new AuthException('Invalid or expired password reset token.', 422);
+        if (! hash_equals($services[$serviceId], hash('sha256', $serviceSecret))) {
+            throw new AuthenticationException('Invalid service credentials');
         }
+
+        $ttl    = (int) config('jwt.service_ttl', 3600);
+        $claims = [
+            'sub'           => $serviceId,
+            'type'          => 'service',
+            'tenant_id'     => 'system',
+            'org_id'        => '',
+            'branch_id'     => '',
+            'roles'         => ['service'],
+            'permissions'   => [],
+            'device_id'     => 'service',
+            'token_version' => 1,
+            'provider'      => 'service',
+        ];
+
+        $access  = $this->tokenService->issue($claims, $ttl);
+        $refresh = $this->tokenService->issueRefreshToken($serviceId, 'service', $claims['jti'] ?? '');
+
+        return new TokenPairDto(
+            accessToken:  $access,
+            refreshToken: $refresh,
+            expiresIn:    $ttl,
+        );
     }
 }

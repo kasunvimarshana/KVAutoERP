@@ -4,143 +4,236 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Contracts\Repositories\UserProfileRepositoryInterface;
-use App\Contracts\Repositories\UserRepositoryInterface;
-use App\Contracts\Services\UserServiceInterface;
-use App\DTOs\CreateUserDto;
-use App\DTOs\UpdateUserDto;
-use App\DTOs\UserProfileDto;
-use App\Exceptions\UserException;
+use App\Contracts\UserServiceContract;
+use App\Models\Role;
 use App\Models\User;
-use App\Models\UserProfile;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use App\Models\UserIamMapping;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
-class UserService implements UserServiceInterface
+class UserService implements UserServiceContract
 {
-    public function __construct(
-        private readonly UserRepositoryInterface $userRepository,
-        private readonly UserProfileRepositoryInterface $userProfileRepository,
-    ) {}
-
-    public function getUser(string $userId, string $tenantId): User
+    public function findById(string $userId): ?array
     {
-        $user = $this->userRepository->findById($userId);
+        $user = User::with(['roles.permissions'])->find($userId);
 
-        if ($user === null) {
-            throw UserException::notFound($userId);
-        }
-
-        if ($user->tenant_id !== $tenantId) {
-            throw UserException::tenantMismatch();
-        }
-
-        return $user;
+        return $user ? $this->toArray($user) : null;
     }
 
-    public function createUser(CreateUserDto $dto): User
+    public function findByEmail(string $email): ?array
     {
-        if ($this->userRepository->existsByEmail($dto->email, $dto->tenantId)) {
-            throw UserException::emailAlreadyExists($dto->email);
-        }
+        $user = User::with(['roles.permissions'])->where('email', $email)->first();
 
-        return $this->userRepository->create([
-            'tenant_id'       => $dto->tenantId,
-            'organisation_id' => $dto->organisationId,
-            'branch_id'       => $dto->branchId,
-            'location_id'     => $dto->locationId,
-            'department_id'   => $dto->departmentId,
-            'name'            => $dto->name,
-            'email'           => $dto->email,
-            'password'        => Hash::make($dto->password),
-            'phone'           => $dto->phone,
-            'avatar'          => $dto->avatar,
-            'is_active'       => $dto->isActive,
-            'metadata'        => $dto->metadata ?: null,
-        ]);
+        return $user ? $this->toArray($user) : null;
     }
 
-    public function updateUser(string $userId, string $tenantId, UpdateUserDto $dto): User
+    public function findByExternalId(string $externalId, string $provider): ?array
     {
-        $user = $this->getUser($userId, $tenantId);
+        $mapping = UserIamMapping::where('external_id', $externalId)
+            ->where('provider', $provider)
+            ->with('user.roles.permissions')
+            ->first();
 
-        $changes = $dto->toArray();
+        if (! $mapping || ! $mapping->user) {
+            return null;
+        }
 
-        if (isset($changes['email']) && $changes['email'] !== $user->email) {
-            if ($this->userRepository->existsByEmail($changes['email'], $tenantId, $userId)) {
-                throw UserException::emailAlreadyExists($changes['email']);
+        return $this->toArray($mapping->user);
+    }
+
+    public function validateCredentials(string $userId, string $password): bool
+    {
+        $user = User::select(['id', 'password'])->find($userId);
+
+        if (! $user) {
+            return false;
+        }
+
+        return Hash::check($password, $user->password);
+    }
+
+    public function getUserClaims(string $userId): array
+    {
+        $user = User::with(['roles.permissions'])->find($userId);
+
+        if (! $user) {
+            return [];
+        }
+
+        return [
+            'id'              => $user->id,
+            'email'           => $user->email,
+            'name'            => $user->name,
+            'tenant_id'       => $user->tenant_id,
+            'organization_id' => $user->organization_id,
+            'branch_id'       => $user->branch_id,
+            'roles'           => $user->getRoleNames(),
+            'permissions'     => $user->getPermissionNames(),
+            'token_version'   => $user->token_version,
+            'iam_provider'    => $user->iam_provider ?? 'local',
+            'status'          => $user->status,
+        ];
+    }
+
+    public function recordLoginEvent(string $userId, string $deviceId, string $ipAddress): void
+    {
+        // Fetch tenant_id once before the transaction to avoid a redundant query inside it
+        $tenantId = User::select('tenant_id')->find($userId)?->tenant_id;
+
+        DB::transaction(function () use ($userId, $deviceId, $ipAddress, $tenantId): void {
+            User::where('id', $userId)->update([
+                'last_login_at'     => now(),
+                'last_login_ip'     => $ipAddress,
+                'last_login_device' => $deviceId,
+            ]);
+
+            DB::table('audit_logs')->insert([
+                'id'          => (string) Str::uuid(),
+                'action'      => 'user.login',
+                'entity_type' => 'user',
+                'entity_id'   => $userId,
+                'actor_id'    => $userId,
+                'tenant_id'   => $tenantId,
+                'ip_address'  => $ipAddress,
+                'context'     => json_encode(['device_id' => $deviceId]),
+                'created_at'  => now(),
+            ]);
+        });
+    }
+
+    public function incrementTokenVersion(string $userId): int
+    {
+        $user = User::findOrFail($userId);
+        $user->increment('token_version');
+
+        return (int) $user->fresh()->token_version;
+    }
+
+    public function createUser(array $data): array
+    {
+        return DB::transaction(function () use ($data): array {
+            $user = User::create([
+                'id'              => (string) Str::uuid(),
+                'name'            => $data['name'],
+                'email'           => $data['email'],
+                'password'        => Hash::make($data['password']),
+                'tenant_id'       => $data['tenant_id'] ?? null,
+                'organization_id' => $data['organization_id'] ?? null,
+                'branch_id'       => $data['branch_id'] ?? null,
+                'location_id'     => $data['location_id'] ?? null,
+                'department_id'   => $data['department_id'] ?? null,
+                'status'          => $data['status'] ?? 'active',
+                'iam_provider'    => $data['iam_provider'] ?? 'local',
+                'phone'           => $data['phone'] ?? null,
+                'metadata'        => $data['metadata'] ?? null,
+            ]);
+
+            // Assign initial roles if provided
+            if (! empty($data['role_ids'])) {
+                foreach ((array) $data['role_ids'] as $roleId) {
+                    $role = Role::find($roleId);
+                    if ($role) {
+                        DB::table('role_user')->insertOrIgnore([
+                            'user_id'     => $user->id,
+                            'role_id'     => $roleId,
+                            'tenant_id'   => $data['tenant_id'] ?? null,
+                            'assigned_by' => $data['assigned_by'] ?? null,
+                            'created_at'  => now(),
+                        ]);
+                    }
+                }
             }
+
+            $user->load('roles.permissions');
+
+            Log::info('User created', ['user_id' => $user->id, 'tenant_id' => $user->tenant_id]);
+
+            return $this->toArray($user);
+        });
+    }
+
+    public function updateUser(string $userId, array $data): array
+    {
+        $user = User::findOrFail($userId);
+
+        // Direct password changes are not permitted here.
+        // Use a dedicated password-reset or change-password endpoint that
+        // verifies the current password and re-hashes the new one.
+        unset($data['password'], $data['id'], $data['email']);
+
+        $user->update($data);
+        $user->load('roles.permissions');
+
+        return $this->toArray($user);
+    }
+
+    public function listUsers(string $tenantId, array $filters = [], int $perPage = 20): array
+    {
+        $query = User::with(['roles'])
+            ->where('tenant_id', $tenantId);
+
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
         }
 
-        return $this->userRepository->update($userId, $changes);
-    }
-
-    public function deleteUser(string $userId, string $tenantId): void
-    {
-        $this->getUser($userId, $tenantId);
-        $this->userRepository->delete($userId);
-    }
-
-    public function searchUsers(
-        string $tenantId,
-        array $filters,
-        int $perPage = 15,
-    ): LengthAwarePaginator {
-        return $this->userRepository->findAllForTenant($tenantId, $perPage, $filters);
-    }
-
-    public function getUserProfile(string $userId, string $tenantId): UserProfile
-    {
-        $this->getUser($userId, $tenantId);
-
-        $profile = $this->userProfileRepository->findByUserId($userId);
-
-        if ($profile === null) {
-            throw UserException::profileNotFound($userId);
+        if (! empty($filters['search'])) {
+            $query->where(function ($q) use ($filters): void {
+                $q->where('name', 'like', '%'.$filters['search'].'%')
+                    ->orWhere('email', 'like', '%'.$filters['search'].'%');
+            });
         }
 
-        return $profile;
-    }
+        $paginated = $query->paginate($perPage);
 
-    public function updateUserProfile(
-        string $userId,
-        string $tenantId,
-        UserProfileDto $dto,
-    ): UserProfile {
-        $user = $this->getUser($userId, $tenantId);
-
-        $data = array_merge(
-            $dto->toArray(),
-            [
-                'user_id'   => $userId,
-                'tenant_id' => $user->tenant_id,
+        return [
+            'data'       => $paginated->map(fn (User $u) => $this->toArray($u))->all(),
+            'pagination' => [
+                'total'        => $paginated->total(),
+                'per_page'     => $paginated->perPage(),
+                'current_page' => $paginated->currentPage(),
+                'last_page'    => $paginated->lastPage(),
             ],
-        );
-
-        return $this->userProfileRepository->createOrUpdate($userId, $data);
+        ];
     }
 
-    public function changePassword(
-        string $userId,
-        string $tenantId,
-        string $currentPassword,
-        string $newPassword,
-    ): void {
-        $user = $this->getUser($userId, $tenantId);
-
-        if (!Hash::check($currentPassword, $user->password)) {
-            throw UserException::invalidCurrentPassword();
-        }
-
-        $this->userRepository->updatePassword($userId, Hash::make($newPassword));
-    }
-
-    public function toggleUserStatus(string $userId, string $tenantId, bool $isActive): User
+    public function deleteUser(string $userId): void
     {
-        $this->getUser($userId, $tenantId);
+        $user = User::findOrFail($userId);
+        $user->delete();
+    }
 
-        $this->userRepository->toggleStatus($userId, $isActive);
+    // ──────────────────────────────────────────────────────────
+    // Internal helpers
+    // ──────────────────────────────────────────────────────────
 
-        return $this->userRepository->findById($userId);
+    private function toArray(User $user): array
+    {
+        return [
+            'id'                 => $user->id,
+            'name'               => $user->name,
+            'email'              => $user->email,
+            'status'             => $user->status,
+            'tenant_id'          => $user->tenant_id,
+            'organization_id'    => $user->organization_id,
+            'branch_id'          => $user->branch_id,
+            'location_id'        => $user->location_id,
+            'department_id'      => $user->department_id,
+            'roles'              => $user->getRoleNames(),
+            'permissions'        => $user->getPermissionNames(),
+            'token_version'      => $user->token_version,
+            'iam_provider'       => $user->iam_provider,
+            'external_id'        => $user->external_id,
+            'phone'              => $user->phone,
+            'avatar'             => $user->avatar,
+            'metadata'           => $user->metadata,
+            'last_login_at'      => $user->last_login_at?->toIso8601String(),
+            'last_login_ip'      => $user->last_login_ip,
+            'last_login_device'  => $user->last_login_device,
+            'email_verified_at'  => $user->email_verified_at?->toIso8601String(),
+            'created_at'         => $user->created_at?->toIso8601String(),
+            'updated_at'         => $user->updated_at?->toIso8601String(),
+        ];
     }
 }

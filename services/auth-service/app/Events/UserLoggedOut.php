@@ -12,8 +12,9 @@ class UserLoggedOut
     use Dispatchable, SerializesModels;
 
     public function __construct(
-        public readonly string $userId,
-        public readonly string $tenantId,
-        public readonly string $scope, // 'single_device' | 'all_devices'
+        public readonly string             $userId,
+        public readonly ?string            $deviceId,
+        public readonly bool               $allDevices,
+        public readonly \DateTimeImmutable $occurredAt = new \DateTimeImmutable(),
     ) {}
 }

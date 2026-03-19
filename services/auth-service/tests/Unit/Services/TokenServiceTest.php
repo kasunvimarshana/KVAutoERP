@@ -4,86 +4,172 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Contracts\Services\TenantConfigServiceInterface;
 use App\DTOs\TokenClaimsDto;
 use App\Exceptions\TokenException;
 use App\Services\TokenService;
-use Mockery;
+use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
 
 class TokenServiceTest extends TestCase
 {
-    private TokenService $tokenService;
+    private string $tmpDir;
+    private string $privatePath;
+    private string $publicPath;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Configure for HMAC (HS256) in tests — no key files required
-        config(['jwt.algo' => 'HS256', 'jwt.keys.secret' => 'test-secret']);
+        $this->tmpDir     = sys_get_temp_dir() . '/kv-jwt-test-' . uniqid();
+        mkdir($this->tmpDir, 0700, true);
 
-        $revocationRepository = Mockery::mock(\App\Contracts\Repositories\TokenRevocationRepositoryInterface::class);
-        $revocationRepository->shouldReceive('isRevoked')->andReturn(false);
+        $this->privatePath = $this->tmpDir . '/private.pem';
+        $this->publicPath  = $this->tmpDir . '/public.pem';
 
-        $this->tokenService = new TokenService($revocationRepository);
+        $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        openssl_pkey_export($key, $pem);
+        file_put_contents($this->privatePath, $pem);
+
+        $details = openssl_pkey_get_details($key);
+        file_put_contents($this->publicPath, $details['key']);
+
+        config([
+            'jwt.private_key_path' => $this->privatePath,
+            'jwt.public_key_path'  => $this->publicPath,
+            'jwt.issuer'           => 'test-issuer',
+            'jwt.ttl'              => 900,
+            'jwt.refresh_ttl'      => 2592000,
+        ]);
     }
 
     protected function tearDown(): void
     {
-        Mockery::close();
+        @unlink($this->privatePath);
+        @unlink($this->publicPath);
+        @rmdir($this->tmpDir);
         parent::tearDown();
     }
 
-    public function test_hash_refresh_token_returns_consistent_sha256_hash(): void
+    private function makeService(): TokenService
     {
-        $raw  = 'my-raw-refresh-token';
-        $hash = $this->tokenService->hashRefreshToken($raw);
-
-        $this->assertEquals(hash('sha256', $raw), $hash);
-        $this->assertEquals(64, strlen($hash)); // SHA-256 hex = 64 chars
+        return new TokenService();
     }
 
-    public function test_verify_refresh_token_returns_true_for_matching_hash(): void
+    public function test_issues_a_valid_jwt(): void
     {
-        $raw  = 'my-raw-refresh-token';
-        $hash = $this->tokenService->hashRefreshToken($raw);
+        $svc   = $this->makeService();
+        $token = $svc->issue(['sub' => 'user-1', 'tenant_id' => 'tenant-a'], 900);
 
-        $this->assertTrue($this->tokenService->verifyRefreshToken($raw, $hash));
+        $this->assertIsString($token);
+        $this->assertCount(3, explode('.', $token));
     }
 
-    public function test_verify_refresh_token_returns_false_for_tampered_token(): void
+    public function test_verifies_a_valid_token_and_returns_claims(): void
     {
-        $raw  = 'my-raw-refresh-token';
-        $hash = $this->tokenService->hashRefreshToken($raw);
+        Redis::shouldReceive('exists')->once()->andReturn(0);
 
-        $this->assertFalse($this->tokenService->verifyRefreshToken('tampered-token', $hash));
+        $svc    = $this->makeService();
+        $token  = $svc->issue(['sub' => 'user-1', 'tenant_id' => 'tenant-a', 'jti' => 'abc-123'], 900);
+        $claims = $svc->verify($token);
+
+        $this->assertSame('user-1', $claims['sub']);
+        $this->assertSame('tenant-a', $claims['tenant_id']);
+        $this->assertSame('abc-123', $claims['jti']);
     }
 
-    public function test_get_remaining_ttl_returns_zero_for_expired_payload(): void
+    public function test_returns_public_key(): void
     {
-        $payload = ['exp' => time() - 60]; // Expired 60s ago
-        $this->assertEquals(0, $this->tokenService->getRemainingTtl($payload));
+        $svc = $this->makeService();
+        $key = $svc->getPublicKey();
+
+        $this->assertStringContainsString('BEGIN PUBLIC KEY', $key);
     }
 
-    public function test_get_remaining_ttl_returns_positive_for_valid_payload(): void
+    public function test_builds_standard_claims_from_user_array(): void
     {
-        $payload = ['exp' => time() + 900]; // 15 minutes from now
-        $ttl = $this->tokenService->getRemainingTtl($payload);
-        $this->assertGreaterThan(800, $ttl);
-        $this->assertLessThanOrEqual(900, $ttl);
+        $svc = $this->makeService();
+
+        $user = [
+            'id'              => 'u-1',
+            'tenant_id'       => 'tenant-1',
+            'organization_id' => 'org-1',
+            'branch_id'       => 'branch-1',
+            'roles'           => ['admin'],
+            'permissions'     => ['users.read'],
+            'token_version'   => 3,
+            'iam_provider'    => 'local',
+        ];
+
+        $claims = $svc->buildClaims($user, 'device-1', 'tenant-1');
+
+        $this->assertSame('u-1', $claims['sub']);
+        $this->assertSame('tenant-1', $claims['tenant_id']);
+        $this->assertSame(['admin'], $claims['roles']);
+        $this->assertSame('device-1', $claims['device_id']);
+        $this->assertSame(3, $claims['token_version']);
     }
 
-    public function test_issue_refresh_token_returns_non_empty_string(): void
+    public function test_decodes_without_verification(): void
     {
-        $token = $this->tokenService->issueRefreshToken('user-123', 'session-456');
-        $this->assertNotEmpty($token);
-        $this->assertGreaterThan(32, strlen($token));
+        $svc    = $this->makeService();
+        $token  = $svc->issue(['sub' => 'user-2', 'jti' => 'xyz'], 900);
+        $claims = $svc->decode($token, false);
+
+        $this->assertSame('user-2', $claims['sub']);
+        $this->assertSame('xyz', $claims['jti']);
     }
 
-    public function test_refresh_token_is_unique_per_call(): void
+    public function test_verify_throws_for_revoked_token(): void
     {
-        $token1 = $this->tokenService->issueRefreshToken('user-123', 'session-456');
-        $token2 = $this->tokenService->issueRefreshToken('user-123', 'session-456');
-        $this->assertNotEquals($token1, $token2);
+        Redis::shouldReceive('exists')->once()->andReturn(1); // revoked
+
+        $svc   = $this->makeService();
+        $token = $svc->issue(['sub' => 'user-3', 'jti' => 'revoked-jti'], 900);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Token has been revoked');
+
+        $svc->verify($token);
+    }
+
+    public function test_revoke_sets_redis_key(): void
+    {
+        Redis::shouldReceive('setex')->once()->with(
+            \Mockery::pattern('/^revoked:/'),
+            \Mockery::type('int'),
+            '1',
+        );
+
+        $svc = $this->makeService();
+        $svc->revoke('some-jti');
+    }
+
+    public function test_revoke_is_noop_for_empty_jti(): void
+    {
+        Redis::shouldReceive('setex')->never();
+
+        $svc = $this->makeService();
+        $svc->revoke('');
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_is_revoked_returns_false_for_unknown_jti(): void
+    {
+        Redis::shouldReceive('exists')->once()->andReturn(0);
+
+        $svc = $this->makeService();
+
+        $this->assertFalse($svc->isRevoked('unknown-jti'));
+    }
+
+    public function test_decode_throws_for_invalid_token_format(): void
+    {
+        $svc = $this->makeService();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Invalid token format');
+
+        $svc->decode('not.a.valid.token.here', false);
     }
 }
