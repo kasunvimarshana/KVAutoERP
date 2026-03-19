@@ -1,0 +1,39 @@
+{
+    "name": "kv-enterprise/shared-auth",
+    "description": "Shared JWT verification middleware and contracts for KV Enterprise SaaS microservices",
+    "type": "library",
+    "keywords": ["laravel", "jwt", "microservice", "middleware", "auth"],
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^11.0",
+        "firebase/php-jwt": "^6.9",
+        "predis/predis": "^2.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0",
+        "mockery/mockery": "^1.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "KvEnterprise\\SharedAuth\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "KvEnterprise\\SharedAuth\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "KvEnterprise\\SharedAuth\\Providers\\SharedAuthServiceProvider"
+            ],
+            "aliases": {
+                "JwtAuth": "KvEnterprise\\SharedAuth\\Facades\\JwtAuth"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

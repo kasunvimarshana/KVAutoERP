@@ -1,0 +1,676 @@
+openapi: 3.1.0
+
+info:
+  title: KV Enterprise Auth Service API
+  version: "1.0.0"
+  description: |
+    Centralized Authentication and Authorization microservice for the KV Enterprise SaaS platform.
+
+    ## Overview
+    - Issues stateless **RS256-signed JWT** access tokens with tenant-aware claims
+    - All other microservices verify tokens **locally** using the Auth service's public key
+    - Supports **multi-tenant hierarchical isolation**: Tenant → Organisation → Branch → Location → Department
+    - Enforces **RBAC + ABAC** authorization via policies embedded in JWT claims
+    - Implements the **Outbox Pattern** for reliable event delivery to message brokers
+
+    ## Authentication Flow
+    1. Client calls `POST /api/v1/auth/login` with credentials + tenant_id + device_id
+    2. Auth service validates credentials, issues an **access token** (short-lived, RS256 JWT) and a **refresh token** (opaque, stored hashed)
+    3. Client includes `Authorization: Bearer <access_token>` on all subsequent requests
+    4. Other microservices verify the token locally using the public key (no Auth service roundtrip)
+    5. When the access token expires, client calls `POST /api/v1/auth/refresh`
+    6. On logout, the JTI is added to the Redis revocation list
+
+  contact:
+    name: KV Enterprise Engineering
+    email: engineering@kv-enterprise.com
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8001
+    description: Local development
+  - url: https://auth.kv-enterprise.com
+    description: Production
+
+tags:
+  - name: Authentication
+    description: Login, logout, token refresh, registration, password management
+  - name: Sessions
+    description: Multi-device session management
+  - name: Roles & Permissions
+    description: Runtime RBAC management (no redeployment required)
+  - name: Health
+    description: Service health and observability
+
+paths:
+
+  /api/v1/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: health
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: auth-service
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  time:
+                    type: string
+                    format: date-time
+
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login and receive JWT token pair
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              email: alice@acme.com
+              password: "S3cur3P@ssword!"
+              tenant_id: "550e8400-e29b-41d4-a716-446655440000"
+              device_id: "browser-chrome-laptop-001"
+              device_name: "Alice's MacBook"
+              organisation_id: null
+              remember_me: false
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "423":
+          description: Account locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/v1/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user under a tenant
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenResponse"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout current device session
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/logout/all:
+    post:
+      tags: [Authentication]
+      summary: Global logout — revoke all device sessions
+      description: |
+        Revokes ALL active sessions for the authenticated user across all devices.
+        Also increments the `token_version` claim so any existing access tokens
+        (even un-expired ones) are considered invalid.
+      operationId: logoutAll
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All sessions revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token using a valid refresh token
+      description: |
+        Exchange a valid refresh token for a new access + refresh token pair.
+        Implements **refresh token rotation** — the old refresh token is
+        invalidated and a new one is issued on every call.
+
+        **Security**: If the same refresh token is used twice (replay attack),
+        or if the device_id doesn't match, ALL sessions for that user are
+        immediately revoked.
+      operationId: refreshTokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/TokenPair"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/v1/auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get authenticated user profile
+      operationId: getProfile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/sessions:
+    get:
+      tags: [Sessions]
+      summary: List all active sessions for the authenticated user
+      operationId: listSessions
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Active sessions list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Session"
+
+  /api/v1/auth/sessions/{sessionId}:
+    delete:
+      tags: [Sessions]
+      summary: Revoke a specific session by ID
+      operationId: revokeSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Session revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/sessions/device/{deviceId}:
+    delete:
+      tags: [Sessions]
+      summary: Revoke the session for a specific device
+      operationId: revokeDeviceSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Device session revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /api/v1/auth/roles:
+    post:
+      tags: [Roles & Permissions]
+      summary: Create a new role at runtime (no redeployment required)
+      operationId: createRole
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, tenant_id]
+              properties:
+                name:
+                  type: string
+                  example: inventory-manager
+                tenant_id:
+                  type: string
+                  format: uuid
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                  example: ["inventory.view", "inventory.create"]
+                description:
+                  type: string
+      responses:
+        "201":
+          description: Role created
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/permissions:
+    post:
+      tags: [Roles & Permissions]
+      summary: Create a new permission at runtime
+      operationId: createPermission
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  example: warehouse.bin.transfer
+                description:
+                  type: string
+                guard:
+                  type: string
+                  default: api
+      responses:
+        "201":
+          description: Permission created
+
+  /api/v1/auth/users/{userId}/roles:
+    post:
+      tags: [Roles & Permissions]
+      summary: Assign a role to a user
+      operationId: assignRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role_id, tenant_id]
+              properties:
+                role_id:
+                  type: string
+                  format: uuid
+                tenant_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Role assigned
+
+  /api/v1/auth/users/{userId}/roles/{roleId}:
+    delete:
+      tags: [Roles & Permissions]
+      summary: Revoke a role from a user
+      operationId: revokeRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Role revoked
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        RS256-signed JWT access token issued by the Auth service.
+        Token claims include: user_id, tenant_id, organization_id, branch_id,
+        roles, permissions, device_id, token_version, jti, iss, exp.
+
+  schemas:
+
+    LoginRequest:
+      type: object
+      required: [email, password, tenant_id, device_id]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        tenant_id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+          description: Unique identifier for the client device
+        device_name:
+          type: string
+        organisation_id:
+          type: string
+          format: uuid
+          nullable: true
+        branch_id:
+          type: string
+          format: uuid
+          nullable: true
+        remember_me:
+          type: boolean
+          default: false
+
+    RegisterRequest:
+      type: object
+      required: [name, email, password, password_confirmation, tenant_id, device_id]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        password_confirmation:
+          type: string
+        tenant_id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+        organisation_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token, device_id]
+      properties:
+        refresh_token:
+          type: string
+        device_id:
+          type: string
+
+    TokenPair:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: RS256-signed JWT access token
+        refresh_token:
+          type: string
+          description: Opaque refresh token (store securely, never log)
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds
+          example: 900
+        refresh_token_expires_in:
+          type: integer
+          description: Refresh token lifetime in seconds
+          example: 2592000
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+        tenant_id:
+          type: string
+          format: uuid
+        organisation_id:
+          type: string
+          format: uuid
+          nullable: true
+        branch_id:
+          type: string
+          format: uuid
+          nullable: true
+        roles:
+          type: array
+          items:
+            type: string
+          example: ["admin", "inventory-manager"]
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["inventory.view", "inventory.create"]
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        device_id:
+          type: string
+        device_name:
+          type: string
+          nullable: true
+        device_type:
+          type: string
+          nullable: true
+        platform:
+          type: string
+          nullable: true
+        ip_address:
+          type: string
+          nullable: true
+        last_activity_at:
+          type: string
+          format: date-time
+          nullable: true
+        refresh_token_expires_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    AuthTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              $ref: "#/components/schemas/UserProfile"
+            tokens:
+              $ref: "#/components/schemas/TokenPair"
+            session_id:
+              type: string
+              format: uuid
+        message:
+          type: string
+          example: Login successful.
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        error:
+          type: string
+
+  responses:
+
+    Unauthorized:
+      description: Authentication failed or token is invalid/expired
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            message: Token has expired.
+            error: UNAUTHORIZED
+
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            message: Too many requests. Please try again in 60 seconds.
+            error: RATE_LIMITED
+            retry_after: 60
