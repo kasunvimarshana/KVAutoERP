@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Clients\UserServiceClient;
 use App\Contracts\Repositories\RefreshTokenRepositoryInterface;
 use App\Contracts\Repositories\UserRepositoryInterface;
 use App\Contracts\Services\AuditLogServiceInterface;
 use App\Contracts\Services\AuthServiceInterface;
 use App\Contracts\Services\RevocationServiceInterface;
+use App\Contracts\Services\UserProviderInterface;
+use App\IdentityProviders\IdentityProviderFactory;
+use App\IdentityProviders\LocalIdentityProvider;
+use App\IdentityProviders\OAuthIdentityProvider;
 use App\Repositories\RefreshTokenRepository;
 use App\Repositories\UserRepository;
 use App\Services\AuditLogService;
@@ -16,6 +21,7 @@ use App\Services\AuthContext;
 use App\Services\AuthService;
 use App\Services\JwtTokenService;
 use App\Services\RevocationService;
+use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\ServiceProvider;
 use KvEnterprise\SharedKernel\Contracts\Auth\AuthContextInterface;
@@ -73,6 +79,24 @@ final class AppServiceProvider extends ServiceProvider
             return new JwtTokenService(
                 revocationService: $this->app->make(RevocationServiceInterface::class),
             );
+        });
+
+        // User Service HTTP client — optional; returns null when base_url is empty.
+        $this->app->singleton(UserProviderInterface::class, function (): UserServiceClient {
+            return new UserServiceClient(
+                http: $this->app->make(HttpFactory::class),
+            );
+        });
+
+        // Identity provider factory — singleton, providers registered at boot.
+        $this->app->singleton(IdentityProviderFactory::class, function (): IdentityProviderFactory {
+            $factory = new IdentityProviderFactory($this->app);
+
+            // Register built-in providers.
+            $factory->registerProvider('local', LocalIdentityProvider::class);
+            $factory->registerProvider('oauth2', OAuthIdentityProvider::class);
+
+            return $factory;
         });
 
         // Auth service (transient — new instance per resolution).

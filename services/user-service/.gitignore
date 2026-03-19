@@ -1,0 +1,6 @@
+/vendor/
+/.env
+/bootstrap/cache
+.phpunit.result.cache
+composer.lock
+tests/fixtures/test-private.pem

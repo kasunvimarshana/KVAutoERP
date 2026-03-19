@@ -9,9 +9,11 @@ use App\Contracts\Repositories\UserRepositoryInterface;
 use App\Contracts\Services\AuditLogServiceInterface;
 use App\Contracts\Services\AuthServiceInterface;
 use App\Contracts\Services\RevocationServiceInterface;
+use App\Contracts\Services\UserProviderInterface;
 use App\Exceptions\AccountInactiveException;
 use App\Exceptions\AuthenticationException;
 use App\Exceptions\InvalidRefreshTokenException;
+use App\IdentityProviders\IdentityProviderFactory;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -32,6 +34,8 @@ final class AuthService implements AuthServiceInterface
         private readonly TokenServiceInterface           $tokenService,
         private readonly RevocationServiceInterface      $revocationService,
         private readonly AuditLogServiceInterface        $auditLogService,
+        private readonly IdentityProviderFactory         $identityProviderFactory,
+        private readonly ?UserProviderInterface          $userProvider = null,
     ) {}
 
     /**
@@ -45,18 +49,39 @@ final class AuthService implements AuthServiceInterface
         string $ipAddress,
         string $userAgent,
     ): array {
-        $user = $this->userRepository->findByEmailAndTenant($email, $tenantId);
+        // Resolve the IAM provider for this tenant (local, OAuth2, Keycloak, etc.).
+        $identityProvider = $this->identityProviderFactory->resolveForTenant($tenantId);
+        $identity         = $identityProvider->authenticate($email, $password, $tenantId);
 
-        if ($user === null || !Hash::check($password, $user->password)) {
+        if ($identity === null) {
+            // Do not query the user table here — doing so on every failed attempt
+            // would expose a timing oracle and enable credential-stuffing amplification.
+            // The audit log accepts a null userId for unauthenticated failure events.
             $this->auditLogService->logFailedLogin(
-                userId: $user?->id,
+                userId: null,
                 tenantId: $tenantId,
                 email: $email,
                 ipAddress: $ipAddress,
                 userAgent: $userAgent,
+                metadata: ['provider' => $identityProvider->getProviderName()],
             );
 
             $this->detectSuspiciousActivity($email, $tenantId, $ipAddress, $userAgent);
+
+            throw new AuthenticationException();
+        }
+
+        // Load the auth-service User model for session/refresh-token management.
+        $user = $this->userRepository->findById((string) ($identity['user_id'] ?? ''));
+
+        if ($user === null) {
+            // For external IAM providers the user may not have a local record yet.
+            // Emit a warning and throw — the User Service should have provisioned one.
+            Log::warning('AuthService: no local user record after successful IAM auth', [
+                'email'     => $email,
+                'tenant_id' => $tenantId,
+                'provider'  => $identityProvider->getProviderName(),
+            ]);
 
             throw new AuthenticationException();
         }
@@ -82,6 +107,7 @@ final class AuthService implements AuthServiceInterface
             deviceId: $deviceId,
             ipAddress: $ipAddress,
             userAgent: $userAgent,
+            metadata: ['provider' => $identityProvider->getProviderName()],
         );
 
         return $tokenPair;
@@ -259,6 +285,11 @@ final class AuthService implements AuthServiceInterface
     /**
      * Build the full JWT claims array for a user + device and issue tokens.
      *
+     * When the User Service client is configured, it calls the User Service's
+     * internal claims endpoint to retrieve enriched roles, permissions, and
+     * tenant-hierarchy data. Falls back to the auth user's own fields if the
+     * User Service is unavailable (fail-open for resilience).
+     *
      * @param  User    $user
      * @param  string  $deviceId
      * @return array{access_token: string, refresh_token: string, expires_in: int, token_type: string}
@@ -267,13 +298,24 @@ final class AuthService implements AuthServiceInterface
     {
         $currentVersion = $this->revocationService->getUserTokenVersion($user->id);
 
+        // Attempt to enrich claims from the User Service.
+        $enrichedClaims = $this->userProvider?->getClaimsForUser($user->id, $user->tenant_id);
+
         $claims = [
             'user_id'         => $user->id,
             'tenant_id'       => $user->tenant_id,
-            'organization_id' => $user->organization_id,
-            'branch_id'       => $user->branch_id,
-            'roles'           => $user->roles ?? [],
-            'permissions'     => $user->permissions ?? [],
+            // organization_id and branch_id exist on both the auth User model and
+            // User Service profile — fall back to the auth model when User Service
+            // is unavailable.
+            'organization_id' => $enrichedClaims['organization_id'] ?? $user->organization_id,
+            'branch_id'       => $enrichedClaims['branch_id']       ?? $user->branch_id,
+            // location_id and department_id are only stored in the User Service
+            // (UserProfile) — not on the auth User model. Intentionally null when
+            // User Service is unavailable; callers must tolerate null here.
+            'location_id'     => $enrichedClaims['location_id']     ?? null,
+            'department_id'   => $enrichedClaims['department_id']   ?? null,
+            'roles'           => $enrichedClaims['roles']           ?? $user->roles ?? [],
+            'permissions'     => $enrichedClaims['permissions']     ?? $user->permissions ?? [],
             'device_id'       => $deviceId,
             'token_version'   => $currentVersion,
         ];

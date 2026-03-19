@@ -80,4 +80,55 @@ return [
         'time'        => 4,
         'threads'     => 1,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | User Service Integration
+    |--------------------------------------------------------------------------
+    | The Auth Service calls the User Service's internal claims endpoint to
+    | enrich JWT tokens with roles, permissions, and tenant hierarchy data.
+    | Leave `base_url` empty to disable User Service enrichment (fallback to
+    | local auth user fields only — useful in development/testing).
+    */
+
+    'user_service' => [
+        'base_url'        => env('USER_SERVICE_BASE_URL', ''),
+        'service_key'     => env('USER_SERVICE_KEY', ''),
+        'timeout_seconds' => (int) env('USER_SERVICE_TIMEOUT', 5),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tenant IAM Provider Mapping
+    |--------------------------------------------------------------------------
+    | Maps tenant UUIDs to IAM provider names. When a tenant is not listed
+    | here, the `local` provider is used as the default.
+    |
+    | Example:
+    |   'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' => 'oauth2',
+    |
+    | Supported providers: 'local', 'oauth2'
+    */
+
+    'tenant_providers' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | OAuth2 / OIDC Provider Configurations
+    |--------------------------------------------------------------------------
+    | Tenant-keyed OAuth2 provider settings. The special key `__default__`
+    | serves as a fallback for all tenants not explicitly listed.
+    |
+    | Example:
+    |   '__default__' => [
+    |       'token_url'      => 'https://idp.example.com/oauth2/token',
+    |       'userinfo_url'   => 'https://idp.example.com/oauth2/userinfo',
+    |       'client_id'      => 'my-client-id',
+    |       'client_secret'  => 'my-client-secret',
+    |       'scope'          => 'openid profile email',
+    |       'timeout_seconds' => 10,
+    |   ],
+    */
+
+    'iam_providers' => [],
 ];
