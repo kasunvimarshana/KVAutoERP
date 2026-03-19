@@ -1,0 +1,5 @@
+/vendor/
+/.env
+/bootstrap/cache
+.phpunit.result.cache
+tests/fixtures/test-private.key
