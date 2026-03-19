@@ -1,22 +1,27 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Providers;
 
-use App\Application\Contracts\Repositories\ProductRepositoryInterface;
-use App\Application\Contracts\Services\ProductServiceInterface;
-use App\Application\Services\ProductService;
-use App\Infrastructure\Repositories\ProductRepository;
 use Illuminate\Support\ServiceProvider;
+use Shared\Core\MultiTenancy\TenantManager;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Register any application services.
+     */
     public function register(): void
     {
-        $this->app->bind(ProductRepositoryInterface::class, ProductRepository::class);
-        $this->app->bind(ProductServiceInterface::class, ProductService::class);
+        $this->app->singleton(TenantManager::class, function ($app) {
+            return new TenantManager();
+        });
     }
 
-    public function boot(): void {}
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        //
+    }
 }

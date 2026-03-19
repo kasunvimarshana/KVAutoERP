@@ -1,18 +1,15 @@
 <?php
 
-declare(strict_types=1);
-
-use App\Presentation\Controllers\ProductController;
-use App\Presentation\Controllers\CategoryController;
-use App\Presentation\Controllers\HealthController;
+use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/health', [HealthController::class, 'health']);
-Route::get('/health/ready', [HealthController::class, 'ready']);
-
-Route::middleware(['tenant', 'auth.service'])->group(function () {
-    Route::get('/products/search', [ProductController::class, 'search'])->name('products.search');
-    Route::apiResource('products', ProductController::class);
-    Route::get('/categories/{categoryId}/products', [ProductController::class, 'byCategory']);
-    Route::apiResource('categories', CategoryController::class);
+Route::prefix('v1/products')->group(function () {
+    Route::get('/', [ProductController::class, 'index']);
+    Route::get('/{id}', [ProductController::class, 'show']);
+    Route::middleware('auth:api')->group(function () {
+        Route::post('/', [ProductController::class, 'store']);
+        Route::put('/{id}', [ProductController::class, 'update']);
+        Route::delete('/{id}', [ProductController::class, 'destroy']);
+    });
 });
+Route::get('/health', function () { return response()->json(['status' => 'ok', 'service' => 'product-service', 'timestamp' => now()]); });

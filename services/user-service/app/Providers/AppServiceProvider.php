@@ -1,22 +1,27 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Providers;
 
-use App\Application\Contracts\Repositories\UserProfileRepositoryInterface;
-use App\Application\Contracts\Services\UserServiceInterface;
-use App\Application\Services\UserService;
-use App\Infrastructure\Repositories\UserProfileRepository;
 use Illuminate\Support\ServiceProvider;
+use Shared\Core\MultiTenancy\TenantManager;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Register any application services.
+     */
     public function register(): void
     {
-        $this->app->bind(UserProfileRepositoryInterface::class, UserProfileRepository::class);
-        $this->app->bind(UserServiceInterface::class, UserService::class);
+        $this->app->singleton(TenantManager::class, function ($app) {
+            return new TenantManager();
+        });
     }
 
-    public function boot(): void {}
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        //
+    }
 }
