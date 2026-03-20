@@ -1,0 +1,13 @@
+<?php
+
+namespace {{ namespace }}\Domain\Contracts;
+
+interface AggregateRootInterface
+{
+    /**
+     * Pull all recorded domain events and clear the internal list.
+     *
+     * @return array<object>
+     */
+    public function pullDomainEvents(): array;
+}

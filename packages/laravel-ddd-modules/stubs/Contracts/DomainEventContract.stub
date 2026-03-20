@@ -1,0 +1,16 @@
+<?php
+
+namespace {{ namespace }}\Domain\Contracts;
+
+interface DomainEventInterface
+{
+    /**
+     * Return a unique event name for routing/logging.
+     */
+    public function eventName(): string;
+
+    /**
+     * When the event occurred.
+     */
+    public function occurredAt(): \DateTimeImmutable;
+}
