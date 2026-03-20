@@ -1,12 +1,13 @@
 {
-    "name": "kv-laravel-ddd-modules",
+    "name": "kasunvimarshana/kv-laravel-ddd-modules",
     "description": "A production-ready Laravel DDD modules package with CQRS support, dynamic configuration, and full Artisan command suite",
     "type": "library",
     "license": "MIT",
     "keywords": ["laravel", "ddd", "cqrs", "modules", "domain-driven-design"],
     "authors": [
         {
-            "name": "Kasun Vimarshana"
+            "name": "Kasun Vimarshana",
+            "email": "kasunvmail@gmail.com"
         }
     ],
     "require": {
