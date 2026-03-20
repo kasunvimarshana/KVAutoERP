@@ -1,5 +1,5 @@
 {
-    "name": "kasunvimarshana/kv-laravel-ddd-modules",
+    "name": "kasunvimarshana/laravel-ddd-modules",
     "version": "1.0.x-dev",
     "description": "A fully dynamic, customizable Laravel package for creating DDD (Domain-Driven Design) modular structures via Artisan commands",
     "type": "library",

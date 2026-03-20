@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1a14cb9e8d80b13639e1900ade9c6dd8",
+    "content-hash": "f334f16c8a920a38e6ab60cd98a88013",
     "packages": [
         {
             "name": "brick/math",
@@ -1054,22 +1054,20 @@
             "time": "2025-08-22T14:27:06+00:00"
         },
         {
-            "name": "kasunvimarshana/kv-laravel-ddd-modules",
+            "name": "kasunvimarshana/laravel-ddd-modules",
             "version": "1.0.x-dev",
             "dist": {
                 "type": "path",
-                "url": "./packages/kv-laravel-ddd-modules",
-                "reference": "fd681d71ebc2a77128a7c601e87ece68accf3735"
+                "url": "./packages/laravel-ddd-modules",
+                "reference": "819d2d5642365c9a55cbc98912fdd9f3ddf0d21f"
             },
             "require": {
                 "illuminate/console": "^10.0|^11.0|^12.0",
-                "illuminate/container": "^10.0|^11.0|^12.0",
                 "illuminate/filesystem": "^10.0|^11.0|^12.0",
                 "illuminate/support": "^10.0|^11.0|^12.0",
                 "php": "^8.1"
             },
             "require-dev": {
-                "laravel/pint": "^1.0",
                 "orchestra/testbench": "^8.0|^9.0|^10.0",
                 "phpunit/phpunit": "^10.0|^11.0"
             },
@@ -1077,22 +1075,18 @@
             "extra": {
                 "laravel": {
                     "providers": [
-                        "LaravelDDD\\DddServiceProvider"
-                    ],
-                    "aliases": {
-                        "Ddd": "LaravelDDD\\Facades\\Ddd"
-                    }
+                        "LaravelDddModules\\Providers\\DddModulesServiceProvider"
+                    ]
                 }
             },
             "autoload": {
                 "psr-4": {
-                    "LaravelDDD\\": "src/"
+                    "LaravelDddModules\\": "src/"
                 }
             },
             "autoload-dev": {
                 "psr-4": {
-                    "LaravelDDD\\Tests\\": "tests/",
-                    "LaravelDDD\\Examples\\": "examples/"
+                    "LaravelDddModules\\Tests\\": "tests/"
                 }
             },
             "license": [
@@ -1104,13 +1098,14 @@
                     "email": "kasunvmail@gmail.com"
                 }
             ],
-            "description": "A production-ready Laravel DDD modules package with CQRS support, dynamic configuration, and full Artisan command suite",
+            "description": "A fully dynamic, customizable Laravel package for creating DDD (Domain-Driven Design) modular structures via Artisan commands",
             "keywords": [
-                "cqrs",
+                "artisan",
                 "ddd",
                 "domain-driven-design",
                 "laravel",
-                "modules"
+                "modules",
+                "package"
             ],
             "transport-options": {
                 "relative": true
@@ -8452,7 +8447,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "kasunvimarshana/kv-laravel-ddd-modules": 20
+        "kasunvimarshana/laravel-ddd-modules": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
