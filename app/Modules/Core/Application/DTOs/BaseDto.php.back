@@ -1,0 +1,10 @@
+<?php
+
+namespace Modules\Core\Application\DTOs;
+
+use Spatie\LaravelData\Data;
+
+abstract class BaseDto extends Data
+{
+    abstract public static function fromRequest(array $validated): static;
+}
