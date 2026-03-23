@@ -1,0 +1,112 @@
+<?php
+
+namespace Modules\Tenant\Infrastructure\Http\Controllers;
+
+use Modules\Core\Infrastructure\Http\Controllers\BaseController;
+use Modules\Tenant\Application\Services\CreateTenantService;
+use Modules\Tenant\Application\Services\UpdateTenantService;
+use Modules\Tenant\Application\Services\DeleteTenantService;
+use Modules\Tenant\Application\Services\UpdateTenantConfigService;
+use Modules\Tenant\Application\DTOs\TenantData;
+use Modules\Tenant\Application\DTOs\TenantConfigData;
+use Modules\Tenant\Infrastructure\Http\Resources\TenantResource;
+use Modules\Tenant\Infrastructure\Http\Resources\TenantCollection;
+use Modules\Tenant\Infrastructure\Http\Resources\TenantConfigResource;
+use Modules\Tenant\Domain\Entities\Tenant;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+
+class TenantController extends BaseController
+{
+    public function __construct(
+        CreateTenantService $createService,
+        UpdateTenantService $updateService,
+        DeleteTenantService $deleteService,
+        protected UpdateTenantConfigService $configService
+    ) {
+        // We need to handle multiple services; we'll use the create service as the default for the base controller.
+        parent::__construct($createService, TenantResource::class, TenantData::class);
+        // Override the update and delete methods manually.
+    }
+
+    public function index(Request $request): TenantCollection
+    {
+        $this->authorize('viewAny', Tenant::class);
+        $filters = $request->only(['name', 'domain', 'active']);
+        $perPage = $request->input('per_page', 15);
+        $page = $request->input('page', 1);
+        $sort = $request->input('sort');
+        $include = $request->input('include');
+
+        $tenants = $this->service->list($filters, $perPage, $page, $sort, $include);
+        return new TenantCollection($tenants);
+    }
+
+    public function store(Request $request): TenantResource
+    {
+        $this->authorize('create', Tenant::class);
+        $validated = $request->validate((new TenantData())->rules());
+        $dto = TenantData::fromArray($validated);
+        $tenant = $this->service->execute($dto->toArray());
+        return new TenantResource($tenant);
+    }
+
+    public function show($id): TenantResource
+    {
+        $tenant = $this->service->find($id);
+        if (!$tenant) {
+            abort(404);
+        }
+        $this->authorize('view', $tenant);
+        return new TenantResource($tenant);
+    }
+
+    public function update(Request $request, $id): TenantResource
+    {
+        $tenant = $this->service->find($id);
+        if (!$tenant) {
+            abort(404);
+        }
+        $this->authorize('update', $tenant);
+        $validated = $request->validate((new TenantData())->rules());
+        $validated['id'] = $id;
+        $dto = TenantData::fromArray($validated);
+        $updated = $this->updateService->execute($dto->toArray());
+        return new TenantResource($updated);
+    }
+
+    public function updateConfig(Request $request, $id): TenantConfigResource
+    {
+        $tenant = $this->service->find($id);
+        if (!$tenant) {
+            abort(404);
+        }
+        $this->authorize('updateConfig', $tenant);
+        $validated = $request->validate((new TenantConfigData())->rules());
+        $validated['id'] = $id;
+        $dto = TenantConfigData::fromArray($validated);
+        $updated = $this->configService->execute($dto->toArray());
+        return new TenantConfigResource($updated);
+    }
+
+    public function destroy($id): JsonResponse
+    {
+        $tenant = $this->service->find($id);
+        if (!$tenant) {
+            abort(404);
+        }
+        $this->authorize('delete', $tenant);
+        $this->deleteService->execute(['id' => $id]);
+        return response()->json(['message' => 'Tenant deleted successfully']);
+    }
+
+    // Endpoint for internal use (no authentication)
+    public function configByDomain(string $domain): TenantConfigResource
+    {
+        $tenant = $this->service->repository->findByDomain($domain);
+        if (!$tenant) {
+            abort(404);
+        }
+        return new TenantConfigResource($tenant);
+    }
+}

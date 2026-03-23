@@ -1,0 +1,105 @@
+<?php
+
+namespace Modules\Tenant\Domain\Entities;
+
+use Modules\Tenant\Domain\ValueObjects\DatabaseConfig;
+use Modules\Tenant\Domain\ValueObjects\MailConfig;
+use Modules\Tenant\Domain\ValueObjects\CacheConfig;
+use Modules\Tenant\Domain\ValueObjects\QueueConfig;
+use Modules\Tenant\Domain\ValueObjects\FeatureFlags;
+use Modules\Tenant\Domain\ValueObjects\ApiKeys;
+
+class Tenant
+{
+    private ?int $id;
+    private string $name;
+    private ?string $domain;
+    private ?string $logoPath;
+    private DatabaseConfig $databaseConfig;
+    private ?MailConfig $mailConfig;
+    private ?CacheConfig $cacheConfig;
+    private ?QueueConfig $queueConfig;
+    private FeatureFlags $featureFlags;
+    private ApiKeys $apiKeys;
+    private bool $active;
+    private \DateTimeInterface $createdAt;
+    private \DateTimeInterface $updatedAt;
+
+    public function __construct(
+        string $name,
+        DatabaseConfig $databaseConfig,
+        ?string $domain = null,
+        ?string $logoPath = null,
+        ?MailConfig $mailConfig = null,
+        ?CacheConfig $cacheConfig = null,
+        ?QueueConfig $queueConfig = null,
+        ?FeatureFlags $featureFlags = null,
+        ?ApiKeys $apiKeys = null,
+        bool $active = true,
+        ?int $id = null,
+        ?\DateTimeInterface $createdAt = null,
+        ?\DateTimeInterface $updatedAt = null
+    ) {
+        $this->id = $id;
+        $this->name = $name;
+        $this->domain = $domain;
+        $this->logoPath = $logoPath;
+        $this->databaseConfig = $databaseConfig;
+        $this->mailConfig = $mailConfig;
+        $this->cacheConfig = $cacheConfig;
+        $this->queueConfig = $queueConfig;
+        $this->featureFlags = $featureFlags ?? new FeatureFlags([]);
+        $this->apiKeys = $apiKeys ?? new ApiKeys([]);
+        $this->active = $active;
+        $this->createdAt = $createdAt ?? new \DateTimeImmutable();
+        $this->updatedAt = $updatedAt ?? new \DateTimeImmutable();
+    }
+
+    // Getters...
+    public function getId(): ?int { return $this->id; }
+    public function getName(): string { return $this->name; }
+    public function getDomain(): ?string { return $this->domain; }
+    public function getLogoPath(): ?string { return $this->logoPath; }
+    public function getDatabaseConfig(): DatabaseConfig { return $this->databaseConfig; }
+    public function getMailConfig(): ?MailConfig { return $this->mailConfig; }
+    public function getCacheConfig(): ?CacheConfig { return $this->cacheConfig; }
+    public function getQueueConfig(): ?QueueConfig { return $this->queueConfig; }
+    public function getFeatureFlags(): FeatureFlags { return $this->featureFlags; }
+    public function getApiKeys(): ApiKeys { return $this->apiKeys; }
+    public function isActive(): bool { return $this->active; }
+    public function getCreatedAt(): \DateTimeInterface { return $this->createdAt; }
+    public function getUpdatedAt(): \DateTimeInterface { return $this->updatedAt; }
+
+    // Domain behaviour
+    public function updateConfig(array $data): void
+    {
+        if (isset($data['database_config'])) {
+            $this->databaseConfig = new DatabaseConfig($data['database_config']);
+        }
+        if (isset($data['mail_config'])) {
+            $this->mailConfig = new MailConfig($data['mail_config']);
+        }
+        if (isset($data['cache_config'])) {
+            $this->cacheConfig = new CacheConfig($data['cache_config']);
+        }
+        if (isset($data['queue_config'])) {
+            $this->queueConfig = new QueueConfig($data['queue_config']);
+        }
+        if (isset($data['feature_flags'])) {
+            $this->featureFlags = new FeatureFlags($data['feature_flags']);
+        }
+        if (isset($data['api_keys'])) {
+            $this->apiKeys = new ApiKeys($data['api_keys']);
+        }
+        if (isset($data['active'])) {
+            $this->active = (bool)$data['active'];
+        }
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    public function setLogoPath(?string $path): void
+    {
+        $this->logoPath = $path;
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+}
