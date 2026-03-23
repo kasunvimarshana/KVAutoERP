@@ -9,10 +9,12 @@ use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\MoveOrganizationUnitService;
 use Modules\OrganizationUnit\Application\DTOs\OrganizationUnitData;
 use Modules\OrganizationUnit\Application\DTOs\MoveOrganizationUnitData;
+use Modules\OrganizationUnit\Infrastructure\Http\Requests\MoveOrganizationUnitRequest;
 use Modules\OrganizationUnit\Infrastructure\Http\Resources\OrganizationUnitResource;
 use Modules\OrganizationUnit\Infrastructure\Http\Resources\OrganizationUnitCollection;
 use Modules\OrganizationUnit\Infrastructure\Http\Resources\OrganizationUnitTreeResource;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
+use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -20,9 +22,10 @@ class OrganizationUnitController extends BaseController
 {
     public function __construct(
         CreateOrganizationUnitService $createService,
-        UpdateOrganizationUnitService $updateService,
-        DeleteOrganizationUnitService $deleteService,
-        protected MoveOrganizationUnitService $moveService
+        protected UpdateOrganizationUnitService $updateService,
+        protected DeleteOrganizationUnitService $deleteService,
+        protected MoveOrganizationUnitService $moveService,
+        protected OrganizationUnitRepositoryInterface $orgUnitRepository
     ) {
         parent::__construct($createService, OrganizationUnitResource::class, OrganizationUnitData::class);
     }
@@ -87,9 +90,9 @@ class OrganizationUnitController extends BaseController
     public function tree(Request $request): OrganizationUnitTreeResource
     {
         $this->authorize('viewAny', OrganizationUnit::class);
-        $tenantId = tenant_id();
+        $tenantId = (int) tenant_id();
         $rootId = $request->input('root_id');
-        $tree = $this->service->repository->getTree($tenantId, $rootId);
+        $tree = $this->orgUnitRepository->getTree($tenantId, $rootId);
         return new OrganizationUnitTreeResource($tree);
     }
 
@@ -106,4 +109,10 @@ class OrganizationUnitController extends BaseController
         $this->moveService->execute($dto->toArray());
         return response()->json(['message' => 'Organization unit moved successfully']);
     }
+
+    protected function getModelClass(): string
+    {
+        return OrganizationUnit::class;
+    }
 }
+

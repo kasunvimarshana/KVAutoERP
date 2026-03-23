@@ -77,13 +77,13 @@ class Tenant
             $this->databaseConfig = new DatabaseConfig($data['database_config']);
         }
         if (isset($data['mail_config'])) {
-            $this->mailConfig = new MailConfig($data['mail_config']);
+            $this->mailConfig = MailConfig::fromArray($data['mail_config']);
         }
         if (isset($data['cache_config'])) {
-            $this->cacheConfig = new CacheConfig($data['cache_config']);
+            $this->cacheConfig = CacheConfig::fromArray($data['cache_config']);
         }
         if (isset($data['queue_config'])) {
-            $this->queueConfig = new QueueConfig($data['queue_config']);
+            $this->queueConfig = QueueConfig::fromArray($data['queue_config']);
         }
         if (isset($data['feature_flags'])) {
             $this->featureFlags = new FeatureFlags($data['feature_flags']);

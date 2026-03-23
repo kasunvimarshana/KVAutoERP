@@ -1,12 +1,12 @@
 <?php
 
-namespace Modules\OrganizationUnit\Domain\Entities;
+namespace Modules\User\Domain\Entities;
 
-class OrganizationUnitAttachment
+class UserAttachment
 {
     private ?int $id;
     private int $tenantId;
-    private int $organizationUnitId;
+    private int $userId;
     private string $uuid;
     private string $name;
     private string $filePath;
@@ -19,7 +19,7 @@ class OrganizationUnitAttachment
 
     public function __construct(
         int $tenantId,
-        int $organizationUnitId,
+        int $userId,
         string $uuid,
         string $name,
         string $filePath,
@@ -33,7 +33,7 @@ class OrganizationUnitAttachment
     ) {
         $this->id = $id;
         $this->tenantId = $tenantId;
-        $this->organizationUnitId = $organizationUnitId;
+        $this->userId = $userId;
         $this->uuid = $uuid;
         $this->name = $name;
         $this->filePath = $filePath;
@@ -45,10 +45,9 @@ class OrganizationUnitAttachment
         $this->updatedAt = $updatedAt ?? new \DateTimeImmutable();
     }
 
-    // Getters...
     public function getId(): ?int { return $this->id; }
     public function getTenantId(): int { return $this->tenantId; }
-    public function getOrganizationUnitId(): int { return $this->organizationUnitId; }
+    public function getUserId(): int { return $this->userId; }
     public function getUuid(): string { return $this->uuid; }
     public function getName(): string { return $this->name; }
     public function getFilePath(): string { return $this->filePath; }

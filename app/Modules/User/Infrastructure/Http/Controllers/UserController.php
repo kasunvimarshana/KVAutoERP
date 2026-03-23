@@ -10,6 +10,7 @@ use Modules\User\Application\Services\AssignRoleService;
 use Modules\User\Application\Services\UpdatePreferencesService;
 use Modules\User\Application\DTOs\UserData;
 use Modules\User\Application\DTOs\UserPreferencesData;
+use Modules\User\Infrastructure\Http\Requests\UpdatePreferencesRequest;
 use Modules\User\Infrastructure\Http\Resources\UserResource;
 use Modules\User\Infrastructure\Http\Resources\UserCollection;
 use Modules\User\Domain\Entities\User;
@@ -20,8 +21,8 @@ class UserController extends BaseController
 {
     public function __construct(
         CreateUserService $createService,
-        UpdateUserService $updateService,
-        DeleteUserService $deleteService,
+        protected UpdateUserService $updateService,
+        protected DeleteUserService $deleteService,
         protected AssignRoleService $assignRoleService,
         protected UpdatePreferencesService $updatePreferencesService
     ) {
@@ -108,5 +109,10 @@ class UserController extends BaseController
         $dto = UserPreferencesData::fromArray($validated);
         $updated = $this->updatePreferencesService->execute(['user_id' => $id] + $dto->toArray());
         return new UserResource($updated);
+    }
+
+    protected function getModelClass(): string
+    {
+        return User::class;
     }
 }

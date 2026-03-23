@@ -7,7 +7,7 @@ use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitReposit
 use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitAttachmentRepositoryInterface;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnitAttachment;
 use Modules\Core\Application\Services\FileStorageServiceInterface;
-use Ramsey\Uuid\Uuid;
+use Illuminate\Support\Str;
 
 class UploadOrganizationUnitAttachmentService extends BaseService
 {
@@ -32,7 +32,7 @@ class UploadOrganizationUnitAttachmentService extends BaseService
         }
 
         $tenantId = $unit->getTenantId();
-        $uuid = Uuid::uuid4()->toString();
+        $uuid = (string) Str::uuid();
         $path = $this->storage->store($fileInfo['tmp_path'], "org-units/{$orgUnitId}", $fileInfo['name']);
 
         $attachment = new OrganizationUnitAttachment(

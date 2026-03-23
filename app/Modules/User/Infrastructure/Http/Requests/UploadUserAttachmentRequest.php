@@ -4,7 +4,7 @@ namespace Modules\User\Infrastructure\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdatePreferencesRequest extends FormRequest
+class UploadUserAttachmentRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,9 +14,9 @@ class UpdatePreferencesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'language'     => 'nullable|string|in:en,es,fr,de',
-            'timezone'     => 'nullable|string|timezone',
-            'notifications'=> 'nullable|array',
+            'file'     => 'required|file|max:10240',
+            'type'     => 'nullable|string|max:50',
+            'metadata' => 'nullable|array',
         ];
     }
 }

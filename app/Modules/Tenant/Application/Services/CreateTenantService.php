@@ -25,12 +25,12 @@ class CreateTenantService extends BaseService
     {
         $dto = TenantData::fromArray($data);
 
-        $databaseConfig = new DatabaseConfig($dto->database_config);
-        $mailConfig = $dto->mail_config ? new MailConfig(...$dto->mail_config) : null;
-        $cacheConfig = $dto->cache_config ? new CacheConfig(...$dto->cache_config) : null;
-        $queueConfig = $dto->queue_config ? new QueueConfig(...$dto->queue_config) : null;
-        $featureFlags = new FeatureFlags($dto->feature_flags);
-        $apiKeys = new ApiKeys($dto->api_keys);
+        $databaseConfig = new DatabaseConfig($dto->database_config ?? []);
+        $mailConfig = !empty($dto->mail_config) ? MailConfig::fromArray($dto->mail_config) : null;
+        $cacheConfig = !empty($dto->cache_config) ? CacheConfig::fromArray($dto->cache_config) : null;
+        $queueConfig = !empty($dto->queue_config) ? QueueConfig::fromArray($dto->queue_config) : null;
+        $featureFlags = new FeatureFlags($dto->feature_flags ?? []);
+        $apiKeys = new ApiKeys($dto->api_keys ?? []);
 
         $tenant = new Tenant(
             name: $dto->name,
@@ -41,11 +41,12 @@ class CreateTenantService extends BaseService
             queueConfig: $queueConfig,
             featureFlags: $featureFlags,
             apiKeys: $apiKeys,
-            active: $dto->active
+            active: $dto->active ?? true
         );
 
-        $saved = $this->repository->create($tenant);
+        $saved = $this->repository->save($tenant);
         $this->addEvent(new TenantCreated($saved));
         return $saved;
     }
 }
+

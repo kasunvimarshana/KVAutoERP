@@ -18,7 +18,7 @@ class CoreServiceProvider extends ServiceProvider
             return new FileStorageService($defaultDisk);
         });
 
-        $this->mergeConfigFrom(__DIR__ . '/../../../config/core.php', 'core');
+        $this->mergeConfigFrom(__DIR__ . '/../../config/core.php', 'core');
 
         if (file_exists($helperFile = __DIR__ . '/../../Shared/Helpers/helpers.php')) {
             require_once $helperFile;
@@ -28,11 +28,11 @@ class CoreServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->publishes([
-            __DIR__ . '/../../../config/core.php' => config_path('core.php'),
+            __DIR__ . '/../../config/core.php' => config_path('core.php'),
         ], 'core-config');
 
         $this->publishes([
-            __DIR__ . '/../../../database/migrations' => database_path('migrations'),
+            __DIR__ . '/../../database/migrations' => database_path('migrations'),
         ], 'core-migrations');
     }
 }
