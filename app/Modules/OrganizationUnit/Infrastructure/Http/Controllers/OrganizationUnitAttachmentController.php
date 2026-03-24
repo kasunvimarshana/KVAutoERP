@@ -63,6 +63,6 @@ class OrganizationUnitAttachmentController extends Controller
             abort(404);
         }
         $this->authorize('view', $attachment);
-        return response()->file(storage_path("app/public/{$attachment->getFilePath()}"));
+        return $this->storage->stream($attachment->getFilePath());
     }
 }

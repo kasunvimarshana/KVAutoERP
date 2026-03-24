@@ -135,14 +135,16 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
             $newRgt = $newLft + $width - 1;
             $this->model->where('id', $node->id)->update(['_lft' => $newLft, '_rgt' => $newRgt]);
 
-            $diff = $newLft - $node->_lft;
-            $this->model->where('tenant_id', $node->tenant_id)
-                ->where('_lft', '>=', $node->_lft)
-                ->where('_rgt', '<=', $node->_rgt)
-                ->update([
-                    '_lft' => DB::raw("_lft + $diff"),
-                    '_rgt' => DB::raw("_rgt + $diff"),
-                ]);
+            $diff = (int) ($newLft - $node->_lft);
+            if ($diff !== 0) {
+                $this->model->where('tenant_id', $node->tenant_id)
+                    ->where('_lft', '>=', $node->_lft)
+                    ->where('_rgt', '<=', $node->_rgt)
+                    ->update([
+                        '_lft' => DB::raw('_lft + ' . $diff),
+                        '_rgt' => DB::raw('_rgt + ' . $diff),
+                    ]);
+            }
         });
     }
 

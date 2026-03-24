@@ -3,16 +3,16 @@
 namespace Modules\Tenant\Infrastructure\Http\Middleware;
 
 use Closure;
-use Modules\Tenant\Infrastructure\Services\TenantConfigClient;
-use Modules\Tenant\Application\Services\TenantConfigManager;
+use Modules\Tenant\Application\Contracts\TenantConfigClientInterface;
+use Modules\Tenant\Application\Contracts\TenantConfigManagerInterface;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class ResolveTenant
 {
     public function __construct(
-        protected TenantConfigClient $client,
-        protected TenantConfigManager $manager
+        protected TenantConfigClientInterface $client,
+        protected TenantConfigManagerInterface $manager
     ) {}
 
     public function handle(Request $request, Closure $next)
