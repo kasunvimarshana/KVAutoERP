@@ -2,8 +2,8 @@
 
 namespace Modules\Tenant\Infrastructure\Http\Controllers;
 
-use Modules\Tenant\Application\Services\UploadTenantAttachmentService;
-use Modules\Tenant\Application\Services\DeleteTenantAttachmentService;
+use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
+use Modules\Tenant\Application\Contracts\DeleteTenantAttachmentServiceInterface;
 use Modules\Tenant\Infrastructure\Http\Requests\UploadTenantAttachmentRequest;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantAttachmentResource;
 use Modules\Tenant\Domain\RepositoryInterfaces\TenantAttachmentRepositoryInterface;
@@ -16,8 +16,8 @@ use Illuminate\Routing\Controller;
 class TenantAttachmentController extends Controller
 {
     public function __construct(
-        protected UploadTenantAttachmentService $uploadService,
-        protected DeleteTenantAttachmentService $deleteService,
+        protected UploadTenantAttachmentServiceInterface $uploadService,
+        protected DeleteTenantAttachmentServiceInterface $deleteService,
         protected TenantAttachmentRepositoryInterface $attachmentRepo,
         protected FileStorageServiceInterface $storage
     ) {}

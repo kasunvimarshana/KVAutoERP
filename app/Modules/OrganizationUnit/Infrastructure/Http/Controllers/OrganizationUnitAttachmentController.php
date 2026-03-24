@@ -2,8 +2,8 @@
 
 namespace Modules\OrganizationUnit\Infrastructure\Http\Controllers;
 
-use Modules\OrganizationUnit\Application\Services\UploadOrganizationUnitAttachmentService;
-use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitAttachmentService;
+use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitAttachmentRepositoryInterface;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
 use Modules\Core\Application\Services\FileStorageServiceInterface;
@@ -16,8 +16,8 @@ use Illuminate\Routing\Controller;
 class OrganizationUnitAttachmentController extends Controller
 {
     public function __construct(
-        protected UploadOrganizationUnitAttachmentService $uploadService,
-        protected DeleteOrganizationUnitAttachmentService $deleteService,
+        protected UploadOrganizationUnitAttachmentServiceInterface $uploadService,
+        protected DeleteOrganizationUnitAttachmentServiceInterface $deleteService,
         protected OrganizationUnitAttachmentRepositoryInterface $attachmentRepo,
         protected FileStorageServiceInterface $storage
     ) {}
