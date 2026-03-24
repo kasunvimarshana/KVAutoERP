@@ -35,12 +35,12 @@ class PassportTokenService implements TokenServiceInterface
     public function revokeCurrentToken(int $userId): bool
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
         $token = $user->currentAccessToken();
-        if (!$token) {
+        if (! $token) {
             return false;
         }
 
@@ -53,7 +53,7 @@ class PassportTokenService implements TokenServiceInterface
     {
         /** @var UserModel $user */
         $user = UserModel::find($userId);
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 

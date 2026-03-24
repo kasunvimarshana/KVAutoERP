@@ -3,6 +3,8 @@
 namespace Modules\Auth\Application\Contracts;
 
 use Modules\Auth\Domain\Entities\AccessToken;
+use Modules\Auth\Domain\Exceptions\AuthenticationException;
+use Modules\Auth\Domain\Exceptions\TokenExpiredException;
 
 /**
  * Contract for SSO (Single Sign-On) operations.
@@ -14,18 +16,17 @@ interface SsoServiceInterface
     /**
      * Exchange a cross-application SSO token for a local access token.
      *
-     * @param  string $ssoToken  Token issued by the SSO provider
-     * @param  string $provider  SSO provider name (e.g. 'passport', 'google')
-     * @return AccessToken
+     * @param  string  $ssoToken  Token issued by the SSO provider
+     * @param  string  $provider  SSO provider name (e.g. 'passport', 'google')
      *
-     * @throws \Modules\Auth\Domain\Exceptions\AuthenticationException
+     * @throws AuthenticationException
      */
     public function exchangeToken(string $ssoToken, string $provider): AccessToken;
 
     /**
      * Validate an SSO token and return the user ID it represents.
      *
-     * @throws \Modules\Auth\Domain\Exceptions\TokenExpiredException
+     * @throws TokenExpiredException
      */
     public function validateSsoToken(string $ssoToken, string $provider): int;
 }

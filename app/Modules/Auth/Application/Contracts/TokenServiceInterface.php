@@ -12,10 +12,6 @@ interface TokenServiceInterface
 {
     /**
      * Issue a new access token for the given user.
-     *
-     * @param  int    $userId
-     * @param  string $tokenName
-     * @param  array  $scopes
      */
     public function issueToken(int $userId, string $tokenName = 'api', array $scopes = []): AccessToken;
 

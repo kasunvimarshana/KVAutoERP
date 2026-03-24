@@ -2,11 +2,11 @@
 
 namespace Modules\User\Application\UseCases;
 
-use Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface;
-use Modules\User\Domain\RepositoryInterfaces\RoleRepositoryInterface;
 use Modules\User\Domain\Events\RoleAssigned;
-use Modules\User\Domain\Exceptions\UserNotFoundException;
 use Modules\User\Domain\Exceptions\RoleNotFoundException;
+use Modules\User\Domain\Exceptions\UserNotFoundException;
+use Modules\User\Domain\RepositoryInterfaces\RoleRepositoryInterface;
+use Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface;
 
 class AssignRole
 {
@@ -18,12 +18,12 @@ class AssignRole
     public function execute(int $userId, int $roleId): void
     {
         $user = $this->userRepo->find($userId);
-        if (!$user) {
+        if (! $user) {
             throw new UserNotFoundException($userId);
         }
 
         $role = $this->roleRepo->find($roleId);
-        if (!$role) {
+        if (! $role) {
             throw new RoleNotFoundException($roleId);
         }
 

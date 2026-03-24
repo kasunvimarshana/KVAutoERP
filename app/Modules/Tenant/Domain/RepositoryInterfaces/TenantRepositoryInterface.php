@@ -8,5 +8,6 @@ use Modules\Tenant\Domain\Entities\Tenant;
 interface TenantRepositoryInterface extends RepositoryInterface
 {
     public function findByDomain(string $domain): ?Tenant;
+
     public function save(Tenant $tenant): Tenant;
 }

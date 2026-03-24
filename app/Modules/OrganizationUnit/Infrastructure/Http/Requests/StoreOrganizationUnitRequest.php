@@ -14,12 +14,12 @@ class StoreOrganizationUnitRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tenant_id'   => 'required|integer|exists:tenants,id',
-            'name'        => 'required|string|max:255',
-            'code'        => 'nullable|string|max:50',
+            'tenant_id' => 'required|integer|exists:tenants,id',
+            'name' => 'required|string|max:255',
+            'code' => 'nullable|string|max:50',
             'description' => 'nullable|string',
-            'metadata'    => 'nullable|array',
-            'parent_id'   => 'nullable|integer|exists:organization_units,id',
+            'metadata' => 'nullable|array',
+            'parent_id' => 'nullable|integer|exists:organization_units,id',
         ];
     }
 }

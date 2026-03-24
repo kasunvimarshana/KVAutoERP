@@ -7,6 +7,4 @@ use Modules\Core\Application\Contracts\ServiceInterface;
 /**
  * @method \Modules\OrganizationUnit\Domain\Entities\OrganizationUnit execute(array $data = [])
  */
-interface CreateOrganizationUnitServiceInterface extends ServiceInterface
-{
-}
+interface CreateOrganizationUnitServiceInterface extends ServiceInterface {}

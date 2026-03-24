@@ -2,8 +2,8 @@
 
 namespace Modules\Tenant\Application\UseCases;
 
-use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 use Modules\Tenant\Domain\Entities\Tenant;
+use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 
 class GetTenant
 {

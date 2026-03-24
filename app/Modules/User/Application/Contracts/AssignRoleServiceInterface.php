@@ -7,6 +7,4 @@ use Modules\Core\Application\Contracts\WriteServiceInterface;
 /**
  * @method null execute(array $data = [])
  */
-interface AssignRoleServiceInterface extends WriteServiceInterface
-{
-}
+interface AssignRoleServiceInterface extends WriteServiceInterface {}

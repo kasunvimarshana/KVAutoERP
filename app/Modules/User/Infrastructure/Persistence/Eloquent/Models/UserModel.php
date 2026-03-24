@@ -2,17 +2,18 @@
 
 namespace Modules\User\Infrastructure\Persistence\Eloquent\Models;
 
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Passport\HasApiTokens;
 
 class UserModel extends Authenticatable
 {
-    use SoftDeletes, Notifiable, HasApiTokens;
+    use HasApiTokens, Notifiable, SoftDeletes;
 
     protected $table = 'users';
+
     protected $fillable = [
         'tenant_id',
         'email',
@@ -24,20 +25,22 @@ class UserModel extends Authenticatable
         'preferences',
         'active',
     ];
+
     protected $hidden = [
         'password',
         'remember_token',
     ];
+
     protected $casts = [
-        'address'     => 'array',
+        'address' => 'array',
         'preferences' => 'array',
-        'active'      => 'boolean',
+        'active' => 'boolean',
     ];
 
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(RoleModel::class, 'role_user', 'user_id', 'role_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     public function attachments()

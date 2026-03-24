@@ -5,6 +5,7 @@ namespace Modules\Core\Domain\ValueObjects;
 class Money extends ValueObject
 {
     private float $amount;
+
     private string $currency;
 
     public function __construct(float $amount, string $currency = 'USD')
@@ -16,14 +17,22 @@ class Money extends ValueObject
         $this->currency = strtoupper($currency);
     }
 
-    public function getAmount(): float { return $this->amount; }
-    public function getCurrency(): string { return $this->currency; }
+    public function getAmount(): float
+    {
+        return $this->amount;
+    }
+
+    public function getCurrency(): string
+    {
+        return $this->currency;
+    }
 
     public function add(Money $other): self
     {
         if ($this->currency !== $other->currency) {
             throw new \InvalidArgumentException('Currency mismatch');
         }
+
         return new self($this->amount + $other->amount, $this->currency);
     }
 
@@ -32,6 +41,7 @@ class Money extends ValueObject
         if ($this->currency !== $other->currency) {
             throw new \InvalidArgumentException('Currency mismatch');
         }
+
         return new self($this->amount - $other->amount, $this->currency);
     }
 
@@ -43,7 +53,7 @@ class Money extends ValueObject
     public function toArray(): array
     {
         return [
-            'amount'   => $this->amount,
+            'amount' => $this->amount,
             'currency' => $this->currency,
         ];
     }

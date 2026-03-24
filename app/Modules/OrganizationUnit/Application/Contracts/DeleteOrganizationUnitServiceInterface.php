@@ -7,6 +7,4 @@ use Modules\Core\Application\Contracts\WriteServiceInterface;
 /**
  * @method bool execute(array $data = [])
  */
-interface DeleteOrganizationUnitServiceInterface extends WriteServiceInterface
-{
-}
+interface DeleteOrganizationUnitServiceInterface extends WriteServiceInterface {}

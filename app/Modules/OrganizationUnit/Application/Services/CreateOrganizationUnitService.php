@@ -3,14 +3,14 @@
 namespace Modules\OrganizationUnit\Application\Services;
 
 use Modules\Core\Application\Services\BaseService;
-use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
-use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
-use Modules\Core\Domain\ValueObjects\Name;
 use Modules\Core\Domain\ValueObjects\Code;
 use Modules\Core\Domain\ValueObjects\Metadata;
-use Modules\OrganizationUnit\Application\DTOs\OrganizationUnitData;
-use Modules\OrganizationUnit\Domain\Events\OrganizationUnitCreated;
+use Modules\Core\Domain\ValueObjects\Name;
 use Modules\OrganizationUnit\Application\Contracts\CreateOrganizationUnitServiceInterface;
+use Modules\OrganizationUnit\Application\DTOs\OrganizationUnitData;
+use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
+use Modules\OrganizationUnit\Domain\Events\OrganizationUnitCreated;
+use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
 
 class CreateOrganizationUnitService extends BaseService implements CreateOrganizationUnitServiceInterface
 {
@@ -41,6 +41,7 @@ class CreateOrganizationUnitService extends BaseService implements CreateOrganiz
 
         $saved = $this->orgUnitRepository->save($unit);
         $this->addEvent(new OrganizationUnitCreated($saved));
+
         return $saved;
     }
 }

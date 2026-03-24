@@ -7,6 +7,4 @@ use Modules\Core\Application\Contracts\WriteServiceInterface;
 /**
  * @method \Modules\Tenant\Domain\Entities\Tenant execute(array $data = [])
  */
-interface UpdateTenantConfigServiceInterface extends WriteServiceInterface
-{
-}
+interface UpdateTenantConfigServiceInterface extends WriteServiceInterface {}

@@ -33,7 +33,7 @@ class AuthorizationService implements AuthorizationServiceInterface
     {
         $user = UserModel::with('roles.permissions')->find($userId);
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 

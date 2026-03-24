@@ -7,6 +7,4 @@ use Modules\Core\Application\Contracts\ServiceInterface;
 /**
  * @method \Modules\User\Domain\Entities\Role execute(array $data = [])
  */
-interface CreateRoleServiceInterface extends ServiceInterface
-{
-}
+interface CreateRoleServiceInterface extends ServiceInterface {}

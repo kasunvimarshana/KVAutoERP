@@ -13,13 +13,13 @@ class RegisterUserService implements RegisterUserServiceInterface
     {
         /** @var UserModel $user */
         $user = UserModel::create([
-            'tenant_id'  => $data['tenant_id'],
-            'email'      => $data['email'],
+            'tenant_id' => $data['tenant_id'],
+            'email' => $data['email'],
             'first_name' => $data['first_name'],
-            'last_name'  => $data['last_name'],
-            'phone'      => $data['phone'] ?? null,
-            'password'   => Hash::make($data['password']),
-            'active'     => true,
+            'last_name' => $data['last_name'],
+            'phone' => $data['phone'] ?? null,
+            'password' => Hash::make($data['password']),
+            'active' => true,
         ]);
 
         UserRegistered::dispatch(

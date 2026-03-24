@@ -17,7 +17,7 @@ class StorePermissionRequest extends FormRequest
 
         return [
             'tenant_id' => 'required|integer|exists:tenants,id',
-            'name'      => 'required|string|max:255|unique:permissions,name,NULL,id,tenant_id,' . $tenantId,
+            'name' => 'required|string|max:255|unique:permissions,name,NULL,id,tenant_id,'.$tenantId,
         ];
     }
 }

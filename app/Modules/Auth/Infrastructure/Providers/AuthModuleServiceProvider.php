@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Auth\Infrastructure\Providers;
 
 use Illuminate\Support\ServiceProvider;
@@ -21,6 +23,9 @@ use Modules\Auth\Application\Services\RbacAuthorizationStrategy;
 use Modules\Auth\Application\Services\RegisterUserService;
 use Modules\Auth\Application\Services\SsoService;
 use Modules\Auth\Application\UseCases\GetAuthenticatedUser;
+use Modules\Auth\Application\UseCases\LoginUser;
+use Modules\Auth\Application\UseCases\LogoutUser;
+use Modules\Auth\Application\UseCases\RegisterUser;
 
 class AuthModuleServiceProvider extends ServiceProvider
 {
@@ -70,14 +75,33 @@ class AuthModuleServiceProvider extends ServiceProvider
             );
         });
 
-        // Use case (transient, constructed inline)
+        // Use cases (resolved via container for proper DI in controllers)
+        $this->app->bind(LoginUser::class, function ($app) {
+            return new LoginUser(
+                $app->make(LoginServiceInterface::class),
+            );
+        });
+
+        $this->app->bind(LogoutUser::class, function ($app) {
+            return new LogoutUser(
+                $app->make(LogoutServiceInterface::class),
+            );
+        });
+
+        $this->app->bind(RegisterUser::class, function ($app) {
+            return new RegisterUser(
+                $app->make(RegisterUserServiceInterface::class),
+                $app->make(LoginServiceInterface::class),
+            );
+        });
+
         $this->app->bind(GetAuthenticatedUser::class, GetAuthenticatedUser::class);
     }
 
     public function boot(): void
     {
-        $this->loadRoutesFrom(__DIR__ . '/../../routes/api.php');
-        $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
+        $this->loadRoutesFrom(__DIR__.'/../../routes/api.php');
+        $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
 
         // Configure Passport token lifetime
         Passport::tokensExpireIn(now()->addDays(

@@ -2,14 +2,12 @@
 
 namespace Modules\Auth\Application\Services;
 
-use Illuminate\Support\Facades\Auth;
+use Laravel\Passport\Token;
 use Modules\Auth\Application\Contracts\SsoServiceInterface;
 use Modules\Auth\Application\Contracts\TokenServiceInterface;
 use Modules\Auth\Domain\Entities\AccessToken;
 use Modules\Auth\Domain\Exceptions\AuthenticationException;
 use Modules\Auth\Domain\Exceptions\TokenExpiredException;
-use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
-use Laravel\Passport\Token;
 
 /**
  * SSO service using Passport personal access tokens as the SSO token mechanism.
@@ -46,7 +44,7 @@ class SsoService implements SsoServiceInterface
         $token = Token::where('id', hash('sha256', $ssoToken))->first()
                ?? Token::find($ssoToken);
 
-        if (!$token || $token->revoked) {
+        if (! $token || $token->revoked) {
             throw new TokenExpiredException('SSO token is invalid or has been revoked');
         }
 

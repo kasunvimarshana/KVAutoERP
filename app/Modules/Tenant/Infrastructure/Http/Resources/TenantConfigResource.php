@@ -12,15 +12,15 @@ class TenantConfigResource extends JsonResource
 
         if (method_exists($resource, 'getDatabaseConfig')) {
             return [
-                'id'              => $resource->getId(),
+                'id' => $resource->getId(),
                 'database_config' => $resource->getDatabaseConfig()->toArray(),
-                'mail_config'     => $resource->getMailConfig()?->toArray(),
-                'cache_config'    => $resource->getCacheConfig()?->toArray(),
-                'queue_config'    => $resource->getQueueConfig()?->toArray(),
-                'feature_flags'   => $resource->getFeatureFlags()->toArray(),
-                'api_keys'        => $resource->getApiKeys()->toArray(),
-                'active'          => $resource->isActive(),
-                'updated_at'      => $resource->getUpdatedAt()->format('c'),
+                'mail_config' => $resource->getMailConfig()?->toArray(),
+                'cache_config' => $resource->getCacheConfig()?->toArray(),
+                'queue_config' => $resource->getQueueConfig()?->toArray(),
+                'feature_flags' => $resource->getFeatureFlags()->toArray(),
+                'api_keys' => $resource->getApiKeys()->toArray(),
+                'active' => $resource->isActive(),
+                'updated_at' => $resource->getUpdatedAt()->format('c'),
             ];
         }
 

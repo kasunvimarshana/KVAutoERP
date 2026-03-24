@@ -11,8 +11,7 @@ interface AuthorizationStrategyInterface
     /**
      * Determine whether the given user is authorized for the given ability.
      *
-     * @param  int    $userId
-     * @param  string $ability  e.g. 'view-users', 'admin', a role name, or policy method
+     * @param  string  $ability  e.g. 'view-users', 'admin', a role name, or policy method
      * @param  mixed  $subject  Optional subject for ABAC (model instance, array of attributes, etc.)
      */
     public function authorize(int $userId, string $ability, mixed $subject = null): bool;

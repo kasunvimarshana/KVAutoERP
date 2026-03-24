@@ -4,12 +4,14 @@ namespace Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 class OrganizationUnitModel extends Model
 {
     use SoftDeletes;
 
     protected $table = 'organization_units';
+
     protected $fillable = [
         'tenant_id',
         'name',
@@ -20,6 +22,7 @@ class OrganizationUnitModel extends Model
         '_lft',
         '_rgt',
     ];
+
     protected $casts = [
         'metadata' => 'array',
         'tenant_id' => 'integer',
@@ -38,7 +41,7 @@ class OrganizationUnitModel extends Model
     /**
      * Get all descendants of this node.
      */
-    public function getDescendants(): \Illuminate\Support\Collection
+    public function getDescendants(): Collection
     {
         return static::where('tenant_id', $this->tenant_id)
             ->where('_lft', '>', $this->_lft)
@@ -50,7 +53,7 @@ class OrganizationUnitModel extends Model
     /**
      * Get all ancestors of this node.
      */
-    public function getAncestors(): \Illuminate\Support\Collection
+    public function getAncestors(): Collection
     {
         return static::where('tenant_id', $this->tenant_id)
             ->where('_lft', '<', $this->_lft)

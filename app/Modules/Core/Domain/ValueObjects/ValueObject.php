@@ -2,8 +2,6 @@
 
 namespace Modules\Core\Domain\ValueObjects;
 
-use Illuminate\Support\Str;
-
 abstract class ValueObject
 {
     /**
