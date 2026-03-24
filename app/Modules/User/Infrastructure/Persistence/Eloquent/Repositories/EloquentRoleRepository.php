@@ -10,9 +10,9 @@ use Modules\User\Infrastructure\Persistence\Eloquent\Models\RoleModel;
 
 class EloquentRoleRepository extends EloquentRepository implements RoleRepositoryInterface
 {
-    public function __construct()
+    public function __construct(RoleModel $model)
     {
-        parent::__construct(new RoleModel());
+        parent::__construct($model);
     }
 
     public function findByName(int $tenantId, string $name): ?Role

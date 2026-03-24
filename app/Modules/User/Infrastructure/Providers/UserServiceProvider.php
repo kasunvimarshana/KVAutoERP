@@ -11,6 +11,10 @@ use Modules\User\Infrastructure\Persistence\Eloquent\Repositories\EloquentUserRe
 use Modules\User\Infrastructure\Persistence\Eloquent\Repositories\EloquentRoleRepository;
 use Modules\User\Infrastructure\Persistence\Eloquent\Repositories\EloquentPermissionRepository;
 use Modules\User\Infrastructure\Persistence\Eloquent\Repositories\EloquentUserAttachmentRepository;
+use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
+use Modules\User\Infrastructure\Persistence\Eloquent\Models\RoleModel;
+use Modules\User\Infrastructure\Persistence\Eloquent\Models\PermissionModel;
+use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserAttachmentModel;
 use Modules\User\Application\Services\CreateUserService;
 use Modules\User\Application\Services\UpdateUserService;
 use Modules\User\Application\Services\DeleteUserService;
@@ -23,10 +27,18 @@ class UserServiceProvider extends ServiceProvider
 {
     public function register()
     {
-        $this->app->bind(UserRepositoryInterface::class, EloquentUserRepository::class);
-        $this->app->bind(RoleRepositoryInterface::class, EloquentRoleRepository::class);
-        $this->app->bind(PermissionRepositoryInterface::class, EloquentPermissionRepository::class);
-        $this->app->bind(UserAttachmentRepositoryInterface::class, EloquentUserAttachmentRepository::class);
+        $this->app->bind(UserRepositoryInterface::class, function ($app) {
+            return new EloquentUserRepository($app->make(UserModel::class));
+        });
+        $this->app->bind(RoleRepositoryInterface::class, function ($app) {
+            return new EloquentRoleRepository($app->make(RoleModel::class));
+        });
+        $this->app->bind(PermissionRepositoryInterface::class, function ($app) {
+            return new EloquentPermissionRepository($app->make(PermissionModel::class));
+        });
+        $this->app->bind(UserAttachmentRepositoryInterface::class, function ($app) {
+            return new EloquentUserAttachmentRepository($app->make(UserAttachmentModel::class));
+        });
 
         $this->app->bind(CreateUserService::class, function ($app) {
             return new CreateUserService(

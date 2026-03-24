@@ -9,9 +9,9 @@ use Modules\User\Infrastructure\Persistence\Eloquent\Models\PermissionModel;
 
 class EloquentPermissionRepository extends EloquentRepository implements PermissionRepositoryInterface
 {
-    public function __construct()
+    public function __construct(PermissionModel $model)
     {
-        parent::__construct(new PermissionModel());
+        parent::__construct($model);
     }
 
     public function findByName(int $tenantId, string $name): ?Permission

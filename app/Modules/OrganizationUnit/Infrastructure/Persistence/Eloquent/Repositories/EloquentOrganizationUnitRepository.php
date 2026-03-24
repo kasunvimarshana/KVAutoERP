@@ -14,9 +14,9 @@ use Illuminate\Support\Facades\DB;
 
 class EloquentOrganizationUnitRepository extends EloquentRepository implements OrganizationUnitRepositoryInterface
 {
-    public function __construct()
+    public function __construct(OrganizationUnitModel $model)
     {
-        parent::__construct(new OrganizationUnitModel());
+        parent::__construct($model);
     }
 
     /**

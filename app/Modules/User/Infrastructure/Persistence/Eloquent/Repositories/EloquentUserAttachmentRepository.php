@@ -10,9 +10,9 @@ use Illuminate\Support\Collection;
 
 class EloquentUserAttachmentRepository extends EloquentRepository implements UserAttachmentRepositoryInterface
 {
-    public function __construct()
+    public function __construct(UserAttachmentModel $model)
     {
-        parent::__construct(new UserAttachmentModel());
+        parent::__construct($model);
     }
 
     public function findByUuid(string $uuid): ?UserAttachment

@@ -15,9 +15,9 @@ use Modules\Tenant\Infrastructure\Persistence\Eloquent\Models\TenantModel;
 
 class EloquentTenantRepository extends EloquentRepository implements TenantRepositoryInterface
 {
-    public function __construct()
+    public function __construct(TenantModel $model)
     {
-        parent::__construct(new TenantModel());
+        parent::__construct($model);
     }
 
     public function findByDomain(string $domain): ?Tenant

@@ -16,9 +16,9 @@ use Modules\User\Domain\Entities\Permission;
 
 class EloquentUserRepository extends EloquentRepository implements UserRepositoryInterface
 {
-    public function __construct()
+    public function __construct(UserModel $model)
     {
-        parent::__construct(new UserModel());
+        parent::__construct($model);
     }
 
     public function findByEmail(int $tenantId, string $email): ?User
