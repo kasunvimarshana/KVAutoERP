@@ -47,7 +47,9 @@ use Modules\Auth\Infrastructure\Http\Middleware\CheckRole;
 use Modules\Auth\Infrastructure\Http\Requests\LoginRequest;
 use Modules\Auth\Infrastructure\Http\Requests\RegisterRequest;
 use Modules\Auth\Infrastructure\Http\Requests\SsoRequest;
+use Modules\Auth\Application\Contracts\AuthUserRepositoryInterface;
 use Modules\Auth\Infrastructure\Http\Resources\AuthTokenResource;
+use Modules\Auth\Infrastructure\Persistence\EloquentAuthUserRepository;
 use Modules\Auth\Infrastructure\Providers\AuthModuleServiceProvider;
 use Modules\Core\Domain\Exceptions\DomainException;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
@@ -237,13 +239,15 @@ class AuthModuleTest extends TestCase
 
     public function test_rbac_strategy_returns_correct_name(): void
     {
-        $strategy = new RbacAuthorizationStrategy;
+        $repo = $this->createMock(AuthUserRepositoryInterface::class);
+        $strategy = new RbacAuthorizationStrategy($repo);
         $this->assertSame('rbac', $strategy->getName());
     }
 
     public function test_abac_strategy_returns_correct_name(): void
     {
-        $strategy = new AbacAuthorizationStrategy;
+        $repo = $this->createMock(AuthUserRepositoryInterface::class);
+        $strategy = new AbacAuthorizationStrategy($repo);
         $this->assertSame('abac', $strategy->getName());
     }
 
@@ -452,5 +456,173 @@ class AuthModuleTest extends TestCase
     public function test_sso_request_is_form_request(): void
     {
         $this->assertInstanceOf(FormRequest::class, new SsoRequest);
+    }
+
+    // -------------------------------------------------------------------------
+    // Auth User Repository: Interface and Implementation
+    // -------------------------------------------------------------------------
+
+    public function test_auth_user_repository_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(AuthUserRepositoryInterface::class));
+    }
+
+    public function test_eloquent_auth_user_repository_exists(): void
+    {
+        $this->assertTrue(class_exists(EloquentAuthUserRepository::class));
+    }
+
+    public function test_eloquent_auth_user_repository_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(EloquentAuthUserRepository::class, AuthUserRepositoryInterface::class)
+        );
+    }
+
+    public function test_auth_user_repository_interface_has_required_methods(): void
+    {
+        $reflection = new \ReflectionClass(AuthUserRepositoryInterface::class);
+        $methods = array_map(fn ($m) => $m->getName(), $reflection->getMethods());
+
+        $this->assertContains('findForPassport', $methods);
+        $this->assertContains('findAuthenticatable', $methods);
+        $this->assertContains('getEmailById', $methods);
+        $this->assertContains('getIdByEmail', $methods);
+        $this->assertContains('getRolesWithPermissions', $methods);
+        $this->assertContains('createUser', $methods);
+    }
+
+    // -------------------------------------------------------------------------
+    // DIP compliance: services use AuthUserRepositoryInterface
+    // -------------------------------------------------------------------------
+
+    public function test_passport_token_service_uses_auth_user_repository(): void
+    {
+        $reflection = new \ReflectionClass(PassportTokenService::class);
+        $constructor = $reflection->getConstructor();
+        $this->assertNotNull($constructor);
+
+        $params = $constructor->getParameters();
+        $this->assertCount(1, $params);
+        $this->assertSame(
+            AuthUserRepositoryInterface::class,
+            $params[0]->getType()?->getName()
+        );
+    }
+
+    public function test_login_service_uses_auth_user_repository(): void
+    {
+        $reflection = new \ReflectionClass(LoginService::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        $types = array_map(fn ($p) => $p->getType()?->getName(), $params);
+        $this->assertContains(AuthUserRepositoryInterface::class, $types);
+    }
+
+    public function test_logout_service_uses_auth_user_repository(): void
+    {
+        $reflection = new \ReflectionClass(LogoutService::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        $types = array_map(fn ($p) => $p->getType()?->getName(), $params);
+        $this->assertContains(AuthUserRepositoryInterface::class, $types);
+    }
+
+    public function test_register_user_service_uses_auth_user_repository(): void
+    {
+        $reflection = new \ReflectionClass(RegisterUserService::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        $this->assertCount(1, $params);
+        $this->assertSame(
+            AuthUserRepositoryInterface::class,
+            $params[0]->getType()?->getName()
+        );
+    }
+
+    public function test_rbac_strategy_uses_auth_user_repository(): void
+    {
+        $reflection = new \ReflectionClass(RbacAuthorizationStrategy::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        $this->assertCount(1, $params);
+        $this->assertSame(
+            AuthUserRepositoryInterface::class,
+            $params[0]->getType()?->getName()
+        );
+    }
+
+    public function test_abac_strategy_uses_auth_user_repository(): void
+    {
+        $reflection = new \ReflectionClass(AbacAuthorizationStrategy::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        $this->assertCount(1, $params);
+        $this->assertSame(
+            AuthUserRepositoryInterface::class,
+            $params[0]->getType()?->getName()
+        );
+    }
+
+    public function test_authorization_service_uses_auth_user_repository_and_strategy_interface(): void
+    {
+        $reflection = new \ReflectionClass(AuthorizationService::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        // First param must be AuthUserRepositoryInterface
+        $this->assertSame(
+            AuthUserRepositoryInterface::class,
+            $params[0]->getType()?->getName()
+        );
+
+        // Remaining params must be AuthorizationStrategyInterface (variadic)
+        $this->assertTrue($params[1]->isVariadic());
+        $this->assertSame(
+            AuthorizationStrategyInterface::class,
+            $params[1]->getType()?->getName()
+        );
+    }
+
+    public function test_authorization_service_does_not_depend_on_concrete_strategy_classes(): void
+    {
+        $reflection = new \ReflectionClass(AuthorizationService::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        $types = array_map(fn ($p) => $p->getType()?->getName(), $params);
+
+        // Concrete strategy classes must NOT appear in the constructor signature
+        $this->assertNotContains(RbacAuthorizationStrategy::class, $types);
+        $this->assertNotContains(AbacAuthorizationStrategy::class, $types);
+    }
+
+    // -------------------------------------------------------------------------
+    // Strict types: all Auth files should declare strict_types=1
+    // -------------------------------------------------------------------------
+
+    public function test_all_auth_service_files_declare_strict_types(): void
+    {
+        $files = [
+            'Application/Services/AuthenticationService.php',
+            'Application/Services/AuthorizationService.php',
+            'Application/Services/LoginService.php',
+            'Application/Services/LogoutService.php',
+            'Application/Services/PassportTokenService.php',
+            'Application/Services/RbacAuthorizationStrategy.php',
+            'Application/Services/AbacAuthorizationStrategy.php',
+            'Application/Services/RegisterUserService.php',
+            'Application/Services/SsoService.php',
+        ];
+
+        $base = dirname(__DIR__, 2).'/app/Modules/Auth/';
+
+        foreach ($files as $file) {
+            $path = $base.$file;
+            $this->assertFileExists($path);
+            $this->assertStringContainsString(
+                'declare(strict_types=1);',
+                file_get_contents($path),
+                "{$file} must declare strict_types=1"
+            );
+        }
     }
 }

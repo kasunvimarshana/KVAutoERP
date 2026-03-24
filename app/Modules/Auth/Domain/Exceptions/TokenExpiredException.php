@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Auth\Domain\Exceptions;
 
 class TokenExpiredException extends AuthenticationException

@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Auth\Application\Services;
 
+use Modules\Auth\Application\Contracts\AuthUserRepositoryInterface;
 use Modules\Auth\Application\Contracts\AuthorizationStrategyInterface;
-use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
 
 /**
  * Role-Based Access Control (RBAC) authorization strategy.
@@ -11,6 +13,10 @@ use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
  */
 class RbacAuthorizationStrategy implements AuthorizationStrategyInterface
 {
+    public function __construct(
+        private readonly AuthUserRepositoryInterface $userRepository,
+    ) {}
+
     public function getName(): string
     {
         return 'rbac';
@@ -18,20 +24,16 @@ class RbacAuthorizationStrategy implements AuthorizationStrategyInterface
 
     public function authorize(int $userId, string $ability, mixed $subject = null): bool
     {
-        $user = UserModel::with('roles.permissions')->find($userId);
+        $roles = $this->userRepository->getRolesWithPermissions($userId);
 
-        if (! $user) {
-            return false;
-        }
-
-        foreach ($user->roles as $role) {
+        foreach ($roles as $role) {
             // Direct role name match
-            if (strtolower($role->name) === strtolower($ability)) {
+            if (strtolower($role['name']) === strtolower($ability)) {
                 return true;
             }
 
             // Permission name match on the role
-            if ($role->permissions->contains('name', $ability)) {
+            if (in_array($ability, $role['permissions'], strict: true)) {
                 return true;
             }
         }

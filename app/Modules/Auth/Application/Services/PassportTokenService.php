@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Auth\Application\Services;
 
 use Illuminate\Support\Facades\Auth;
-use Laravel\Passport\Contracts\OAuthenticatable;
+use Modules\Auth\Application\Contracts\AuthUserRepositoryInterface;
 use Modules\Auth\Application\Contracts\TokenServiceInterface;
 use Modules\Auth\Domain\Entities\AccessToken;
-use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
+use Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
 
 /**
  * Passport-backed token service.
@@ -17,10 +19,17 @@ class PassportTokenService implements TokenServiceInterface
 {
     private static int $tokenTtlMinutes = 60;
 
+    public function __construct(
+        private readonly AuthUserRepositoryInterface $userRepository,
+    ) {}
+
     public function issueToken(int $userId, string $tokenName = 'api', array $scopes = []): AccessToken
     {
-        /** @var OAuthenticatable|UserModel $user */
-        $user = UserModel::findOrFail($userId);
+        $user = $this->userRepository->findForPassport($userId);
+
+        if (! $user) {
+            throw new InvalidCredentialsException('User not found for token issuance');
+        }
 
         $result = $user->createToken($tokenName, $scopes);
 
@@ -51,8 +60,7 @@ class PassportTokenService implements TokenServiceInterface
 
     public function revokeAllTokens(int $userId): bool
     {
-        /** @var UserModel $user */
-        $user = UserModel::find($userId);
+        $user = $this->userRepository->findForPassport($userId);
         if (! $user) {
             return false;
         }
