@@ -14,6 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'resolve.tenant' => \Modules\Tenant\Infrastructure\Http\Middleware\ResolveTenant::class,
+            'role'           => \Modules\Auth\Infrastructure\Http\Middleware\CheckRole::class,
+            'permission'     => \Modules\Auth\Infrastructure\Http\Middleware\CheckPermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
