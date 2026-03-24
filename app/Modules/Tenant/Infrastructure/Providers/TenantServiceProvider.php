@@ -7,6 +7,8 @@ use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 use Modules\Tenant\Domain\RepositoryInterfaces\TenantAttachmentRepositoryInterface;
 use Modules\Tenant\Infrastructure\Persistence\Eloquent\Repositories\EloquentTenantRepository;
 use Modules\Tenant\Infrastructure\Persistence\Eloquent\Repositories\EloquentTenantAttachmentRepository;
+use Modules\Tenant\Infrastructure\Persistence\Eloquent\Models\TenantModel;
+use Modules\Tenant\Infrastructure\Persistence\Eloquent\Models\TenantAttachmentModel;
 use Modules\Tenant\Application\Services\CreateTenantService;
 use Modules\Tenant\Application\Services\UpdateTenantService;
 use Modules\Tenant\Application\Services\DeleteTenantService;
@@ -18,8 +20,12 @@ class TenantServiceProvider extends ServiceProvider
 {
     public function register()
     {
-        $this->app->bind(TenantRepositoryInterface::class, EloquentTenantRepository::class);
-        $this->app->bind(TenantAttachmentRepositoryInterface::class, EloquentTenantAttachmentRepository::class);
+        $this->app->bind(TenantRepositoryInterface::class, function ($app) {
+            return new EloquentTenantRepository($app->make(TenantModel::class));
+        });
+        $this->app->bind(TenantAttachmentRepositoryInterface::class, function ($app) {
+            return new EloquentTenantAttachmentRepository($app->make(TenantAttachmentModel::class));
+        });
 
         $this->app->bind(CreateTenantService::class, function ($app) {
             return new CreateTenantService($app->make(TenantRepositoryInterface::class));

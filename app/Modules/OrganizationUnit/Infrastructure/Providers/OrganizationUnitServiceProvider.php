@@ -7,6 +7,8 @@ use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitReposit
 use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitAttachmentRepositoryInterface;
 use Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Repositories\EloquentOrganizationUnitRepository;
 use Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Repositories\EloquentOrganizationUnitAttachmentRepository;
+use Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Models\OrganizationUnitModel;
+use Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Models\OrganizationUnitAttachmentModel;
 use Modules\OrganizationUnit\Application\Services\CreateOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitService;
@@ -18,8 +20,12 @@ class OrganizationUnitServiceProvider extends ServiceProvider
 {
     public function register()
     {
-        $this->app->bind(OrganizationUnitRepositoryInterface::class, EloquentOrganizationUnitRepository::class);
-        $this->app->bind(OrganizationUnitAttachmentRepositoryInterface::class, EloquentOrganizationUnitAttachmentRepository::class);
+        $this->app->bind(OrganizationUnitRepositoryInterface::class, function ($app) {
+            return new EloquentOrganizationUnitRepository($app->make(OrganizationUnitModel::class));
+        });
+        $this->app->bind(OrganizationUnitAttachmentRepositoryInterface::class, function ($app) {
+            return new EloquentOrganizationUnitAttachmentRepository($app->make(OrganizationUnitAttachmentModel::class));
+        });
 
         $this->app->bind(CreateOrganizationUnitService::class, function ($app) {
             return new CreateOrganizationUnitService($app->make(OrganizationUnitRepositoryInterface::class));
