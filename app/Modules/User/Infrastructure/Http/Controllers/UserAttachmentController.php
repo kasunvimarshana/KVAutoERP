@@ -8,6 +8,7 @@ use Modules\User\Domain\Entities\User;
 use Modules\User\Domain\RepositoryInterfaces\UserAttachmentRepositoryInterface;
 use Modules\User\Infrastructure\Http\Requests\UploadUserAttachmentRequest;
 use Modules\User\Infrastructure\Http\Resources\UserAttachmentResource;
+use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -17,7 +18,8 @@ class UserAttachmentController extends Controller
     public function __construct(
         protected UploadUserAttachmentServiceInterface $uploadService,
         protected DeleteUserAttachmentServiceInterface $deleteService,
-        protected UserAttachmentRepositoryInterface $attachmentRepo
+        protected UserAttachmentRepositoryInterface $attachmentRepo,
+        protected FileStorageServiceInterface $storage
     ) {}
 
     public function index(int $userId, Request $request)
@@ -61,6 +63,6 @@ class UserAttachmentController extends Controller
             abort(404);
         }
         $this->authorize('view', $attachment);
-        return response()->file(storage_path("app/public/{$attachment->getFilePath()}"));
+        return $this->storage->stream($attachment->getFilePath());
     }
 }

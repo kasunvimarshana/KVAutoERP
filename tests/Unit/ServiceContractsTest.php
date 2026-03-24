@@ -38,7 +38,11 @@ use Modules\Core\Application\Contracts\WriteServiceInterface;
 // Tenant infrastructure
 use Modules\Tenant\Infrastructure\Http\Middleware\ResolveTenant;
 use Modules\Tenant\Infrastructure\Services\TenantConfig;
+use Modules\Tenant\Infrastructure\Services\TenantConfigClient;
+use Modules\Tenant\Application\Services\TenantConfigManager;
 use Modules\Tenant\Domain\Contracts\TenantConfigInterface;
+use Modules\Tenant\Application\Contracts\TenantConfigClientInterface;
+use Modules\Tenant\Application\Contracts\TenantConfigManagerInterface;
 
 class ServiceContractsTest extends TestCase
 {
@@ -154,5 +158,48 @@ class ServiceContractsTest extends TestCase
             is_subclass_of(ServiceInterface::class, WriteServiceInterface::class, true),
             'ServiceInterface must extend WriteServiceInterface.'
         );
+    }
+
+    /**
+     * Verify TenantConfigClientInterface and TenantConfigManagerInterface exist
+     * and their implementations correctly implement them.
+     */
+    public function test_tenant_config_client_and_manager_interfaces_exist(): void
+    {
+        $this->assertTrue(interface_exists(TenantConfigClientInterface::class));
+        $this->assertTrue(interface_exists(TenantConfigManagerInterface::class));
+
+        $this->assertTrue(class_exists(TenantConfigClient::class));
+        $this->assertTrue(class_exists(TenantConfigManager::class));
+
+        $this->assertTrue(
+            is_subclass_of(TenantConfigClient::class, TenantConfigClientInterface::class),
+            'TenantConfigClient must implement TenantConfigClientInterface.'
+        );
+        $this->assertTrue(
+            is_subclass_of(TenantConfigManager::class, TenantConfigManagerInterface::class),
+            'TenantConfigManager must implement TenantConfigManagerInterface.'
+        );
+    }
+
+    /**
+     * Verify the ResolveTenant middleware constructor requires interfaces (not concrete classes).
+     */
+    public function test_resolve_tenant_middleware_constructor_uses_interfaces(): void
+    {
+        $reflection = new \ReflectionClass(ResolveTenant::class);
+        $constructor = $reflection->getConstructor();
+        $this->assertNotNull($constructor);
+
+        $params = $constructor->getParameters();
+        $this->assertCount(2, $params);
+
+        $clientType = $params[0]->getType()?->getName();
+        $managerType = $params[1]->getType()?->getName();
+
+        $this->assertSame(TenantConfigClientInterface::class, $clientType,
+            'ResolveTenant must inject TenantConfigClientInterface, not a concrete class.');
+        $this->assertSame(TenantConfigManagerInterface::class, $managerType,
+            'ResolveTenant must inject TenantConfigManagerInterface, not a concrete class.');
     }
 }

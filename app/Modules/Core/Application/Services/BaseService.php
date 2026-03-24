@@ -49,7 +49,7 @@ abstract class BaseService implements ServiceInterface
     /**
      * Add an event to be dispatched after transaction.
      */
-    protected function addEvent($event): void
+    protected function addEvent(object $event): void
     {
         $this->events[] = $event;
     }

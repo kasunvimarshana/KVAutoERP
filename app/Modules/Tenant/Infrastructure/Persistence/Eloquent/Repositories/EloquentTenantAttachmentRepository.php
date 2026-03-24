@@ -52,11 +52,6 @@ class EloquentTenantAttachmentRepository extends EloquentRepository implements T
         return $this->toDomainEntity($model);
     }
 
-    public function delete($id): bool
-    {
-        return $this->destroy($id);
-    }
-
     private function toDomainEntity(TenantAttachmentModel $model): TenantAttachment
     {
         return new TenantAttachment(
