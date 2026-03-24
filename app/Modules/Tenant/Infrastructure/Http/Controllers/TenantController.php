@@ -3,10 +3,11 @@
 namespace Modules\Tenant\Infrastructure\Http\Controllers;
 
 use Modules\Core\Infrastructure\Http\Controllers\BaseController;
-use Modules\Tenant\Application\Services\CreateTenantService;
-use Modules\Tenant\Application\Services\UpdateTenantService;
-use Modules\Tenant\Application\Services\DeleteTenantService;
-use Modules\Tenant\Application\Services\UpdateTenantConfigService;
+use Modules\Core\Application\Contracts\ServiceInterface;
+use Modules\Tenant\Application\Contracts\CreateTenantServiceInterface;
+use Modules\Tenant\Application\Contracts\UpdateTenantServiceInterface;
+use Modules\Tenant\Application\Contracts\DeleteTenantServiceInterface;
+use Modules\Tenant\Application\Contracts\UpdateTenantConfigServiceInterface;
 use Modules\Tenant\Application\DTOs\TenantData;
 use Modules\Tenant\Application\DTOs\TenantConfigData;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantResource;
@@ -20,10 +21,10 @@ use Illuminate\Http\JsonResponse;
 class TenantController extends BaseController
 {
     public function __construct(
-        CreateTenantService $createService,
-        protected UpdateTenantService $updateService,
-        protected DeleteTenantService $deleteService,
-        protected UpdateTenantConfigService $configService,
+        CreateTenantServiceInterface $createService,
+        protected UpdateTenantServiceInterface $updateService,
+        protected DeleteTenantServiceInterface $deleteService,
+        protected UpdateTenantConfigServiceInterface $configService,
         protected TenantRepositoryInterface $tenantRepository
     ) {
         parent::__construct($createService, TenantResource::class, TenantData::class);
@@ -51,7 +52,7 @@ class TenantController extends BaseController
         return new TenantResource($tenant);
     }
 
-    public function show($id): TenantResource
+    public function show(int $id): TenantResource
     {
         $tenant = $this->service->find($id);
         if (!$tenant) {
@@ -61,7 +62,7 @@ class TenantController extends BaseController
         return new TenantResource($tenant);
     }
 
-    public function update(Request $request, $id): TenantResource
+    public function update(Request $request, int $id): TenantResource
     {
         $tenant = $this->service->find($id);
         if (!$tenant) {
@@ -75,7 +76,7 @@ class TenantController extends BaseController
         return new TenantResource($updated);
     }
 
-    public function updateConfig(Request $request, $id): TenantConfigResource
+    public function updateConfig(Request $request, int $id): TenantConfigResource
     {
         $tenant = $this->service->find($id);
         if (!$tenant) {
@@ -89,7 +90,7 @@ class TenantController extends BaseController
         return new TenantConfigResource($updated);
     }
 
-    public function destroy($id): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
         $tenant = $this->service->find($id);
         if (!$tenant) {
@@ -100,7 +101,6 @@ class TenantController extends BaseController
         return response()->json(['message' => 'Tenant deleted successfully']);
     }
 
-    // Endpoint for internal use (no authentication)
     public function configByDomain(string $domain): TenantConfigResource
     {
         $tenant = $this->tenantRepository->findByDomain($domain);

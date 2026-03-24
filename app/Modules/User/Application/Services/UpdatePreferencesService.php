@@ -8,12 +8,17 @@ use Modules\User\Domain\Entities\User;
 use Modules\User\Domain\ValueObjects\UserPreferences;
 use Modules\User\Application\DTOs\UserPreferencesData;
 use Modules\User\Domain\Events\UserUpdated;
+use Modules\User\Domain\Exceptions\UserNotFoundException;
+use Modules\User\Application\Contracts\UpdatePreferencesServiceInterface;
 
-class UpdatePreferencesService extends BaseService
+class UpdatePreferencesService extends BaseService implements UpdatePreferencesServiceInterface
 {
+    private UserRepositoryInterface $userRepository;
+
     public function __construct(UserRepositoryInterface $repository)
     {
         parent::__construct($repository);
+        $this->userRepository = $repository;
     }
 
     protected function handle(array $data): User
@@ -21,9 +26,9 @@ class UpdatePreferencesService extends BaseService
         $userId = $data['user_id'];
         $dto = UserPreferencesData::fromArray($data);
 
-        $user = $this->repository->find($userId);
+        $user = $this->userRepository->find($userId);
         if (!$user) {
-            throw new \RuntimeException('User not found');
+            throw new UserNotFoundException($userId);
         }
 
         $preferences = new UserPreferences(
@@ -32,7 +37,7 @@ class UpdatePreferencesService extends BaseService
             $dto->notifications ?? $user->getPreferences()->getNotifications()
         );
         $user->updatePreferences($preferences);
-        $saved = $this->repository->save($user);
+        $saved = $this->userRepository->save($user);
         $this->addEvent(new UserUpdated($saved));
         return $saved;
     }

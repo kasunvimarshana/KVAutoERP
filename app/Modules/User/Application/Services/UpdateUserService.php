@@ -10,12 +10,17 @@ use Modules\User\Domain\ValueObjects\Address;
 use Modules\User\Domain\ValueObjects\UserPreferences;
 use Modules\User\Application\DTOs\UserData;
 use Modules\User\Domain\Events\UserUpdated;
+use Modules\User\Domain\Exceptions\UserNotFoundException;
+use Modules\User\Application\Contracts\UpdateUserServiceInterface;
 
-class UpdateUserService extends BaseService
+class UpdateUserService extends BaseService implements UpdateUserServiceInterface
 {
+    private UserRepositoryInterface $userRepository;
+
     public function __construct(UserRepositoryInterface $repository)
     {
         parent::__construct($repository);
+        $this->userRepository = $repository;
     }
 
     protected function handle(array $data): User
@@ -23,9 +28,9 @@ class UpdateUserService extends BaseService
         $id = $data['id'];
         $dto = UserData::fromArray($data);
 
-        $user = $this->repository->find($id);
+        $user = $this->userRepository->find($id);
         if (!$user) {
-            throw new \RuntimeException('User not found');
+            throw new UserNotFoundException($id);
         }
 
         $phone = !empty($dto->phone) ? new PhoneNumber($dto->phone) : null;
@@ -45,10 +50,10 @@ class UpdateUserService extends BaseService
             $dto->active ? $user->activate() : $user->deactivate();
         }
 
-        $saved = $this->repository->save($user);
+        $saved = $this->userRepository->save($user);
 
         if (isset($dto->roles)) {
-            $this->repository->syncRoles($saved, $dto->roles);
+            $this->userRepository->syncRoles($saved, $dto->roles);
         }
 
         $this->addEvent(new UserUpdated($saved));

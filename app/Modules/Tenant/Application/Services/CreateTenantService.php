@@ -11,14 +11,18 @@ use Modules\Tenant\Domain\ValueObjects\CacheConfig;
 use Modules\Tenant\Domain\ValueObjects\QueueConfig;
 use Modules\Tenant\Domain\ValueObjects\FeatureFlags;
 use Modules\Tenant\Domain\ValueObjects\ApiKeys;
+use Modules\Tenant\Application\Contracts\CreateTenantServiceInterface;
 use Modules\Tenant\Application\DTOs\TenantData;
 use Modules\Tenant\Domain\Events\TenantCreated;
 
-class CreateTenantService extends BaseService
+class CreateTenantService extends BaseService implements CreateTenantServiceInterface
 {
+    private TenantRepositoryInterface $tenantRepository;
+
     public function __construct(TenantRepositoryInterface $repository)
     {
         parent::__construct($repository);
+        $this->tenantRepository = $repository;
     }
 
     protected function handle(array $data): Tenant
@@ -44,7 +48,7 @@ class CreateTenantService extends BaseService
             active: $dto->active ?? true
         );
 
-        $saved = $this->repository->save($tenant);
+        $saved = $this->tenantRepository->save($tenant);
         $this->addEvent(new TenantCreated($saved));
         return $saved;
     }

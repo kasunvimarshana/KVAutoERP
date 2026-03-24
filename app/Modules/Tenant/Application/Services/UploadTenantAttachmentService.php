@@ -7,16 +7,21 @@ use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 use Modules\Tenant\Domain\RepositoryInterfaces\TenantAttachmentRepositoryInterface;
 use Modules\Tenant\Domain\Entities\TenantAttachment;
 use Modules\Core\Application\Services\FileStorageServiceInterface;
+use Modules\Tenant\Domain\Exceptions\TenantNotFoundException;
+use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
 use Illuminate\Support\Str;
 
-class UploadTenantAttachmentService extends BaseService
+class UploadTenantAttachmentService extends BaseService implements UploadTenantAttachmentServiceInterface
 {
+    private TenantRepositoryInterface $tenantRepository;
+
     public function __construct(
         TenantRepositoryInterface $repository,
         protected TenantAttachmentRepositoryInterface $attachmentRepo,
         protected FileStorageServiceInterface $storage
     ) {
         parent::__construct($repository);
+        $this->tenantRepository = $repository;
     }
 
     protected function handle(array $data): TenantAttachment
@@ -26,9 +31,9 @@ class UploadTenantAttachmentService extends BaseService
         $type = $data['type'] ?? null;
         $metadata = $data['metadata'] ?? [];
 
-        $tenant = $this->repository->find($tenantId);
+        $tenant = $this->tenantRepository->find($tenantId);
         if (!$tenant) {
-            throw new \RuntimeException('Tenant not found');
+            throw new TenantNotFoundException($tenantId);
         }
 
         $uuid = (string) Str::uuid();
@@ -50,10 +55,9 @@ class UploadTenantAttachmentService extends BaseService
         // If this is a logo, update tenant's logo_path
         if ($type === 'logo') {
             $tenant->setLogoPath($path);
-            $this->repository->save($tenant);
+            $this->tenantRepository->save($tenant);
         }
 
-        // Optionally add event
         return $saved;
     }
 }
