@@ -6,6 +6,7 @@ namespace Modules\Auth\Infrastructure\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
+use Modules\Auth\Application\Contracts\AuthUserRepositoryInterface;
 use Modules\Auth\Application\Contracts\AuthenticationServiceInterface;
 use Modules\Auth\Application\Contracts\AuthorizationServiceInterface;
 use Modules\Auth\Application\Contracts\LoginServiceInterface;
@@ -26,23 +27,41 @@ use Modules\Auth\Application\UseCases\GetAuthenticatedUser;
 use Modules\Auth\Application\UseCases\LoginUser;
 use Modules\Auth\Application\UseCases\LogoutUser;
 use Modules\Auth\Application\UseCases\RegisterUser;
+use Modules\Auth\Infrastructure\Persistence\EloquentAuthUserRepository;
 
 class AuthModuleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Token service: swappable via binding (default: Passport)
-        $this->app->bind(TokenServiceInterface::class, PassportTokenService::class);
+        // Auth user repository: decouples auth services from UserModel
+        $this->app->bind(AuthUserRepositoryInterface::class, EloquentAuthUserRepository::class);
 
-        // Authorization strategies (RBAC + ABAC)
-        $this->app->bind(RbacAuthorizationStrategy::class, RbacAuthorizationStrategy::class);
-        $this->app->bind(AbacAuthorizationStrategy::class, AbacAuthorizationStrategy::class);
+        // Authorization strategies (RBAC + ABAC) — resolved via interface for DIP compliance
+        $this->app->bind(RbacAuthorizationStrategy::class, function ($app) {
+            return new RbacAuthorizationStrategy(
+                $app->make(AuthUserRepositoryInterface::class),
+            );
+        });
 
-        // Composite authorization service (delegates to strategies)
+        $this->app->bind(AbacAuthorizationStrategy::class, function ($app) {
+            return new AbacAuthorizationStrategy(
+                $app->make(AuthUserRepositoryInterface::class),
+            );
+        });
+
+        // Composite authorization service (delegates to strategies via variadic DI)
         $this->app->bind(AuthorizationServiceInterface::class, function ($app) {
             return new AuthorizationService(
+                $app->make(AuthUserRepositoryInterface::class),
                 $app->make(RbacAuthorizationStrategy::class),
                 $app->make(AbacAuthorizationStrategy::class),
+            );
+        });
+
+        // Token service: swappable via binding (default: Passport)
+        $this->app->bind(TokenServiceInterface::class, function ($app) {
+            return new PassportTokenService(
+                $app->make(AuthUserRepositoryInterface::class),
             );
         });
 
@@ -54,17 +73,23 @@ class AuthModuleServiceProvider extends ServiceProvider
         });
 
         // Register / Login / Logout services
-        $this->app->bind(RegisterUserServiceInterface::class, RegisterUserService::class);
+        $this->app->bind(RegisterUserServiceInterface::class, function ($app) {
+            return new RegisterUserService(
+                $app->make(AuthUserRepositoryInterface::class),
+            );
+        });
 
         $this->app->bind(LoginServiceInterface::class, function ($app) {
             return new LoginService(
                 $app->make(AuthenticationServiceInterface::class),
+                $app->make(AuthUserRepositoryInterface::class),
             );
         });
 
         $this->app->bind(LogoutServiceInterface::class, function ($app) {
             return new LogoutService(
                 $app->make(AuthenticationServiceInterface::class),
+                $app->make(AuthUserRepositoryInterface::class),
             );
         });
 

@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Auth\Application\Services;
 
 use Illuminate\Support\Facades\Gate;
+use Modules\Auth\Application\Contracts\AuthUserRepositoryInterface;
 use Modules\Auth\Application\Contracts\AuthorizationStrategyInterface;
-use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
 
 /**
  * Attribute-Based Access Control (ABAC) authorization strategy.
@@ -12,6 +14,10 @@ use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
  */
 class AbacAuthorizationStrategy implements AuthorizationStrategyInterface
 {
+    public function __construct(
+        private readonly AuthUserRepositoryInterface $userRepository,
+    ) {}
+
     public function getName(): string
     {
         return 'abac';
@@ -19,7 +25,7 @@ class AbacAuthorizationStrategy implements AuthorizationStrategyInterface
 
     public function authorize(int $userId, string $ability, mixed $subject = null): bool
     {
-        $user = UserModel::find($userId);
+        $user = $this->userRepository->findAuthenticatable($userId);
 
         if (! $user) {
             return false;

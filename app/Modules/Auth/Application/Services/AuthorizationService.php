@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Auth\Application\Services;
 
+use Modules\Auth\Application\Contracts\AuthUserRepositoryInterface;
 use Modules\Auth\Application\Contracts\AuthorizationServiceInterface;
 use Modules\Auth\Application\Contracts\AuthorizationStrategyInterface;
-use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
 
 /**
  * Composite authorization service.
@@ -17,28 +19,31 @@ class AuthorizationService implements AuthorizationServiceInterface
     private array $strategies = [];
 
     public function __construct(
-        private readonly RbacAuthorizationStrategy $rbacStrategy,
-        private readonly AbacAuthorizationStrategy $abacStrategy,
+        private readonly AuthUserRepositoryInterface $userRepository,
+        AuthorizationStrategyInterface ...$strategies,
     ) {
-        $this->strategies[] = $rbacStrategy;
-        $this->strategies[] = $abacStrategy;
+        $this->strategies = $strategies;
     }
 
     public function hasRole(int $userId, string $role): bool
     {
-        return $this->rbacStrategy->authorize($userId, $role);
+        $roles = $this->userRepository->getRolesWithPermissions($userId);
+
+        foreach ($roles as $entry) {
+            if (strtolower($entry['name']) === strtolower($role)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function hasPermission(int $userId, string $permission): bool
     {
-        $user = UserModel::with('roles.permissions')->find($userId);
+        $roles = $this->userRepository->getRolesWithPermissions($userId);
 
-        if (! $user) {
-            return false;
-        }
-
-        foreach ($user->roles as $userRole) {
-            if ($userRole->permissions->contains('name', $permission)) {
+        foreach ($roles as $role) {
+            if (in_array($permission, $role['permissions'], strict: true)) {
                 return true;
             }
         }
