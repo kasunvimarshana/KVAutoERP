@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\OrganizationUnit\Application\Services;
 
 use Modules\Core\Application\Services\BaseService;

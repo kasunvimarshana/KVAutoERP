@@ -4,19 +4,16 @@ declare(strict_types=1);
 
 namespace Modules\Auth\Application\UseCases;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Auth;
-use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
 
 class GetAuthenticatedUser
 {
     /**
-     * Return the currently authenticated user model.
+     * Return the currently authenticated user.
      */
-    public function execute(): ?UserModel
+    public function execute(): ?Authenticatable
     {
-        /** @var UserModel|null $user */
-        $user = Auth::user();
-
-        return $user;
+        return Auth::user();
     }
 }

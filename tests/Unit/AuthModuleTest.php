@@ -2,9 +2,11 @@
 
 namespace Tests\Unit;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Auth\User;
 // Auth domain
 use Illuminate\Foundation\Http\FormRequest;
+use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
 use Modules\Auth\Application\Contracts\AuthenticationServiceInterface;
 use Modules\Auth\Application\Contracts\AuthorizationServiceInterface;
@@ -432,6 +434,52 @@ class AuthModuleTest extends TestCase
                 User::class
             ),
             'UserModel must extend Illuminate\Foundation\Auth\User to work with Passport.'
+        );
+    }
+
+    public function test_user_model_implements_oauth_authenticatable(): void
+    {
+        $this->assertContains(
+            OAuthenticatable::class,
+            class_implements(UserModel::class),
+            'UserModel must explicitly implement OAuthenticatable for Passport type-safety.'
+        );
+    }
+
+    public function test_get_authenticated_user_returns_authenticatable_not_user_model(): void
+    {
+        $reflection = new \ReflectionClass(GetAuthenticatedUser::class);
+        $method = $reflection->getMethod('execute');
+        $returnType = $method->getReturnType();
+
+        $this->assertNotNull($returnType, 'GetAuthenticatedUser::execute() must declare a return type.');
+
+        $typeName = $returnType instanceof \ReflectionNamedType
+            ? $returnType->getName()
+            : (string) $returnType;
+
+        // Must return Authenticatable (decoupled from UserModel)
+        $this->assertSame(
+            Authenticatable::class,
+            $typeName,
+            'GetAuthenticatedUser::execute() must return ?Authenticatable, not ?UserModel, to decouple Auth from User module.'
+        );
+
+        $this->assertTrue(
+            $returnType->allowsNull(),
+            'GetAuthenticatedUser::execute() return type must be nullable.'
+        );
+    }
+
+    public function test_get_authenticated_user_does_not_import_user_model(): void
+    {
+        $path = dirname(__DIR__, 2).'/app/Modules/Auth/Application/UseCases/GetAuthenticatedUser.php';
+        $content = file_get_contents($path);
+
+        $this->assertStringNotContainsString(
+            'Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel',
+            $content,
+            'GetAuthenticatedUser must not import UserModel (Auth module must not depend on User module internals).'
         );
     }
 

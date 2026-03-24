@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Core\Infrastructure\Persistence\Repositories;
 
 use Illuminate\Pagination\LengthAwarePaginator;

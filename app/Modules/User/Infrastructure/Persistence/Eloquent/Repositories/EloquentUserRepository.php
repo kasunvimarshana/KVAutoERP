@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\User\Infrastructure\Persistence\Eloquent\Repositories;
 
 use Modules\Core\Domain\ValueObjects\Address;

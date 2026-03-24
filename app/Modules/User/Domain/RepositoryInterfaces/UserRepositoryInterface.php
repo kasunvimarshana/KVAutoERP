@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\User\Domain\RepositoryInterfaces;
 
 use Modules\Core\Domain\Contracts\Repositories\RepositoryInterface;
