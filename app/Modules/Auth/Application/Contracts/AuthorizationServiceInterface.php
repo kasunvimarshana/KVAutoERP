@@ -21,9 +21,7 @@ interface AuthorizationServiceInterface
     /**
      * Check authorization via the configured strategy (RBAC, ABAC, etc.).
      *
-     * @param  int    $userId
-     * @param  string $ability
-     * @param  mixed  $subject Optional subject for ABAC checks
+     * @param  mixed  $subject  Optional subject for ABAC checks
      */
     public function can(int $userId, string $ability, mixed $subject = null): bool;
 

@@ -14,16 +14,16 @@ class StoreUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tenant_id'    => 'required|integer|exists:tenants,id',
-            'email'        => 'required|email|unique:users,email',
-            'first_name'   => 'required|string|max:255',
-            'last_name'    => 'required|string|max:255',
-            'phone'        => 'nullable|string|max:20',
-            'address'      => 'nullable|array',
-            'preferences'  => 'nullable|array',
-            'active'       => 'boolean',
-            'roles'        => 'nullable|array',
-            'roles.*'      => 'integer|exists:roles,id',
+            'tenant_id' => 'required|integer|exists:tenants,id',
+            'email' => 'required|email|unique:users,email',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|array',
+            'preferences' => 'nullable|array',
+            'active' => 'boolean',
+            'roles' => 'nullable|array',
+            'roles.*' => 'integer|exists:roles,id',
         ];
     }
 }

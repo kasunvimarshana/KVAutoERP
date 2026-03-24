@@ -3,8 +3,8 @@
 namespace Modules\User\Infrastructure\Persistence\Eloquent\Repositories;
 
 use Modules\Core\Infrastructure\Persistence\Repositories\EloquentRepository;
-use Modules\User\Domain\RepositoryInterfaces\PermissionRepositoryInterface;
 use Modules\User\Domain\Entities\Permission;
+use Modules\User\Domain\RepositoryInterfaces\PermissionRepositoryInterface;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\PermissionModel;
 
 class EloquentPermissionRepository extends EloquentRepository implements PermissionRepositoryInterface
@@ -19,6 +19,7 @@ class EloquentPermissionRepository extends EloquentRepository implements Permiss
         $model = $this->model->where('tenant_id', $tenantId)
             ->where('name', $name)
             ->first();
+
         return $model ? $this->toDomainEntity($model) : null;
     }
 
@@ -27,14 +28,15 @@ class EloquentPermissionRepository extends EloquentRepository implements Permiss
         if ($permission->getId()) {
             $model = $this->update($permission->getId(), [
                 'tenant_id' => $permission->getTenantId(),
-                'name'      => $permission->getName(),
+                'name' => $permission->getName(),
             ]);
         } else {
             $model = $this->create([
                 'tenant_id' => $permission->getTenantId(),
-                'name'      => $permission->getName(),
+                'name' => $permission->getName(),
             ]);
         }
+
         return $this->toDomainEntity($model);
     }
 

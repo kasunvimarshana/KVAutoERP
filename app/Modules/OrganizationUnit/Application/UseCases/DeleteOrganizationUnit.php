@@ -2,9 +2,9 @@
 
 namespace Modules\OrganizationUnit\Application\UseCases;
 
-use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
 use Modules\OrganizationUnit\Domain\Events\OrganizationUnitDeleted;
 use Modules\OrganizationUnit\Domain\Exceptions\OrganizationUnitNotFoundException;
+use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
 
 class DeleteOrganizationUnit
 {
@@ -15,7 +15,7 @@ class DeleteOrganizationUnit
     public function execute(int $id): bool
     {
         $unit = $this->orgUnitRepo->find($id);
-        if (!$unit) {
+        if (! $unit) {
             throw new OrganizationUnitNotFoundException($id);
         }
 

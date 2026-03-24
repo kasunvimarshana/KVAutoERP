@@ -3,9 +3,9 @@
 namespace Modules\User\Application\Services;
 
 use Modules\Core\Application\Services\BaseService;
-use Modules\User\Domain\RepositoryInterfaces\RoleRepositoryInterface;
-use Modules\User\Domain\Entities\Role;
 use Modules\User\Application\Contracts\CreateRoleServiceInterface;
+use Modules\User\Domain\Entities\Role;
+use Modules\User\Domain\RepositoryInterfaces\RoleRepositoryInterface;
 
 class CreateRoleService extends BaseService implements CreateRoleServiceInterface
 {

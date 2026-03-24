@@ -2,8 +2,8 @@
 
 namespace Modules\Tenant\Application\UseCases;
 
-use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 use Modules\Tenant\Domain\Events\TenantDeleted;
+use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 
 class DeleteTenant
 {
@@ -17,6 +17,7 @@ class DeleteTenant
         if ($deleted) {
             event(new TenantDeleted($id));
         }
+
         return $deleted;
     }
 }

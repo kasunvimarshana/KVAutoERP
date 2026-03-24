@@ -7,6 +7,4 @@ use Modules\Core\Application\Contracts\WriteServiceInterface;
 /**
  * @method \Modules\User\Domain\Entities\User execute(array $data = [])
  */
-interface UpdatePreferencesServiceInterface extends WriteServiceInterface
-{
-}
+interface UpdatePreferencesServiceInterface extends WriteServiceInterface {}

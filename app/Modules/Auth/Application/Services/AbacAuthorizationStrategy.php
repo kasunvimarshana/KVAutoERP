@@ -21,7 +21,7 @@ class AbacAuthorizationStrategy implements AuthorizationStrategyInterface
     {
         $user = UserModel::find($userId);
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 

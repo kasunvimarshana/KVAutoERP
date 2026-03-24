@@ -14,8 +14,8 @@ class UploadUserAttachmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file'     => 'required|file|max:10240',
-            'type'     => 'nullable|string|max:50',
+            'file' => 'required|file|max:10240',
+            'type' => 'nullable|string|max:50',
             'metadata' => 'nullable|array',
         ];
     }

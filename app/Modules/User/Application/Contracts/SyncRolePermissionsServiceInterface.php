@@ -7,6 +7,4 @@ use Modules\Core\Application\Contracts\WriteServiceInterface;
 /**
  * @method \Modules\User\Domain\Entities\Role execute(array $data = [])
  */
-interface SyncRolePermissionsServiceInterface extends WriteServiceInterface
-{
-}
+interface SyncRolePermissionsServiceInterface extends WriteServiceInterface {}

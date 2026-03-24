@@ -8,5 +8,6 @@ use Modules\User\Domain\Entities\Permission;
 interface PermissionRepositoryInterface extends RepositoryInterface
 {
     public function findByName(int $tenantId, string $name): ?Permission;
+
     public function save(Permission $permission): Permission;
 }

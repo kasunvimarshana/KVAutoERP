@@ -2,9 +2,9 @@
 
 namespace Modules\Core\Infrastructure\Persistence\Repositories;
 
-use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Collection;
 
 class CollectionRepository extends BaseRepository
 {
@@ -26,6 +26,7 @@ class CollectionRepository extends BaseRepository
         if ($item && $columns !== ['*']) {
             return collect($item)->only($columns)->all();
         }
+
         return $item;
     }
 
@@ -38,7 +39,8 @@ class CollectionRepository extends BaseRepository
         if ($columns === ['*']) {
             return $this->provider;
         }
-        return $this->provider->map(fn($item) => collect($item)->only($columns)->all());
+
+        return $this->provider->map(fn ($item) => collect($item)->only($columns)->all());
     }
 
     /**
@@ -54,8 +56,9 @@ class CollectionRepository extends BaseRepository
         $total = $this->provider->count();
         $items = $this->provider->slice(($page - 1) * $perPage, $perPage)->values();
         if ($columns !== ['*']) {
-            $items = $items->map(fn($item) => collect($item)->only($columns)->all());
+            $items = $items->map(fn ($item) => collect($item)->only($columns)->all());
         }
+
         return new LengthAwarePaginator(
             $items,
             $total,
@@ -72,6 +75,7 @@ class CollectionRepository extends BaseRepository
     {
         $this->original->push($data);
         $this->resetProvider();
+
         return $data;
     }
 
@@ -80,13 +84,15 @@ class CollectionRepository extends BaseRepository
      */
     public function update($id, array $data)
     {
-        $index = $this->original->search(fn($item) => ($item['id'] ?? null) == $id);
+        $index = $this->original->search(fn ($item) => ($item['id'] ?? null) == $id);
         if ($index !== false) {
             $updated = array_merge($this->original[$index], $data);
             $this->original[$index] = $updated;
             $this->resetProvider();
+
             return $updated;
         }
+
         return null;
     }
 
@@ -95,12 +101,14 @@ class CollectionRepository extends BaseRepository
      */
     public function delete($id): bool
     {
-        $index = $this->original->search(fn($item) => ($item['id'] ?? null) == $id);
+        $index = $this->original->search(fn ($item) => ($item['id'] ?? null) == $id);
         if ($index !== false) {
             $this->original->forget($index);
             $this->resetProvider();
+
             return true;
         }
+
         return false;
     }
 
@@ -121,15 +129,15 @@ class CollectionRepository extends BaseRepository
                 $this->provider = $this->provider->where($column, $value);
             } elseif ($operator === 'like') {
                 $pattern = str_replace('%', '.*', preg_quote($value, '/'));
-                $this->provider = $this->provider->filter(fn($item) => preg_match("/{$pattern}/i", $item[$column] ?? ''));
+                $this->provider = $this->provider->filter(fn ($item) => preg_match("/{$pattern}/i", $item[$column] ?? ''));
             } elseif ($operator === '>') {
-                $this->provider = $this->provider->filter(fn($item) => ($item[$column] ?? 0) > $value);
+                $this->provider = $this->provider->filter(fn ($item) => ($item[$column] ?? 0) > $value);
             } elseif ($operator === '>=') {
-                $this->provider = $this->provider->filter(fn($item) => ($item[$column] ?? 0) >= $value);
+                $this->provider = $this->provider->filter(fn ($item) => ($item[$column] ?? 0) >= $value);
             } elseif ($operator === '<') {
-                $this->provider = $this->provider->filter(fn($item) => ($item[$column] ?? 0) < $value);
+                $this->provider = $this->provider->filter(fn ($item) => ($item[$column] ?? 0) < $value);
             } elseif ($operator === '<=') {
-                $this->provider = $this->provider->filter(fn($item) => ($item[$column] ?? 0) <= $value);
+                $this->provider = $this->provider->filter(fn ($item) => ($item[$column] ?? 0) <= $value);
             }
             // Add more operators as needed
         }
@@ -143,6 +151,7 @@ class CollectionRepository extends BaseRepository
         foreach ($this->whereBetweens as $whereBetween) {
             $this->provider = $this->provider->filter(function ($item) use ($whereBetween) {
                 $val = $item[$whereBetween['column']] ?? null;
+
                 return $val >= $whereBetween['values'][0] && $val <= $whereBetween['values'][1];
             });
         }
@@ -150,8 +159,9 @@ class CollectionRepository extends BaseRepository
         // Apply whereNull / whereNotNull
         foreach ($this->whereNulls as $whereNull) {
             $this->provider = $this->provider->filter(function ($item) use ($whereNull) {
-                $exists = isset($item[$whereNull['column']]) && !is_null($item[$whereNull['column']]);
-                return $whereNull['not'] ? $exists : !$exists;
+                $exists = isset($item[$whereNull['column']]) && ! is_null($item[$whereNull['column']]);
+
+                return $whereNull['not'] ? $exists : ! $exists;
             });
         }
 

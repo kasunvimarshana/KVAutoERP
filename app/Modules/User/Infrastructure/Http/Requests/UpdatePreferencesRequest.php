@@ -14,9 +14,9 @@ class UpdatePreferencesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'language'     => 'nullable|string|in:en,es,fr,de',
-            'timezone'     => 'nullable|string|timezone',
-            'notifications'=> 'nullable|array',
+            'language' => 'nullable|string|in:en,es,fr,de',
+            'timezone' => 'nullable|string|timezone',
+            'notifications' => 'nullable|array',
         ];
     }
 }

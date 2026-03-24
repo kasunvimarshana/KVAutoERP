@@ -40,11 +40,11 @@ class AccessToken
     public function toArray(): array
     {
         return [
-            'access_token'  => $this->accessToken,
-            'token_type'    => $this->tokenType,
-            'expires_in'    => $this->expiresIn,
+            'access_token' => $this->accessToken,
+            'token_type' => $this->tokenType,
+            'expires_in' => $this->expiresIn,
             'refresh_token' => $this->refreshToken,
-            'scopes'        => $this->scopes,
+            'scopes' => $this->scopes,
         ];
     }
 }

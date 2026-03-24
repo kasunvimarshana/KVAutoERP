@@ -70,7 +70,7 @@ class AuthController extends Controller
     {
         $user = $this->getAuthenticatedUser->execute();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
@@ -87,7 +87,7 @@ class AuthController extends Controller
     {
         $user = $this->getAuthenticatedUser->execute();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
@@ -101,7 +101,7 @@ class AuthController extends Controller
     {
         $token = request()->input('token');
 
-        if (!$token) {
+        if (! $token) {
             return response()->json(['message' => 'SSO token is required'], 422);
         }
 

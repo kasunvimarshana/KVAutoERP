@@ -21,7 +21,7 @@ class FileStorageService implements FileStorageServiceInterface
     protected string $defaultDisk;
 
     /**
-     * @param string $disk The default disk name.
+     * @param  string  $disk  The default disk name.
      */
     public function __construct(string $disk = 'public')
     {
@@ -35,6 +35,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function store(string $tmpPath, string $directory, string $filename, ?string $disk = null): string
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->putFileAs($directory, $tmpPath, $filename);
     }
 
@@ -44,6 +45,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function storeFile(UploadedFile $file, string $directory, ?string $filename = null, ?string $disk = null): string
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->putFileAs($directory, $file, $filename ?? $file->getClientOriginalName());
     }
 
@@ -53,6 +55,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function delete(string $path, ?string $disk = null): bool
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->delete($path);
     }
 
@@ -62,6 +65,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function exists(string $path, ?string $disk = null): bool
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->exists($path);
     }
 
@@ -71,6 +75,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function url(string $path, ?string $disk = null): string
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->url($path);
     }
 
@@ -80,6 +85,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function size(string $path, ?string $disk = null): int
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->size($path);
     }
 
@@ -89,6 +95,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function mimeType(string $path, ?string $disk = null): string|false
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->mimeType($path);
     }
 
@@ -98,6 +105,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function lastModified(string $path, ?string $disk = null): int
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->lastModified($path);
     }
 
@@ -107,6 +115,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function read(string $path, ?string $disk = null): ?string
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->get($path);
     }
 
@@ -116,6 +125,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function write(string $path, string $contents, ?string $disk = null): bool
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->put($path, $contents);
     }
 
@@ -125,6 +135,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function copy(string $from, string $to, ?string $disk = null): bool
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->copy($from, $to);
     }
 
@@ -134,6 +145,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function move(string $from, string $to, ?string $disk = null): bool
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->move($from, $to);
     }
 
@@ -147,6 +159,7 @@ class FileStorageService implements FileStorageServiceInterface
         if (method_exists($adapter, 'temporaryUrl')) {
             return $adapter->temporaryUrl($path, now()->addMinutes($minutes));
         }
+
         return null;
     }
 
@@ -156,6 +169,7 @@ class FileStorageService implements FileStorageServiceInterface
     public function stream(string $path, ?string $disk = null): StreamedResponse
     {
         $adapter = $this->getDisk($disk);
+
         return $adapter->response($path);
     }
 
@@ -174,14 +188,12 @@ class FileStorageService implements FileStorageServiceInterface
     {
         $this->defaultDisk = $disk;
         $this->disk = Storage::disk($disk);
+
         return $this;
     }
 
     /**
      * Get the disk adapter for the given disk name, falling back to the default.
-     *
-     * @param string|null $disk
-     * @return \Illuminate\Filesystem\FilesystemAdapter
      */
     protected function getDisk(?string $disk = null): FilesystemAdapter
     {
@@ -189,8 +201,9 @@ class FileStorageService implements FileStorageServiceInterface
             return $this->disk;
         }
 
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $adapter */
+        /** @var FilesystemAdapter $adapter */
         $adapter = Storage::disk($disk);
+
         return $adapter;
     }
 }

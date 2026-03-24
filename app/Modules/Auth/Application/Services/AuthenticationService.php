@@ -2,6 +2,7 @@
 
 namespace Modules\Auth\Application\Services;
 
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Auth;
 use Modules\Auth\Application\Contracts\AuthenticationServiceInterface;
 use Modules\Auth\Application\Contracts\TokenServiceInterface;
@@ -16,11 +17,11 @@ class AuthenticationService implements AuthenticationServiceInterface
 
     public function authenticate(string $email, string $password): AccessToken
     {
-        if (!Auth::attempt(['email' => $email, 'password' => $password])) {
-            throw new InvalidCredentialsException();
+        if (! Auth::attempt(['email' => $email, 'password' => $password])) {
+            throw new InvalidCredentialsException;
         }
 
-        /** @var \Illuminate\Foundation\Auth\User $user */
+        /** @var User $user */
         $user = Auth::user();
 
         return $this->tokenService->issueToken($user->getAuthIdentifier());

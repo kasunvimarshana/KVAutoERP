@@ -7,6 +7,4 @@ use Modules\Core\Application\Contracts\ServiceInterface;
 /**
  * @method \Modules\User\Domain\Entities\User execute(array $data = [])
  */
-interface CreateUserServiceInterface extends ServiceInterface
-{
-}
+interface CreateUserServiceInterface extends ServiceInterface {}

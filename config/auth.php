@@ -1,5 +1,7 @@
 <?php
 
+use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
+
 return [
 
     /*
@@ -37,11 +39,11 @@ return [
 
     'guards' => [
         'web' => [
-            'driver'   => 'session',
+            'driver' => 'session',
             'provider' => 'users',
         ],
         'api' => [
-            'driver'   => 'passport',
+            'driver' => 'passport',
             'provider' => 'users',
         ],
     ],
@@ -66,7 +68,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model'  => env('AUTH_MODEL', \Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel::class),
+            'model' => env('AUTH_MODEL', UserModel::class),
         ],
 
         // 'users' => [
@@ -127,9 +129,9 @@ return [
     */
 
     'passport' => [
-        'token_expiry_days'               => env('PASSPORT_TOKEN_EXPIRY_DAYS', 15),
-        'refresh_token_expiry_days'       => env('PASSPORT_REFRESH_TOKEN_EXPIRY_DAYS', 30),
-        'personal_token_expiry_months'    => env('PASSPORT_PERSONAL_TOKEN_EXPIRY_MONTHS', 6),
+        'token_expiry_days' => env('PASSPORT_TOKEN_EXPIRY_DAYS', 15),
+        'refresh_token_expiry_days' => env('PASSPORT_REFRESH_TOKEN_EXPIRY_DAYS', 30),
+        'personal_token_expiry_months' => env('PASSPORT_PERSONAL_TOKEN_EXPIRY_MONTHS', 6),
     ],
 
 ];

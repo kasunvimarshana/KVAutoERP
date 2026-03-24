@@ -2,49 +2,44 @@
 
 namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
-
+use Illuminate\Foundation\Auth\User;
 // Auth domain
-use Modules\Auth\Domain\Entities\AccessToken;
-use Modules\Auth\Domain\Events\UserLoggedIn;
-use Modules\Auth\Domain\Events\UserLoggedOut;
-use Modules\Auth\Domain\Events\UserRegistered;
-use Modules\Auth\Domain\Exceptions\AuthenticationException;
-use Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
-use Modules\Auth\Domain\Exceptions\TokenExpiredException;
-
-// Auth application contracts
+use Laravel\Passport\HasApiTokens;
 use Modules\Auth\Application\Contracts\AuthenticationServiceInterface;
 use Modules\Auth\Application\Contracts\AuthorizationServiceInterface;
 use Modules\Auth\Application\Contracts\AuthorizationStrategyInterface;
 use Modules\Auth\Application\Contracts\LoginServiceInterface;
 use Modules\Auth\Application\Contracts\LogoutServiceInterface;
 use Modules\Auth\Application\Contracts\RegisterUserServiceInterface;
+// Auth application contracts
 use Modules\Auth\Application\Contracts\SsoServiceInterface;
 use Modules\Auth\Application\Contracts\TokenServiceInterface;
-
-// Auth application services
+use Modules\Auth\Application\DTOs\LoginData;
+use Modules\Auth\Application\DTOs\RegisterData;
 use Modules\Auth\Application\Services\AbacAuthorizationStrategy;
 use Modules\Auth\Application\Services\AuthenticationService;
 use Modules\Auth\Application\Services\AuthorizationService;
 use Modules\Auth\Application\Services\LoginService;
+// Auth application services
 use Modules\Auth\Application\Services\LogoutService;
 use Modules\Auth\Application\Services\PassportTokenService;
 use Modules\Auth\Application\Services\RbacAuthorizationStrategy;
 use Modules\Auth\Application\Services\RegisterUserService;
 use Modules\Auth\Application\Services\SsoService;
-
-// Auth application DTOs
-use Modules\Auth\Application\DTOs\LoginData;
-use Modules\Auth\Application\DTOs\RegisterData;
-
-// Auth application use cases
 use Modules\Auth\Application\UseCases\GetAuthenticatedUser;
 use Modules\Auth\Application\UseCases\LoginUser;
 use Modules\Auth\Application\UseCases\LogoutUser;
 use Modules\Auth\Application\UseCases\RegisterUser;
-
+// Auth application DTOs
+use Modules\Auth\Domain\Entities\AccessToken;
+use Modules\Auth\Domain\Events\UserLoggedIn;
+// Auth application use cases
+use Modules\Auth\Domain\Events\UserLoggedOut;
+use Modules\Auth\Domain\Events\UserRegistered;
+use Modules\Auth\Domain\Exceptions\AuthenticationException;
+use Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
 // Auth infrastructure
+use Modules\Auth\Domain\Exceptions\TokenExpiredException;
 use Modules\Auth\Infrastructure\Http\Controllers\AuthController;
 use Modules\Auth\Infrastructure\Http\Middleware\CheckPermission;
 use Modules\Auth\Infrastructure\Http\Middleware\CheckRole;
@@ -52,6 +47,9 @@ use Modules\Auth\Infrastructure\Http\Requests\LoginRequest;
 use Modules\Auth\Infrastructure\Http\Requests\RegisterRequest;
 use Modules\Auth\Infrastructure\Http\Resources\AuthTokenResource;
 use Modules\Auth\Infrastructure\Providers\AuthModuleServiceProvider;
+use Modules\Core\Domain\Exceptions\DomainException;
+use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
+use PHPUnit\Framework\TestCase;
 
 class AuthModuleTest extends TestCase
 {
@@ -155,19 +153,19 @@ class AuthModuleTest extends TestCase
     public function test_authentication_exception_extends_domain_exception(): void
     {
         $this->assertTrue(
-            is_subclass_of(AuthenticationException::class, \Modules\Core\Domain\Exceptions\DomainException::class)
+            is_subclass_of(AuthenticationException::class, DomainException::class)
         );
     }
 
     public function test_exceptions_carry_correct_default_messages(): void
     {
-        $auth = new AuthenticationException();
+        $auth = new AuthenticationException;
         $this->assertSame('Authentication failed', $auth->getMessage());
 
-        $creds = new InvalidCredentialsException();
+        $creds = new InvalidCredentialsException;
         $this->assertSame('Invalid credentials provided', $creds->getMessage());
 
-        $expired = new TokenExpiredException();
+        $expired = new TokenExpiredException;
         $this->assertSame('Token has expired', $expired->getMessage());
     }
 
@@ -237,13 +235,13 @@ class AuthModuleTest extends TestCase
 
     public function test_rbac_strategy_returns_correct_name(): void
     {
-        $strategy = new RbacAuthorizationStrategy();
+        $strategy = new RbacAuthorizationStrategy;
         $this->assertSame('rbac', $strategy->getName());
     }
 
     public function test_abac_strategy_returns_correct_name(): void
     {
-        $strategy = new AbacAuthorizationStrategy();
+        $strategy = new AbacAuthorizationStrategy;
         $this->assertSame('abac', $strategy->getName());
     }
 
@@ -259,7 +257,7 @@ class AuthModuleTest extends TestCase
 
     public function test_login_data_dto_has_expected_rules(): void
     {
-        $dto = new LoginData();
+        $dto = new LoginData;
         $rules = $dto->rules();
 
         $this->assertArrayHasKey('email', $rules);
@@ -268,7 +266,7 @@ class AuthModuleTest extends TestCase
 
     public function test_register_data_dto_has_expected_rules(): void
     {
-        $dto = new RegisterData();
+        $dto = new RegisterData;
         $rules = $dto->rules();
 
         $this->assertArrayHasKey('email', $rules);
@@ -288,11 +286,11 @@ class AuthModuleTest extends TestCase
     public function test_register_data_from_array(): void
     {
         $dto = RegisterData::fromArray([
-            'tenant_id'  => 1,
-            'email'      => 'alice@example.com',
+            'tenant_id' => 1,
+            'email' => 'alice@example.com',
             'first_name' => 'Alice',
-            'last_name'  => 'Smith',
-            'password'   => 'secret123',
+            'last_name' => 'Smith',
+            'password' => 'secret123',
         ]);
         $this->assertSame(1, $dto->tenant_id);
         $this->assertSame('alice@example.com', $dto->email);
@@ -409,10 +407,10 @@ class AuthModuleTest extends TestCase
     public function test_user_model_uses_has_api_tokens(): void
     {
         $traits = class_uses_recursive(
-            \Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel::class
+            UserModel::class
         );
         $this->assertArrayHasKey(
-            \Laravel\Passport\HasApiTokens::class,
+            HasApiTokens::class,
             $traits,
             'UserModel must use HasApiTokens for Passport integration.'
         );
@@ -422,8 +420,8 @@ class AuthModuleTest extends TestCase
     {
         $this->assertTrue(
             is_subclass_of(
-                \Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel::class,
-                \Illuminate\Foundation\Auth\User::class
+                UserModel::class,
+                User::class
             ),
             'UserModel must extend Illuminate\Foundation\Auth\User to work with Passport.'
         );
@@ -435,7 +433,7 @@ class AuthModuleTest extends TestCase
 
     public function test_auth_routes_file_exists(): void
     {
-        $path = dirname(__DIR__, 2) . '/app/Modules/Auth/routes/api.php';
+        $path = dirname(__DIR__, 2).'/app/Modules/Auth/routes/api.php';
         $this->assertTrue(file_exists($path), 'Auth module routes file must exist.');
     }
 }

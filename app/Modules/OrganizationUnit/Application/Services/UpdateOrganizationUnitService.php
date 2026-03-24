@@ -3,15 +3,15 @@
 namespace Modules\OrganizationUnit\Application\Services;
 
 use Modules\Core\Application\Services\BaseService;
-use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
-use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
-use Modules\Core\Domain\ValueObjects\Name;
 use Modules\Core\Domain\ValueObjects\Code;
 use Modules\Core\Domain\ValueObjects\Metadata;
+use Modules\Core\Domain\ValueObjects\Name;
+use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\DTOs\OrganizationUnitData;
+use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
 use Modules\OrganizationUnit\Domain\Events\OrganizationUnitUpdated;
 use Modules\OrganizationUnit\Domain\Exceptions\OrganizationUnitNotFoundException;
-use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
+use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
 
 class UpdateOrganizationUnitService extends BaseService implements UpdateOrganizationUnitServiceInterface
 {
@@ -29,7 +29,7 @@ class UpdateOrganizationUnitService extends BaseService implements UpdateOrganiz
         $dto = OrganizationUnitData::fromArray($data);
 
         $unit = $this->orgUnitRepository->find($id);
-        if (!$unit) {
+        if (! $unit) {
             throw new OrganizationUnitNotFoundException($id);
         }
 
@@ -44,6 +44,7 @@ class UpdateOrganizationUnitService extends BaseService implements UpdateOrganiz
 
         $saved = $this->orgUnitRepository->save($unit);
         $this->addEvent(new OrganizationUnitUpdated($saved));
+
         return $saved;
     }
 }

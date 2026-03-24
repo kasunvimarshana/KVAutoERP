@@ -3,6 +3,7 @@
 namespace Modules\Auth\Application\Contracts;
 
 use Modules\Auth\Domain\Entities\AccessToken;
+use Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
 
 /**
  * Contract for the main authentication service.
@@ -13,11 +14,8 @@ interface AuthenticationServiceInterface
     /**
      * Authenticate user credentials and return an access token.
      *
-     * @param  string $email
-     * @param  string $password
-     * @return AccessToken
      *
-     * @throws \Modules\Auth\Domain\Exceptions\InvalidCredentialsException
+     * @throws InvalidCredentialsException
      */
     public function authenticate(string $email, string $password): AccessToken;
 

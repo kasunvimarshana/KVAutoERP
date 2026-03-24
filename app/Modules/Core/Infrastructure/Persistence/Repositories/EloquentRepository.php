@@ -22,7 +22,7 @@ class EloquentRepository extends BaseRepository
         $this->resetProvider();
 
         // Apply eager loading
-        if (!empty($this->with)) {
+        if (! empty($this->with)) {
             $this->provider->with($this->with);
         }
 
@@ -90,8 +90,10 @@ class EloquentRepository extends BaseRepository
         $record = $this->find($id);
         if ($record) {
             $record->update($data);
+
             return $record->fresh();
         }
+
         return null;
     }
 
@@ -104,6 +106,7 @@ class EloquentRepository extends BaseRepository
         if ($record) {
             return (bool) $record->delete();
         }
+
         return false;
     }
 }

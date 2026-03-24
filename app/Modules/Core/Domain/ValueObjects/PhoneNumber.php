@@ -9,7 +9,7 @@ class PhoneNumber extends ValueObject
     public function __construct(string $value)
     {
         // Basic phone validation – can be extended
-        if (!preg_match('/^[\+]?[0-9\s\-\(\)]{5,20}$/', $value)) {
+        if (! preg_match('/^[\+]?[0-9\s\-\(\)]{5,20}$/', $value)) {
             throw new \InvalidArgumentException("Invalid phone number: {$value}");
         }
         $this->value = $value;

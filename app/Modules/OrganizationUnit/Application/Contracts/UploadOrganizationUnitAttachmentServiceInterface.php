@@ -7,6 +7,4 @@ use Modules\Core\Application\Contracts\WriteServiceInterface;
 /**
  * @method \Modules\OrganizationUnit\Domain\Entities\OrganizationUnitAttachment execute(array $data = [])
  */
-interface UploadOrganizationUnitAttachmentServiceInterface extends WriteServiceInterface
-{
-}
+interface UploadOrganizationUnitAttachmentServiceInterface extends WriteServiceInterface {}

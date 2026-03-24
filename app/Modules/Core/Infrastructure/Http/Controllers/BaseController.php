@@ -2,13 +2,15 @@
 
 namespace Modules\Core\Infrastructure\Http\Controllers;
 
-use Modules\Core\Application\Contracts\ServiceInterface;
 use Illuminate\Routing\Controller;
+use Modules\Core\Application\Contracts\ServiceInterface;
 
 abstract class BaseController extends Controller
 {
     protected ServiceInterface $service;
+
     protected string $resourceClass;
+
     protected string $dtoClass;
 
     public function __construct(ServiceInterface $service, string $resourceClass, string $dtoClass)

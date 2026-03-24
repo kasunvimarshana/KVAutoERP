@@ -2,9 +2,10 @@
 
 namespace Modules\Core\Application\DTOs;
 
-use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+
 // use Spatie\LaravelData\Data;
 
 /**
@@ -16,8 +17,6 @@ use Illuminate\Http\Request;
  * - Conversion to array / JSON
  * - Validation with Laravel Validator
  * - Support for nested DTOs (via casts array)
- *
- * @package Core\DTOs
  */
 abstract class BaseDto
 {
@@ -31,21 +30,18 @@ abstract class BaseDto
 
     /**
      * Create a new DTO instance from an array of data.
-     *
-     * @param array $data
-     * @return static
      */
     public static function fromArray(array $data): static
     {
-        $dto = new static();
+        $dto = new static;
         $dto->fill($data);
+
         return $dto;
     }
 
     /**
      * Fill the DTO with data from an array.
      *
-     * @param array $data
      * @return $this
      */
     public function fill(array $data): static
@@ -61,13 +57,12 @@ abstract class BaseDto
                 }
             }
         }
+
         return $this;
     }
 
     /**
      * Convert the DTO to an array.
-     *
-     * @return array
      */
     public function toArray(): array
     {
@@ -92,9 +87,6 @@ abstract class BaseDto
 
     /**
      * Convert the DTO to a JSON string.
-     *
-     * @param int $options
-     * @return string
      */
     public function toJson(int $options = JSON_UNESCAPED_UNICODE): string
     {
@@ -103,8 +95,6 @@ abstract class BaseDto
 
     /**
      * Get the validation rules for the DTO.
-     *
-     * @return array
      */
     public function rules(): array
     {
@@ -113,8 +103,6 @@ abstract class BaseDto
 
     /**
      * Get the validation messages for the DTO.
-     *
-     * @return array
      */
     public function messages(): array
     {
@@ -124,9 +112,7 @@ abstract class BaseDto
     /**
      * Validate the DTO data.
      *
-     * @param array $data
-     * @return bool
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     public function validate(array $data): bool
     {
@@ -134,27 +120,26 @@ abstract class BaseDto
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
+
         return true;
     }
 
     /**
      * Create a DTO from a validated request.
      *
-     * @param \Illuminate\Http\Request $request
-     * @return static
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     public static function fromRequest(Request $request): static
     {
-        $dto = new static();
+        $dto = new static;
         $dto->validate($request->all());
+
         return $dto->fill($request->all());
     }
 
     /**
      * Magic method to allow array-like access to properties.
      *
-     * @param string $name
      * @return mixed
      */
     public function __get(string $name)
@@ -162,14 +147,14 @@ abstract class BaseDto
         if (property_exists($this, $name)) {
             return $this->$name;
         }
+
         return null;
     }
 
     /**
      * Magic method to allow array-like setting of properties.
      *
-     * @param string $name
-     * @param mixed $value
+     * @param  mixed  $value
      */
     public function __set(string $name, $value): void
     {

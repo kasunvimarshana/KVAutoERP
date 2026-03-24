@@ -20,7 +20,7 @@ class RbacAuthorizationStrategy implements AuthorizationStrategyInterface
     {
         $user = UserModel::with('roles.permissions')->find($userId);
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 

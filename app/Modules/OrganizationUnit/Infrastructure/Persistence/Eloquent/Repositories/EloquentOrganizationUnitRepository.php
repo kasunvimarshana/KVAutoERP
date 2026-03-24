@@ -2,16 +2,16 @@
 
 namespace Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Repositories;
 
-use Modules\Core\Infrastructure\Persistence\Repositories\EloquentRepository;
-use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
-use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
-use Modules\Core\Domain\ValueObjects\Name;
-use Modules\Core\Domain\ValueObjects\Code;
-use Modules\Core\Domain\ValueObjects\Metadata;
-use Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Models\OrganizationUnitModel;
-use Modules\OrganizationUnit\Domain\Exceptions\OrganizationUnitNotFoundException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Domain\ValueObjects\Code;
+use Modules\Core\Domain\ValueObjects\Metadata;
+use Modules\Core\Domain\ValueObjects\Name;
+use Modules\Core\Infrastructure\Persistence\Repositories\EloquentRepository;
+use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
+use Modules\OrganizationUnit\Domain\Exceptions\OrganizationUnitNotFoundException;
+use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
+use Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Models\OrganizationUnitModel;
 
 class EloquentOrganizationUnitRepository extends EloquentRepository implements OrganizationUnitRepositoryInterface
 {
@@ -30,12 +30,12 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
         DB::transaction(function () use ($unit, &$savedModel) {
             if ($unit->getId()) {
                 $data = [
-                    'tenant_id'   => $unit->getTenantId(),
-                    'name'        => $unit->getName()->value(),
-                    'code'        => $unit->getCode()?->value(),
+                    'tenant_id' => $unit->getTenantId(),
+                    'name' => $unit->getName()->value(),
+                    'code' => $unit->getCode()?->value(),
                     'description' => $unit->getDescription(),
-                    'metadata'    => $unit->getMetadata()?->toArray(),
-                    'parent_id'   => $unit->getParentId(),
+                    'metadata' => $unit->getMetadata()?->toArray(),
+                    'parent_id' => $unit->getParentId(),
                 ];
                 $savedModel = $this->update($unit->getId(), $data);
             } else {
@@ -62,7 +62,7 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
             $rgt = $lft + 1;
         } else {
             $parent = $this->model->find($parentId);
-            if (!$parent) {
+            if (! $parent) {
                 throw new OrganizationUnitNotFoundException('parent');
             }
             $right = $parent->_rgt;
@@ -73,15 +73,15 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
 
         $unit->setLftRgt($lft, $rgt);
 
-            return $this->model->create([
-            'tenant_id'   => $unit->getTenantId(),
-            'name'        => $unit->getName()->value(),
-            'code'        => $unit->getCode()?->value(),
+        return $this->model->create([
+            'tenant_id' => $unit->getTenantId(),
+            'name' => $unit->getName()->value(),
+            'code' => $unit->getCode()?->value(),
             'description' => $unit->getDescription(),
-            'metadata'    => $unit->getMetadata()?->toArray(),
-            'parent_id'   => $unit->getParentId(),
-            '_lft'        => $lft,
-            '_rgt'        => $rgt,
+            'metadata' => $unit->getMetadata()?->toArray(),
+            'parent_id' => $unit->getParentId(),
+            '_lft' => $lft,
+            '_rgt' => $rgt,
         ]);
     }
 
@@ -104,8 +104,8 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
     public function moveNode(int $id, ?int $newParentId): void
     {
         $node = $this->model->find($id);
-        if (!$node) {
-            throw new OrganizationUnitNotFoundException();
+        if (! $node) {
+            throw new OrganizationUnitNotFoundException;
         }
 
         if ($node->parent_id === $newParentId) {
@@ -126,7 +126,7 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
                 $newLft = ($maxRgt ?? 0) + 1;
             } else {
                 $newParent = $this->model->find($newParentId);
-                if (!$newParent) {
+                if (! $newParent) {
                     throw new OrganizationUnitNotFoundException('parent');
                 }
                 $newLft = $newParent->_rgt;
@@ -141,8 +141,8 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
                     ->where('_lft', '>=', $node->_lft)
                     ->where('_rgt', '<=', $node->_rgt)
                     ->update([
-                        '_lft' => DB::raw('_lft + ' . $diff),
-                        '_rgt' => DB::raw('_rgt + ' . $diff),
+                        '_lft' => DB::raw('_lft + '.$diff),
+                        '_rgt' => DB::raw('_rgt + '.$diff),
                     ]);
             }
         });
@@ -155,7 +155,7 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
     {
         if ($rootId) {
             $root = $this->model->where('tenant_id', $tenantId)->find($rootId);
-            if (!$root) {
+            if (! $root) {
                 return [];
             }
             $models = $root->getDescendants();
@@ -189,6 +189,7 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
                 $stack[] = $node;
             }
         }
+
         return $tree;
     }
 
@@ -198,10 +199,11 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
     public function getDescendants(int $id): array
     {
         $node = $this->model->find($id);
-        if (!$node) {
+        if (! $node) {
             return [];
         }
-        return $node->getDescendants()->map(fn($m) => $this->toDomainEntity($m))->all();
+
+        return $node->getDescendants()->map(fn ($m) => $this->toDomainEntity($m))->all();
     }
 
     /**
@@ -210,10 +212,11 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
     public function getAncestors(int $id): array
     {
         $node = $this->model->find($id);
-        if (!$node) {
+        if (! $node) {
             return [];
         }
-        return $node->getAncestors()->map(fn($m) => $this->toDomainEntity($m))->all();
+
+        return $node->getAncestors()->map(fn ($m) => $this->toDomainEntity($m))->all();
     }
 
     private function toDomainEntity(OrganizationUnitModel $model): OrganizationUnit
@@ -253,4 +256,3 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
         }
     }
 }
-
