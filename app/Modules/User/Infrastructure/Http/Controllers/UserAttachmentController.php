@@ -1,0 +1,61 @@
+<?php
+
+namespace Modules\User\Infrastructure\Http\Controllers;
+
+use Modules\User\Application\Services\UploadUserAttachmentService;
+use Modules\User\Application\Services\DeleteUserAttachmentService;
+use Modules\User\Domain\RepositoryInterfaces\UserAttachmentRepositoryInterface;
+use Modules\User\Infrastructure\Http\Requests\UploadUserAttachmentRequest;
+use Modules\User\Infrastructure\Http\Resources\UserAttachmentResource;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Controller;
+
+class UserAttachmentController extends Controller
+{
+    public function __construct(
+        protected UploadUserAttachmentService $uploadService,
+        protected DeleteUserAttachmentService $deleteService,
+        protected UserAttachmentRepositoryInterface $attachmentRepo
+    ) {}
+
+    public function index(int $userId, Request $request)
+    {
+        $type = $request->query('type');
+        $attachments = $this->attachmentRepo->getByUser($userId, $type);
+        return UserAttachmentResource::collection($attachments);
+    }
+
+    public function store(UploadUserAttachmentRequest $request, int $userId): UserAttachmentResource
+    {
+        $file = $request->file('file');
+        $fileInfo = [
+            'tmp_path'  => $file->getPathname(),
+            'name'      => $file->getClientOriginalName(),
+            'mime_type' => $file->getMimeType(),
+            'size'      => $file->getSize(),
+        ];
+        $attachment = $this->uploadService->execute([
+            'user_id'  => $userId,
+            'file'     => $fileInfo,
+            'type'     => $request->input('type'),
+            'metadata' => $request->input('metadata'),
+        ]);
+        return new UserAttachmentResource($attachment);
+    }
+
+    public function destroy(int $userId, int $attachmentId): JsonResponse
+    {
+        $this->deleteService->execute(['attachment_id' => $attachmentId]);
+        return response()->json(['message' => 'Attachment deleted successfully']);
+    }
+
+    public function serve(string $uuid)
+    {
+        $attachment = $this->attachmentRepo->findByUuid($uuid);
+        if (!$attachment) {
+            abort(404);
+        }
+        return response()->file(storage_path("app/public/{$attachment->getFilePath()}"));
+    }
+}

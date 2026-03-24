@@ -11,6 +11,8 @@ use Modules\User\Domain\ValueObjects\Address;
 use Modules\User\Domain\ValueObjects\UserPreferences;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\RoleModel;
+use Modules\User\Domain\Entities\Role;
+use Modules\User\Domain\Entities\Permission;
 
 class EloquentUserRepository extends EloquentRepository implements UserRepositoryInterface
 {
@@ -62,25 +64,6 @@ class EloquentUserRepository extends EloquentRepository implements UserRepositor
         if ($model) {
             $model->roles()->sync($roleIds);
         }
-    }
-
-    public function get(array $filters = []): \Illuminate\Support\Collection
-    {
-        $query = $this->model->newQuery();
-        if (isset($filters['name'])) {
-            $query->where(function($q) use ($filters) {
-                $q->where('first_name', 'like', '%' . $filters['name'] . '%')
-                  ->orWhere('last_name', 'like', '%' . $filters['name'] . '%');
-            });
-        }
-        if (isset($filters['email'])) {
-            $query->where('email', 'like', '%' . $filters['email'] . '%');
-        }
-        if (isset($filters['active'])) {
-            $query->where('active', $filters['active']);
-        }
-        $models = $query->get();
-        return $models->map(fn($m) => $this->toDomainEntity($m));
     }
 
     // Paginate, delete, etc. from EloquentRepository

@@ -13,6 +13,7 @@ use Modules\Tenant\Infrastructure\Http\Resources\TenantResource;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantCollection;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantConfigResource;
 use Modules\Tenant\Domain\Entities\Tenant;
+use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -20,13 +21,12 @@ class TenantController extends BaseController
 {
     public function __construct(
         CreateTenantService $createService,
-        UpdateTenantService $updateService,
-        DeleteTenantService $deleteService,
-        protected UpdateTenantConfigService $configService
+        protected UpdateTenantService $updateService,
+        protected DeleteTenantService $deleteService,
+        protected UpdateTenantConfigService $configService,
+        protected TenantRepositoryInterface $tenantRepository
     ) {
-        // We need to handle multiple services; we'll use the create service as the default for the base controller.
         parent::__construct($createService, TenantResource::class, TenantData::class);
-        // Override the update and delete methods manually.
     }
 
     public function index(Request $request): TenantCollection
@@ -103,10 +103,15 @@ class TenantController extends BaseController
     // Endpoint for internal use (no authentication)
     public function configByDomain(string $domain): TenantConfigResource
     {
-        $tenant = $this->service->repository->findByDomain($domain);
+        $tenant = $this->tenantRepository->findByDomain($domain);
         if (!$tenant) {
             abort(404);
         }
         return new TenantConfigResource($tenant);
+    }
+
+    protected function getModelClass(): string
+    {
+        return Tenant::class;
     }
 }

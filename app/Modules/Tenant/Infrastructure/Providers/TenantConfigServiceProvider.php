@@ -11,8 +11,8 @@ class TenantConfigServiceProvider extends ServiceProvider
     public function register()
     {
         $this->app->singleton(TenantConfigClient::class, function ($app) {
-            $tenantServiceUrl = config('core.tenant_service.url');
-            $cacheTtl = config('core.tenant_config_cache_ttl', 300);
+            $tenantServiceUrl = config('tenant.tenant_service.url');
+            $cacheTtl = config('tenant.tenant_config_cache_ttl', 300);
             return new TenantConfigClient($tenantServiceUrl, $cacheTtl);
         });
 

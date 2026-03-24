@@ -4,6 +4,7 @@ namespace Modules\User\Application\Services;
 
 use Modules\Core\Application\Services\BaseService;
 use Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface;
+use Modules\User\Domain\Entities\User;
 use Modules\User\Domain\ValueObjects\PhoneNumber;
 use Modules\User\Domain\ValueObjects\Address;
 use Modules\User\Domain\ValueObjects\UserPreferences;
@@ -27,9 +28,9 @@ class UpdateUserService extends BaseService
             throw new \RuntimeException('User not found');
         }
 
-        $phone = $dto->phone ? new PhoneNumber($dto->phone) : null;
-        $address = $dto->address ? Address::fromArray($dto->address) : null;
-        $user->updateProfile($dto->first_name, $dto->last_name, $phone, $address);
+        $phone = !empty($dto->phone) ? new PhoneNumber($dto->phone) : null;
+        $address = !empty($dto->address) ? Address::fromArray($dto->address) : null;
+        $user->updateProfile($dto->first_name ?? $user->getFirstName(), $dto->last_name ?? $user->getLastName(), $phone, $address);
 
         if ($dto->preferences !== null) {
             $preferences = new UserPreferences(
@@ -40,7 +41,7 @@ class UpdateUserService extends BaseService
             $user->updatePreferences($preferences);
         }
 
-        if ($user->isActive() !== $dto->active) {
+        if (isset($dto->active) && $user->isActive() !== $dto->active) {
             $dto->active ? $user->activate() : $user->deactivate();
         }
 

@@ -7,7 +7,7 @@ use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 use Modules\Tenant\Domain\RepositoryInterfaces\TenantAttachmentRepositoryInterface;
 use Modules\Tenant\Domain\Entities\TenantAttachment;
 use Modules\Core\Application\Services\FileStorageServiceInterface;
-use Ramsey\Uuid\Uuid;
+use Illuminate\Support\Str;
 
 class UploadTenantAttachmentService extends BaseService
 {
@@ -31,7 +31,7 @@ class UploadTenantAttachmentService extends BaseService
             throw new \RuntimeException('Tenant not found');
         }
 
-        $uuid = Uuid::uuid4()->toString();
+        $uuid = (string) Str::uuid();
         $path = $this->storage->store($fileInfo['tmp_path'], "tenants/{$tenantId}", $fileInfo['name']);
 
         $attachment = new TenantAttachment(
