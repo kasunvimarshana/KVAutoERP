@@ -16,9 +16,9 @@ class DatabaseConfig
         $this->driver = $data['driver'] ?? 'mysql';
         $this->host = $data['host'] ?? '127.0.0.1';
         $this->port = (int)($data['port'] ?? 3306);
-        $this->database = $data['database'];
-        $this->username = $data['username'];
-        $this->password = $data['password'];
+        $this->database = $data['database'] ?? '';
+        $this->username = $data['username'] ?? '';
+        $this->password = $data['password'] ?? '';
     }
 
     public function toArray(): array

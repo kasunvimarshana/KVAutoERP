@@ -7,11 +7,13 @@ use Modules\Tenant\Application\Services\DeleteTenantAttachmentService;
 use Modules\Tenant\Infrastructure\Http\Requests\UploadTenantAttachmentRequest;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantAttachmentResource;
 use Modules\Tenant\Domain\RepositoryInterfaces\TenantAttachmentRepositoryInterface;
+use Modules\Tenant\Domain\Entities\Tenant;
 use Modules\Core\Application\Services\FileStorageServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controller;
 
-class TenantAttachmentController
+class TenantAttachmentController extends Controller
 {
     public function __construct(
         protected UploadTenantAttachmentService $uploadService,

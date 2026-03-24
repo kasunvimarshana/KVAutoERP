@@ -4,6 +4,7 @@ namespace Modules\Tenant\Application\UseCases;
 
 use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 use Modules\Tenant\Application\DTOs\TenantConfigData;
+use Modules\Tenant\Domain\Entities\Tenant;
 use Modules\Tenant\Domain\Events\TenantConfigChanged;
 
 class UpdateTenantConfig

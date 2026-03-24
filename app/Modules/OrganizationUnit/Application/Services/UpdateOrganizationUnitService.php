@@ -29,7 +29,7 @@ class UpdateOrganizationUnitService extends BaseService
         }
 
         $name = new Name($dto->name);
-        $code = new Code($dto->code);
+        $code = $dto->code !== null ? new Code($dto->code) : null;
         $metadata = $dto->metadata ? new Metadata($dto->metadata) : null;
         $unit->updateDetails($name, $code, $dto->description, $metadata);
 
