@@ -5,7 +5,7 @@ namespace Modules\Core\Infrastructure\Providers;
 use Illuminate\Support\ServiceProvider;
 use Modules\Core\Domain\Contracts\Repositories\RepositoryInterface;
 use Modules\Core\Infrastructure\Persistence\Repositories\EloquentRepository;
-use Modules\Core\Application\Services\FileStorageServiceInterface;
+use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\Core\Infrastructure\Services\FileStorageService;
 
 class CoreServiceProvider extends ServiceProvider

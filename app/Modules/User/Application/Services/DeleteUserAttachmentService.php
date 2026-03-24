@@ -4,7 +4,7 @@ namespace Modules\User\Application\Services;
 
 use Modules\Core\Application\Services\BaseService;
 use Modules\User\Domain\RepositoryInterfaces\UserAttachmentRepositoryInterface;
-use Modules\Core\Application\Services\FileStorageServiceInterface;
+use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\User\Domain\Exceptions\AttachmentNotFoundException;
 use Modules\User\Application\Contracts\DeleteUserAttachmentServiceInterface;
 

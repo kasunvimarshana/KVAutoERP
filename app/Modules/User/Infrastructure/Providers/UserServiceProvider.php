@@ -72,13 +72,13 @@ class UserServiceProvider extends ServiceProvider
             return new UploadUserAttachmentService(
                 $app->make(UserRepositoryInterface::class),
                 $app->make(UserAttachmentRepositoryInterface::class),
-                $app->make(\Modules\Core\Application\Services\FileStorageServiceInterface::class)
+                $app->make(\Modules\Core\Application\Contracts\FileStorageServiceInterface::class)
             );
         });
         $this->app->bind(DeleteUserAttachmentServiceInterface::class, function ($app) {
             return new DeleteUserAttachmentService(
                 $app->make(UserAttachmentRepositoryInterface::class),
-                $app->make(\Modules\Core\Application\Services\FileStorageServiceInterface::class)
+                $app->make(\Modules\Core\Application\Contracts\FileStorageServiceInterface::class)
             );
         });
     }

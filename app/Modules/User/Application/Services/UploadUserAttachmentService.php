@@ -6,7 +6,7 @@ use Modules\Core\Application\Services\BaseService;
 use Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface;
 use Modules\User\Domain\RepositoryInterfaces\UserAttachmentRepositoryInterface;
 use Modules\User\Domain\Entities\UserAttachment;
-use Modules\Core\Application\Services\FileStorageServiceInterface;
+use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\User\Domain\Exceptions\UserNotFoundException;
 use Modules\User\Application\Contracts\UploadUserAttachmentServiceInterface;
 use Illuminate\Support\Str;

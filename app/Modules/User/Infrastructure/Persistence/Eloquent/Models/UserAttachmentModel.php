@@ -11,7 +11,16 @@ class UserAttachmentModel extends Model
     use SoftDeletes;
 
     protected $table = 'user_attachments';
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'user_id',
+        'uuid',
+        'name',
+        'file_path',
+        'mime_type',
+        'size',
+        'type',
+        'metadata',
+    ];
     protected $casts = [
         'metadata' => 'array',
         'size'     => 'integer',

@@ -6,7 +6,7 @@ use Modules\Core\Application\Services\BaseService;
 use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 use Modules\Tenant\Domain\RepositoryInterfaces\TenantAttachmentRepositoryInterface;
 use Modules\Tenant\Domain\Entities\TenantAttachment;
-use Modules\Core\Application\Services\FileStorageServiceInterface;
+use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\Tenant\Domain\Exceptions\TenantNotFoundException;
 use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
 use Illuminate\Support\Str;
