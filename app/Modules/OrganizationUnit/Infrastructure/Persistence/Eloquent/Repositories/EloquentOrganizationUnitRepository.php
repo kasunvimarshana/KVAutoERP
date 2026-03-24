@@ -9,6 +9,7 @@ use Modules\OrganizationUnit\Domain\ValueObjects\Name;
 use Modules\OrganizationUnit\Domain\ValueObjects\Code;
 use Modules\OrganizationUnit\Domain\ValueObjects\Metadata;
 use Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Models\OrganizationUnitModel;
+use Modules\OrganizationUnit\Domain\Exceptions\OrganizationUnitNotFoundException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -62,7 +63,7 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
         } else {
             $parent = $this->model->find($parentId);
             if (!$parent) {
-                throw new \RuntimeException('Parent not found');
+                throw new OrganizationUnitNotFoundException('parent');
             }
             $right = $parent->_rgt;
             $this->shiftLeftRight($tenantId, $right, 2);
@@ -104,7 +105,7 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
     {
         $node = $this->model->find($id);
         if (!$node) {
-            throw new \RuntimeException('Node not found');
+            throw new OrganizationUnitNotFoundException();
         }
 
         if ($node->parent_id === $newParentId) {
@@ -126,7 +127,7 @@ class EloquentOrganizationUnitRepository extends EloquentRepository implements O
             } else {
                 $newParent = $this->model->find($newParentId);
                 if (!$newParent) {
-                    throw new \RuntimeException('New parent not found');
+                    throw new OrganizationUnitNotFoundException('parent');
                 }
                 $newLft = $newParent->_rgt;
                 $this->shiftLeftRight($node->tenant_id, $newLft, $width);

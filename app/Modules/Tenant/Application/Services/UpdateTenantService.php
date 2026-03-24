@@ -13,12 +13,17 @@ use Modules\Tenant\Domain\ValueObjects\FeatureFlags;
 use Modules\Tenant\Domain\ValueObjects\ApiKeys;
 use Modules\Tenant\Application\DTOs\TenantData;
 use Modules\Tenant\Domain\Events\TenantUpdated;
+use Modules\Tenant\Domain\Exceptions\TenantNotFoundException;
+use Modules\Tenant\Application\Contracts\UpdateTenantServiceInterface;
 
-class UpdateTenantService extends BaseService
+class UpdateTenantService extends BaseService implements UpdateTenantServiceInterface
 {
+    private TenantRepositoryInterface $tenantRepository;
+
     public function __construct(TenantRepositoryInterface $repository)
     {
         parent::__construct($repository);
+        $this->tenantRepository = $repository;
     }
 
     protected function handle(array $data): Tenant
@@ -26,12 +31,14 @@ class UpdateTenantService extends BaseService
         $id = $data['id'];
         $dto = TenantData::fromArray($data);
 
-        $tenant = $this->repository->find($id);
+        $tenant = $this->tenantRepository->find($id);
         if (!$tenant) {
-            throw new \RuntimeException('Tenant not found');
+            throw new TenantNotFoundException($id);
         }
 
-        $updateData = [
+        $this->tenantRepository->update($id, [
+            'name'            => $dto->name,
+            'domain'          => $dto->domain,
             'database_config' => $dto->database_config ?? null,
             'mail_config'     => $dto->mail_config ?? null,
             'cache_config'    => $dto->cache_config ?? null,
@@ -39,23 +46,10 @@ class UpdateTenantService extends BaseService
             'feature_flags'   => $dto->feature_flags ?? [],
             'api_keys'        => $dto->api_keys ?? [],
             'active'          => $dto->active ?? true,
-        ];
-
-        $this->repository->update($id, [
-            'name'            => $dto->name,
-            'domain'          => $dto->domain,
-            'database_config' => $updateData['database_config'],
-            'mail_config'     => $updateData['mail_config'],
-            'cache_config'    => $updateData['cache_config'],
-            'queue_config'    => $updateData['queue_config'],
-            'feature_flags'   => $updateData['feature_flags'],
-            'api_keys'        => $updateData['api_keys'],
-            'active'          => $updateData['active'],
         ]);
 
-        $saved = $this->repository->find($id);
+        $saved = $this->tenantRepository->find($id);
         $this->addEvent(new TenantUpdated($saved));
         return $saved;
     }
 }
-

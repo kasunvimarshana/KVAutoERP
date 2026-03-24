@@ -2,7 +2,9 @@
 
 namespace Modules\Tenant\Domain\ValueObjects;
 
-class DatabaseConfig
+use Modules\Core\Domain\ValueObjects\ValueObject;
+
+class DatabaseConfig extends ValueObject
 {
     private string $driver;
     private string $host;
@@ -21,6 +23,12 @@ class DatabaseConfig
         $this->password = $data['password'] ?? '';
     }
 
+    public function getDriver(): string { return $this->driver; }
+    public function getHost(): string { return $this->host; }
+    public function getPort(): int { return $this->port; }
+    public function getDatabase(): string { return $this->database; }
+    public function getUsername(): string { return $this->username; }
+
     public function toArray(): array
     {
         return [
@@ -31,5 +39,10 @@ class DatabaseConfig
             'username' => $this->username,
             'password' => $this->password,
         ];
+    }
+
+    public static function fromArray(array $data): static
+    {
+        return new static($data);
     }
 }

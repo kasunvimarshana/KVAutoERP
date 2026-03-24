@@ -3,10 +3,10 @@
 namespace Modules\OrganizationUnit\Infrastructure\Http\Controllers;
 
 use Modules\Core\Infrastructure\Http\Controllers\BaseController;
-use Modules\OrganizationUnit\Application\Services\CreateOrganizationUnitService;
-use Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService;
-use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitService;
-use Modules\OrganizationUnit\Application\Services\MoveOrganizationUnitService;
+use Modules\OrganizationUnit\Application\Contracts\CreateOrganizationUnitServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\MoveOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\DTOs\OrganizationUnitData;
 use Modules\OrganizationUnit\Application\DTOs\MoveOrganizationUnitData;
 use Modules\OrganizationUnit\Infrastructure\Http\Requests\MoveOrganizationUnitRequest;
@@ -21,10 +21,10 @@ use Illuminate\Http\JsonResponse;
 class OrganizationUnitController extends BaseController
 {
     public function __construct(
-        CreateOrganizationUnitService $createService,
-        protected UpdateOrganizationUnitService $updateService,
-        protected DeleteOrganizationUnitService $deleteService,
-        protected MoveOrganizationUnitService $moveService,
+        CreateOrganizationUnitServiceInterface $createService,
+        protected UpdateOrganizationUnitServiceInterface $updateService,
+        protected DeleteOrganizationUnitServiceInterface $deleteService,
+        protected MoveOrganizationUnitServiceInterface $moveService,
         protected OrganizationUnitRepositoryInterface $orgUnitRepository
     ) {
         parent::__construct($createService, OrganizationUnitResource::class, OrganizationUnitData::class);
@@ -52,7 +52,7 @@ class OrganizationUnitController extends BaseController
         return new OrganizationUnitResource($unit);
     }
 
-    public function show($id): OrganizationUnitResource
+    public function show(int $id): OrganizationUnitResource
     {
         $unit = $this->service->find($id);
         if (!$unit) {
@@ -62,7 +62,7 @@ class OrganizationUnitController extends BaseController
         return new OrganizationUnitResource($unit);
     }
 
-    public function update(Request $request, $id): OrganizationUnitResource
+    public function update(Request $request, int $id): OrganizationUnitResource
     {
         $unit = $this->service->find($id);
         if (!$unit) {
@@ -76,7 +76,7 @@ class OrganizationUnitController extends BaseController
         return new OrganizationUnitResource($updated);
     }
 
-    public function destroy($id): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
         $unit = $this->service->find($id);
         if (!$unit) {

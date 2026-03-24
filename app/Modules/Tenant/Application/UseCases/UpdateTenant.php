@@ -12,6 +12,7 @@ use Modules\Tenant\Domain\ValueObjects\CacheConfig;
 use Modules\Tenant\Domain\ValueObjects\QueueConfig;
 use Modules\Tenant\Domain\ValueObjects\FeatureFlags;
 use Modules\Tenant\Domain\ValueObjects\ApiKeys;
+use Modules\Tenant\Domain\Exceptions\TenantNotFoundException;
 
 class UpdateTenant
 {
@@ -23,7 +24,7 @@ class UpdateTenant
     {
         $tenant = $this->tenantRepo->find($id);
         if (!$tenant) {
-            throw new \RuntimeException('Tenant not found');
+            throw new TenantNotFoundException($id);
         }
 
         $tenant->update(

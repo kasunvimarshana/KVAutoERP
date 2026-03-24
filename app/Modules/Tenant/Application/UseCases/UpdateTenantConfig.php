@@ -6,6 +6,7 @@ use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 use Modules\Tenant\Application\DTOs\TenantConfigData;
 use Modules\Tenant\Domain\Entities\Tenant;
 use Modules\Tenant\Domain\Events\TenantConfigChanged;
+use Modules\Tenant\Domain\Exceptions\TenantNotFoundException;
 
 class UpdateTenantConfig
 {
@@ -17,7 +18,7 @@ class UpdateTenantConfig
     {
         $tenant = $this->tenantRepo->find($id);
         if (!$tenant) {
-            throw new \RuntimeException('Tenant not found');
+            throw new TenantNotFoundException($id);
         }
 
         // Update only provided configs

@@ -7,16 +7,21 @@ use Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface;
 use Modules\User\Domain\RepositoryInterfaces\UserAttachmentRepositoryInterface;
 use Modules\User\Domain\Entities\UserAttachment;
 use Modules\Core\Application\Services\FileStorageServiceInterface;
+use Modules\User\Domain\Exceptions\UserNotFoundException;
+use Modules\User\Application\Contracts\UploadUserAttachmentServiceInterface;
 use Illuminate\Support\Str;
 
-class UploadUserAttachmentService extends BaseService
+class UploadUserAttachmentService extends BaseService implements UploadUserAttachmentServiceInterface
 {
+    private UserRepositoryInterface $userRepository;
+
     public function __construct(
         UserRepositoryInterface $repository,
         protected UserAttachmentRepositoryInterface $attachmentRepo,
         protected FileStorageServiceInterface $storage
     ) {
         parent::__construct($repository);
+        $this->userRepository = $repository;
     }
 
     protected function handle(array $data): UserAttachment
@@ -26,9 +31,9 @@ class UploadUserAttachmentService extends BaseService
         $type = $data['type'] ?? null;
         $metadata = $data['metadata'] ?? [];
 
-        $user = $this->repository->find($userId);
+        $user = $this->userRepository->find($userId);
         if (!$user) {
-            throw new \RuntimeException('User not found');
+            throw new UserNotFoundException($userId);
         }
 
         $uuid = (string) Str::uuid();
