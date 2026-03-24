@@ -659,6 +659,9 @@ class AuthModuleTest extends TestCase
             'Application/Services/AbacAuthorizationStrategy.php',
             'Application/Services/RegisterUserService.php',
             'Application/Services/SsoService.php',
+            'Application/Services/RefreshTokenService.php',
+            'Application/Services/ForgotPasswordService.php',
+            'Application/Services/ResetPasswordService.php',
         ];
 
         $base = dirname(__DIR__, 2).'/app/Modules/Auth/';
@@ -672,5 +675,237 @@ class AuthModuleTest extends TestCase
                 "{$file} must declare strict_types=1"
             );
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // New interfaces: RefreshTokenServiceInterface, ForgotPasswordServiceInterface,
+    // ResetPasswordServiceInterface
+    // -------------------------------------------------------------------------
+
+    public function test_refresh_token_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\Auth\Application\Contracts\RefreshTokenServiceInterface::class));
+    }
+
+    public function test_forgot_password_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\Auth\Application\Contracts\ForgotPasswordServiceInterface::class));
+    }
+
+    public function test_reset_password_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\Auth\Application\Contracts\ResetPasswordServiceInterface::class));
+    }
+
+    public function test_refresh_token_service_interface_has_refresh_method(): void
+    {
+        $reflection = new \ReflectionClass(\Modules\Auth\Application\Contracts\RefreshTokenServiceInterface::class);
+        $this->assertTrue($reflection->hasMethod('refresh'));
+    }
+
+    public function test_forgot_password_service_interface_has_send_reset_link_method(): void
+    {
+        $reflection = new \ReflectionClass(\Modules\Auth\Application\Contracts\ForgotPasswordServiceInterface::class);
+        $this->assertTrue($reflection->hasMethod('sendResetLink'));
+    }
+
+    public function test_reset_password_service_interface_has_reset_method(): void
+    {
+        $reflection = new \ReflectionClass(\Modules\Auth\Application\Contracts\ResetPasswordServiceInterface::class);
+        $this->assertTrue($reflection->hasMethod('reset'));
+    }
+
+    // -------------------------------------------------------------------------
+    // New service implementations
+    // -------------------------------------------------------------------------
+
+    public function test_refresh_token_service_exists_and_implements_interface(): void
+    {
+        $this->assertTrue(class_exists(\Modules\Auth\Application\Services\RefreshTokenService::class));
+        $this->assertTrue(
+            is_subclass_of(
+                \Modules\Auth\Application\Services\RefreshTokenService::class,
+                \Modules\Auth\Application\Contracts\RefreshTokenServiceInterface::class,
+            ),
+        );
+    }
+
+    public function test_forgot_password_service_exists_and_implements_interface(): void
+    {
+        $this->assertTrue(class_exists(\Modules\Auth\Application\Services\ForgotPasswordService::class));
+        $this->assertTrue(
+            is_subclass_of(
+                \Modules\Auth\Application\Services\ForgotPasswordService::class,
+                \Modules\Auth\Application\Contracts\ForgotPasswordServiceInterface::class,
+            ),
+        );
+    }
+
+    public function test_reset_password_service_exists_and_implements_interface(): void
+    {
+        $this->assertTrue(class_exists(\Modules\Auth\Application\Services\ResetPasswordService::class));
+        $this->assertTrue(
+            is_subclass_of(
+                \Modules\Auth\Application\Services\ResetPasswordService::class,
+                \Modules\Auth\Application\Contracts\ResetPasswordServiceInterface::class,
+            ),
+        );
+    }
+
+    public function test_refresh_token_service_uses_token_service_interface(): void
+    {
+        $reflection = new \ReflectionClass(\Modules\Auth\Application\Services\RefreshTokenService::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        $this->assertCount(1, $params);
+        $this->assertSame(
+            \Modules\Auth\Application\Contracts\TokenServiceInterface::class,
+            $params[0]->getType()?->getName(),
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // New use cases: RefreshToken, ForgotPassword, ResetPassword
+    // -------------------------------------------------------------------------
+
+    public function test_refresh_token_use_case_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\Auth\Application\UseCases\RefreshToken::class));
+    }
+
+    public function test_forgot_password_use_case_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\Auth\Application\UseCases\ForgotPassword::class));
+    }
+
+    public function test_reset_password_use_case_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\Auth\Application\UseCases\ResetPassword::class));
+    }
+
+    public function test_refresh_token_use_case_uses_refresh_token_service_interface(): void
+    {
+        $reflection = new \ReflectionClass(\Modules\Auth\Application\UseCases\RefreshToken::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        $this->assertCount(1, $params);
+        $this->assertSame(
+            \Modules\Auth\Application\Contracts\RefreshTokenServiceInterface::class,
+            $params[0]->getType()?->getName(),
+        );
+    }
+
+    public function test_forgot_password_use_case_uses_forgot_password_service_interface(): void
+    {
+        $reflection = new \ReflectionClass(\Modules\Auth\Application\UseCases\ForgotPassword::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        $this->assertCount(1, $params);
+        $this->assertSame(
+            \Modules\Auth\Application\Contracts\ForgotPasswordServiceInterface::class,
+            $params[0]->getType()?->getName(),
+        );
+    }
+
+    public function test_reset_password_use_case_uses_reset_password_service_interface(): void
+    {
+        $reflection = new \ReflectionClass(\Modules\Auth\Application\UseCases\ResetPassword::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        $this->assertCount(1, $params);
+        $this->assertSame(
+            \Modules\Auth\Application\Contracts\ResetPasswordServiceInterface::class,
+            $params[0]->getType()?->getName(),
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // New form requests
+    // -------------------------------------------------------------------------
+
+    public function test_forgot_password_request_exists_and_extends_form_request(): void
+    {
+        $this->assertTrue(class_exists(\Modules\Auth\Infrastructure\Http\Requests\ForgotPasswordRequest::class));
+        $this->assertTrue(
+            is_subclass_of(
+                \Modules\Auth\Infrastructure\Http\Requests\ForgotPasswordRequest::class,
+                \Illuminate\Foundation\Http\FormRequest::class,
+            ),
+        );
+    }
+
+    public function test_reset_password_request_exists_and_extends_form_request(): void
+    {
+        $this->assertTrue(class_exists(\Modules\Auth\Infrastructure\Http\Requests\ResetPasswordRequest::class));
+        $this->assertTrue(
+            is_subclass_of(
+                \Modules\Auth\Infrastructure\Http\Requests\ResetPasswordRequest::class,
+                \Illuminate\Foundation\Http\FormRequest::class,
+            ),
+        );
+    }
+
+    public function test_forgot_password_request_has_email_rule(): void
+    {
+        $request = new \Modules\Auth\Infrastructure\Http\Requests\ForgotPasswordRequest();
+        $rules = $request->rules();
+        $this->assertArrayHasKey('email', $rules);
+    }
+
+    public function test_reset_password_request_has_required_rules(): void
+    {
+        $request = new \Modules\Auth\Infrastructure\Http\Requests\ResetPasswordRequest();
+        $rules = $request->rules();
+        $this->assertArrayHasKey('token', $rules);
+        $this->assertArrayHasKey('email', $rules);
+        $this->assertArrayHasKey('password', $rules);
+        $this->assertArrayHasKey('password_confirmation', $rules);
+    }
+
+    // -------------------------------------------------------------------------
+    // AuthController has all expected methods
+    // -------------------------------------------------------------------------
+
+    public function test_auth_controller_has_all_expected_methods(): void
+    {
+        $reflection = new \ReflectionClass(\Modules\Auth\Infrastructure\Http\Controllers\AuthController::class);
+
+        $this->assertTrue($reflection->hasMethod('register'));
+        $this->assertTrue($reflection->hasMethod('login'));
+        $this->assertTrue($reflection->hasMethod('logout'));
+        $this->assertTrue($reflection->hasMethod('me'));
+        $this->assertTrue($reflection->hasMethod('refresh'));
+        $this->assertTrue($reflection->hasMethod('forgotPassword'));
+        $this->assertTrue($reflection->hasMethod('resetPassword'));
+        $this->assertTrue($reflection->hasMethod('ssoExchange'));
+    }
+
+    // -------------------------------------------------------------------------
+    // SsoService: provider normalization
+    // -------------------------------------------------------------------------
+
+    public function test_sso_service_constructor_uses_token_service_interface(): void
+    {
+        $reflection = new \ReflectionClass(\Modules\Auth\Application\Services\SsoService::class);
+        $params = $reflection->getConstructor()->getParameters();
+
+        $this->assertCount(1, $params);
+        $this->assertSame(
+            \Modules\Auth\Application\Contracts\TokenServiceInterface::class,
+            $params[0]->getType()?->getName(),
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // AbacAuthorizationStrategy: contains try-catch guard
+    // -------------------------------------------------------------------------
+
+    public function test_abac_strategy_source_wraps_gate_in_try_catch(): void
+    {
+        $path = dirname(__DIR__, 2).'/app/Modules/Auth/Application/Services/AbacAuthorizationStrategy.php';
+        $this->assertFileExists($path);
+        $source = file_get_contents($path);
+        $this->assertStringContainsString('try {', $source, 'AbacAuthorizationStrategy must wrap Gate calls in try-catch.');
+        $this->assertStringContainsString('catch (', $source, 'AbacAuthorizationStrategy must have a catch block.');
     }
 }

@@ -36,7 +36,7 @@ class SsoService implements SsoServiceInterface
 
     public function validateSsoToken(string $ssoToken, string $provider): int
     {
-        if ($provider !== 'passport') {
+        if (strtolower($provider) !== 'passport') {
             throw new AuthenticationException("Unsupported SSO provider: {$provider}");
         }
 
