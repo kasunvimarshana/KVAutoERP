@@ -1,12 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Auth\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
-use Modules\Auth\Application\Contracts\LoginServiceInterface;
-use Modules\Auth\Application\Contracts\LogoutServiceInterface;
-use Modules\Auth\Application\Contracts\RegisterUserServiceInterface;
 use Modules\Auth\Application\Contracts\SsoServiceInterface;
 use Modules\Auth\Application\UseCases\GetAuthenticatedUser;
 use Modules\Auth\Application\UseCases\LoginUser;
@@ -16,15 +15,16 @@ use Modules\Auth\Domain\Exceptions\AuthenticationException;
 use Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
 use Modules\Auth\Infrastructure\Http\Requests\LoginRequest;
 use Modules\Auth\Infrastructure\Http\Requests\RegisterRequest;
+use Modules\Auth\Infrastructure\Http\Requests\SsoRequest;
 use Modules\Auth\Infrastructure\Http\Resources\AuthTokenResource;
 use Modules\User\Infrastructure\Http\Resources\UserResource;
 
 class AuthController extends Controller
 {
     public function __construct(
-        private readonly LoginServiceInterface $loginService,
-        private readonly LogoutServiceInterface $logoutService,
-        private readonly RegisterUserServiceInterface $registerService,
+        private readonly LoginUser $loginUser,
+        private readonly LogoutUser $logoutUser,
+        private readonly RegisterUser $registerUser,
         private readonly SsoServiceInterface $ssoService,
         private readonly GetAuthenticatedUser $getAuthenticatedUser,
     ) {}
@@ -34,8 +34,7 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request): JsonResponse
     {
-        $useCase = new RegisterUser($this->registerService, $this->loginService);
-        $token = $useCase->execute($request->validated());
+        $token = $this->registerUser->execute($request->validated());
 
         return response()->json(
             (new AuthTokenResource($token))->toArray($request),
@@ -48,11 +47,9 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        $useCase = new LoginUser($this->loginService);
-
         try {
             $validated = $request->validated();
-            $token = $useCase->execute(
+            $token = $this->loginUser->execute(
                 $validated['email'],
                 $validated['password'],
             );
@@ -74,8 +71,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $useCase = new LogoutUser($this->logoutService);
-        $useCase->execute($user->id);
+        $this->logoutUser->execute($user->id);
 
         return response()->json(['message' => 'Logged out successfully']);
     }
@@ -97,20 +93,17 @@ class AuthController extends Controller
     /**
      * Exchange an SSO token for a local access token.
      */
-    public function ssoExchange(string $provider): JsonResponse
+    public function ssoExchange(string $provider, SsoRequest $request): JsonResponse
     {
-        $token = request()->input('token');
-
-        if (! $token) {
-            return response()->json(['message' => 'SSO token is required'], 422);
-        }
-
         try {
-            $accessToken = $this->ssoService->exchangeToken($token, $provider);
+            $accessToken = $this->ssoService->exchangeToken(
+                $request->validated()['token'],
+                $provider,
+            );
         } catch (AuthenticationException $e) {
             return response()->json(['message' => $e->getMessage()], 401);
         }
 
-        return response()->json((new AuthTokenResource($accessToken))->toArray(request()));
+        return response()->json((new AuthTokenResource($accessToken))->toArray($request));
     }
 }

@@ -4,14 +4,15 @@ namespace Tests\Unit;
 
 use Illuminate\Foundation\Auth\User;
 // Auth domain
+use Illuminate\Foundation\Http\FormRequest;
 use Laravel\Passport\HasApiTokens;
 use Modules\Auth\Application\Contracts\AuthenticationServiceInterface;
 use Modules\Auth\Application\Contracts\AuthorizationServiceInterface;
 use Modules\Auth\Application\Contracts\AuthorizationStrategyInterface;
 use Modules\Auth\Application\Contracts\LoginServiceInterface;
 use Modules\Auth\Application\Contracts\LogoutServiceInterface;
-use Modules\Auth\Application\Contracts\RegisterUserServiceInterface;
 // Auth application contracts
+use Modules\Auth\Application\Contracts\RegisterUserServiceInterface;
 use Modules\Auth\Application\Contracts\SsoServiceInterface;
 use Modules\Auth\Application\Contracts\TokenServiceInterface;
 use Modules\Auth\Application\DTOs\LoginData;
@@ -19,8 +20,8 @@ use Modules\Auth\Application\DTOs\RegisterData;
 use Modules\Auth\Application\Services\AbacAuthorizationStrategy;
 use Modules\Auth\Application\Services\AuthenticationService;
 use Modules\Auth\Application\Services\AuthorizationService;
-use Modules\Auth\Application\Services\LoginService;
 // Auth application services
+use Modules\Auth\Application\Services\LoginService;
 use Modules\Auth\Application\Services\LogoutService;
 use Modules\Auth\Application\Services\PassportTokenService;
 use Modules\Auth\Application\Services\RbacAuthorizationStrategy;
@@ -29,22 +30,23 @@ use Modules\Auth\Application\Services\SsoService;
 use Modules\Auth\Application\UseCases\GetAuthenticatedUser;
 use Modules\Auth\Application\UseCases\LoginUser;
 use Modules\Auth\Application\UseCases\LogoutUser;
-use Modules\Auth\Application\UseCases\RegisterUser;
 // Auth application DTOs
+use Modules\Auth\Application\UseCases\RegisterUser;
 use Modules\Auth\Domain\Entities\AccessToken;
-use Modules\Auth\Domain\Events\UserLoggedIn;
 // Auth application use cases
+use Modules\Auth\Domain\Events\UserLoggedIn;
 use Modules\Auth\Domain\Events\UserLoggedOut;
 use Modules\Auth\Domain\Events\UserRegistered;
 use Modules\Auth\Domain\Exceptions\AuthenticationException;
-use Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
 // Auth infrastructure
+use Modules\Auth\Domain\Exceptions\InvalidCredentialsException;
 use Modules\Auth\Domain\Exceptions\TokenExpiredException;
 use Modules\Auth\Infrastructure\Http\Controllers\AuthController;
 use Modules\Auth\Infrastructure\Http\Middleware\CheckPermission;
 use Modules\Auth\Infrastructure\Http\Middleware\CheckRole;
 use Modules\Auth\Infrastructure\Http\Requests\LoginRequest;
 use Modules\Auth\Infrastructure\Http\Requests\RegisterRequest;
+use Modules\Auth\Infrastructure\Http\Requests\SsoRequest;
 use Modules\Auth\Infrastructure\Http\Resources\AuthTokenResource;
 use Modules\Auth\Infrastructure\Providers\AuthModuleServiceProvider;
 use Modules\Core\Domain\Exceptions\DomainException;
@@ -355,6 +357,7 @@ class AuthModuleTest extends TestCase
         $this->assertTrue(class_exists(CheckPermission::class));
         $this->assertTrue(class_exists(LoginRequest::class));
         $this->assertTrue(class_exists(RegisterRequest::class));
+        $this->assertTrue(class_exists(SsoRequest::class));
         $this->assertTrue(class_exists(AuthTokenResource::class));
         $this->assertTrue(class_exists(AuthModuleServiceProvider::class));
     }
@@ -370,9 +373,10 @@ class AuthModuleTest extends TestCase
 
         $types = array_map(fn ($p) => $p->getType()?->getName(), $params);
 
-        $this->assertContains(LoginServiceInterface::class, $types);
-        $this->assertContains(LogoutServiceInterface::class, $types);
-        $this->assertContains(RegisterUserServiceInterface::class, $types);
+        // Controller injects use case classes and the SSO service interface for proper DI
+        $this->assertContains(LoginUser::class, $types);
+        $this->assertContains(LogoutUser::class, $types);
+        $this->assertContains(RegisterUser::class, $types);
         $this->assertContains(SsoServiceInterface::class, $types);
     }
 
@@ -435,5 +439,18 @@ class AuthModuleTest extends TestCase
     {
         $path = dirname(__DIR__, 2).'/app/Modules/Auth/routes/api.php';
         $this->assertTrue(file_exists($path), 'Auth module routes file must exist.');
+    }
+
+    public function test_sso_request_has_expected_rules(): void
+    {
+        $request = new SsoRequest;
+        $rules = $request->rules();
+
+        $this->assertArrayHasKey('token', $rules);
+    }
+
+    public function test_sso_request_is_form_request(): void
+    {
+        $this->assertInstanceOf(FormRequest::class, new SsoRequest);
     }
 }
