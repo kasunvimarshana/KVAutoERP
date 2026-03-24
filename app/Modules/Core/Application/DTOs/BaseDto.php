@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Core\Application\DTOs;
 
 use Illuminate\Http\Request;

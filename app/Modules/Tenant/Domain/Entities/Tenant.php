@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Tenant\Domain\Entities;
 
 use Modules\Core\Domain\ValueObjects\ApiKeys;

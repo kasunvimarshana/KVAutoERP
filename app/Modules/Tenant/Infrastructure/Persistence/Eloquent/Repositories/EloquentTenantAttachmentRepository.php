@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Tenant\Infrastructure\Persistence\Eloquent\Repositories;
 
 use Illuminate\Support\Collection;

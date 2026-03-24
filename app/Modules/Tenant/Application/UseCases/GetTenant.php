@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Tenant\Application\UseCases;
 
 use Modules\Tenant\Domain\Entities\Tenant;
