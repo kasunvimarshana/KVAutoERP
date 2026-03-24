@@ -4,7 +4,14 @@ namespace Modules\Tenant\Application\UseCases;
 
 use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 use Modules\Tenant\Application\DTOs\TenantData;
+use Modules\Tenant\Domain\Entities\Tenant;
 use Modules\Tenant\Domain\Events\TenantUpdated;
+use Modules\Tenant\Domain\ValueObjects\DatabaseConfig;
+use Modules\Tenant\Domain\ValueObjects\MailConfig;
+use Modules\Tenant\Domain\ValueObjects\CacheConfig;
+use Modules\Tenant\Domain\ValueObjects\QueueConfig;
+use Modules\Tenant\Domain\ValueObjects\FeatureFlags;
+use Modules\Tenant\Domain\ValueObjects\ApiKeys;
 
 class UpdateTenant
 {
@@ -19,9 +26,17 @@ class UpdateTenant
             throw new \RuntimeException('Tenant not found');
         }
 
-        // Update properties (simplified)
-        // In a real implementation, use setters or a dedicated update method
-        $tenant->updateFromData($data); // you'd implement this method
+        $tenant->update(
+            name: $data->name,
+            domain: $data->domain,
+            databaseConfig: new DatabaseConfig($data->database_config ?? []),
+            mailConfig: !empty($data->mail_config) ? MailConfig::fromArray($data->mail_config) : null,
+            cacheConfig: !empty($data->cache_config) ? CacheConfig::fromArray($data->cache_config) : null,
+            queueConfig: !empty($data->queue_config) ? QueueConfig::fromArray($data->queue_config) : null,
+            featureFlags: new FeatureFlags($data->feature_flags ?? []),
+            apiKeys: new ApiKeys($data->api_keys ?? []),
+            active: $data->active ?? true,
+        );
 
         $saved = $this->tenantRepo->save($tenant);
         event(new TenantUpdated($saved));

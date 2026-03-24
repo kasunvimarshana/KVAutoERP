@@ -97,6 +97,29 @@ class Tenant
         $this->updatedAt = new \DateTimeImmutable();
     }
 
+    public function update(
+        string $name,
+        ?string $domain,
+        DatabaseConfig $databaseConfig,
+        ?MailConfig $mailConfig = null,
+        ?CacheConfig $cacheConfig = null,
+        ?QueueConfig $queueConfig = null,
+        ?FeatureFlags $featureFlags = null,
+        ?ApiKeys $apiKeys = null,
+        bool $active = true
+    ): void {
+        $this->name = $name;
+        $this->domain = $domain;
+        $this->databaseConfig = $databaseConfig;
+        $this->mailConfig = $mailConfig;
+        $this->cacheConfig = $cacheConfig;
+        $this->queueConfig = $queueConfig;
+        $this->featureFlags = $featureFlags ?? $this->featureFlags;
+        $this->apiKeys = $apiKeys ?? $this->apiKeys;
+        $this->active = $active;
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
     public function setLogoPath(?string $path): void
     {
         $this->logoPath = $path;

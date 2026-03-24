@@ -5,13 +5,15 @@ namespace Modules\OrganizationUnit\Infrastructure\Http\Controllers;
 use Modules\OrganizationUnit\Application\Services\UploadOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitAttachmentRepositoryInterface;
+use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
 use Modules\Core\Application\Services\FileStorageServiceInterface;
 use Modules\OrganizationUnit\Infrastructure\Http\Requests\UploadOrganizationUnitAttachmentRequest;
 use Modules\OrganizationUnit\Infrastructure\Http\Resources\OrganizationUnitAttachmentResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controller;
 
-class OrganizationUnitAttachmentController
+class OrganizationUnitAttachmentController extends Controller
 {
     public function __construct(
         protected UploadOrganizationUnitAttachmentService $uploadService,
