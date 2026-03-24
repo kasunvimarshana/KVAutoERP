@@ -1,7 +1,5 @@
 <?php
 
-use App\Models\User;
-
 return [
 
     /*
@@ -39,7 +37,11 @@ return [
 
     'guards' => [
         'web' => [
-            'driver' => 'session',
+            'driver'   => 'session',
+            'provider' => 'users',
+        ],
+        'api' => [
+            'driver'   => 'passport',
             'provider' => 'users',
         ],
     ],
@@ -64,7 +66,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', User::class),
+            'model'  => env('AUTH_MODEL', \Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel::class),
         ],
 
         // 'users' => [
@@ -113,5 +115,21 @@ return [
     */
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Laravel Passport Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure token lifetimes for Passport. These values are consumed by
+    | AuthModuleServiceProvider when booting the Passport configuration.
+    |
+    */
+
+    'passport' => [
+        'token_expiry_days'               => env('PASSPORT_TOKEN_EXPIRY_DAYS', 15),
+        'refresh_token_expiry_days'       => env('PASSPORT_REFRESH_TOKEN_EXPIRY_DAYS', 30),
+        'personal_token_expiry_months'    => env('PASSPORT_PERSONAL_TOKEN_EXPIRY_MONTHS', 6),
+    ],
 
 ];

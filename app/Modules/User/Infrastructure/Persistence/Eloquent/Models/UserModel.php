@@ -2,24 +2,31 @@
 
 namespace Modules\User\Infrastructure\Persistence\Eloquent\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Passport\HasApiTokens;
 
-class UserModel extends Model
+class UserModel extends Authenticatable
 {
-    use SoftDeletes;
+    use SoftDeletes, Notifiable, HasApiTokens;
 
     protected $table = 'users';
     protected $fillable = [
         'tenant_id',
         'email',
+        'password',
         'first_name',
         'last_name',
         'phone',
         'address',
         'preferences',
         'active',
+    ];
+    protected $hidden = [
+        'password',
+        'remember_token',
     ];
     protected $casts = [
         'address'     => 'array',
