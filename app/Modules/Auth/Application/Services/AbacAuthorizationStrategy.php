@@ -31,8 +31,12 @@ class AbacAuthorizationStrategy implements AuthorizationStrategyInterface
             return false;
         }
 
-        return $subject !== null
-            ? Gate::forUser($user)->allows($ability, $subject)
-            : Gate::forUser($user)->allows($ability);
+        try {
+            return $subject !== null
+                ? Gate::forUser($user)->allows($ability, $subject)
+                : Gate::forUser($user)->allows($ability);
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

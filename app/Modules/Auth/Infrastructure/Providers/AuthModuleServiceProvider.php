@@ -9,24 +9,33 @@ use Laravel\Passport\Passport;
 use Modules\Auth\Application\Contracts\AuthUserRepositoryInterface;
 use Modules\Auth\Application\Contracts\AuthenticationServiceInterface;
 use Modules\Auth\Application\Contracts\AuthorizationServiceInterface;
+use Modules\Auth\Application\Contracts\ForgotPasswordServiceInterface;
 use Modules\Auth\Application\Contracts\LoginServiceInterface;
 use Modules\Auth\Application\Contracts\LogoutServiceInterface;
+use Modules\Auth\Application\Contracts\RefreshTokenServiceInterface;
 use Modules\Auth\Application\Contracts\RegisterUserServiceInterface;
+use Modules\Auth\Application\Contracts\ResetPasswordServiceInterface;
 use Modules\Auth\Application\Contracts\SsoServiceInterface;
 use Modules\Auth\Application\Contracts\TokenServiceInterface;
 use Modules\Auth\Application\Services\AbacAuthorizationStrategy;
 use Modules\Auth\Application\Services\AuthenticationService;
 use Modules\Auth\Application\Services\AuthorizationService;
+use Modules\Auth\Application\Services\ForgotPasswordService;
 use Modules\Auth\Application\Services\LoginService;
 use Modules\Auth\Application\Services\LogoutService;
 use Modules\Auth\Application\Services\PassportTokenService;
 use Modules\Auth\Application\Services\RbacAuthorizationStrategy;
+use Modules\Auth\Application\Services\RefreshTokenService;
 use Modules\Auth\Application\Services\RegisterUserService;
+use Modules\Auth\Application\Services\ResetPasswordService;
 use Modules\Auth\Application\Services\SsoService;
+use Modules\Auth\Application\UseCases\ForgotPassword;
 use Modules\Auth\Application\UseCases\GetAuthenticatedUser;
 use Modules\Auth\Application\UseCases\LoginUser;
 use Modules\Auth\Application\UseCases\LogoutUser;
+use Modules\Auth\Application\UseCases\RefreshToken;
 use Modules\Auth\Application\UseCases\RegisterUser;
+use Modules\Auth\Application\UseCases\ResetPassword;
 use Modules\Auth\Infrastructure\Persistence\EloquentAuthUserRepository;
 
 class AuthModuleServiceProvider extends ServiceProvider
@@ -93,6 +102,17 @@ class AuthModuleServiceProvider extends ServiceProvider
             );
         });
 
+        // Token refresh service (token-rotation pattern)
+        $this->app->bind(RefreshTokenServiceInterface::class, function ($app) {
+            return new RefreshTokenService(
+                $app->make(TokenServiceInterface::class),
+            );
+        });
+
+        // Password reset services
+        $this->app->bind(ForgotPasswordServiceInterface::class, ForgotPasswordService::class);
+        $this->app->bind(ResetPasswordServiceInterface::class, ResetPasswordService::class);
+
         // SSO service
         $this->app->bind(SsoServiceInterface::class, function ($app) {
             return new SsoService(
@@ -117,6 +137,24 @@ class AuthModuleServiceProvider extends ServiceProvider
             return new RegisterUser(
                 $app->make(RegisterUserServiceInterface::class),
                 $app->make(LoginServiceInterface::class),
+            );
+        });
+
+        $this->app->bind(RefreshToken::class, function ($app) {
+            return new RefreshToken(
+                $app->make(RefreshTokenServiceInterface::class),
+            );
+        });
+
+        $this->app->bind(ForgotPassword::class, function ($app) {
+            return new ForgotPassword(
+                $app->make(ForgotPasswordServiceInterface::class),
+            );
+        });
+
+        $this->app->bind(ResetPassword::class, function ($app) {
+            return new ResetPassword(
+                $app->make(ResetPasswordServiceInterface::class),
             );
         });
 
