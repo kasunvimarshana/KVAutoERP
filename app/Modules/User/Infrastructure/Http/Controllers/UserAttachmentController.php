@@ -2,8 +2,9 @@
 
 namespace Modules\User\Infrastructure\Http\Controllers;
 
-use Modules\User\Application\Services\UploadUserAttachmentService;
-use Modules\User\Application\Services\DeleteUserAttachmentService;
+use Modules\User\Application\Contracts\UploadUserAttachmentServiceInterface;
+use Modules\User\Application\Contracts\DeleteUserAttachmentServiceInterface;
+use Modules\User\Domain\Entities\User;
 use Modules\User\Domain\RepositoryInterfaces\UserAttachmentRepositoryInterface;
 use Modules\User\Infrastructure\Http\Requests\UploadUserAttachmentRequest;
 use Modules\User\Infrastructure\Http\Resources\UserAttachmentResource;
@@ -14,13 +15,14 @@ use Illuminate\Routing\Controller;
 class UserAttachmentController extends Controller
 {
     public function __construct(
-        protected UploadUserAttachmentService $uploadService,
-        protected DeleteUserAttachmentService $deleteService,
+        protected UploadUserAttachmentServiceInterface $uploadService,
+        protected DeleteUserAttachmentServiceInterface $deleteService,
         protected UserAttachmentRepositoryInterface $attachmentRepo
     ) {}
 
     public function index(int $userId, Request $request)
     {
+        $this->authorize('viewAttachments', User::class);
         $type = $request->query('type');
         $attachments = $this->attachmentRepo->getByUser($userId, $type);
         return UserAttachmentResource::collection($attachments);
@@ -28,6 +30,7 @@ class UserAttachmentController extends Controller
 
     public function store(UploadUserAttachmentRequest $request, int $userId): UserAttachmentResource
     {
+        $this->authorize('uploadAttachment', User::class);
         $file = $request->file('file');
         $fileInfo = [
             'tmp_path'  => $file->getPathname(),
@@ -46,6 +49,7 @@ class UserAttachmentController extends Controller
 
     public function destroy(int $userId, int $attachmentId): JsonResponse
     {
+        $this->authorize('deleteAttachment', User::class);
         $this->deleteService->execute(['attachment_id' => $attachmentId]);
         return response()->json(['message' => 'Attachment deleted successfully']);
     }
@@ -56,6 +60,7 @@ class UserAttachmentController extends Controller
         if (!$attachment) {
             abort(404);
         }
+        $this->authorize('view', $attachment);
         return response()->file(storage_path("app/public/{$attachment->getFilePath()}"));
     }
 }

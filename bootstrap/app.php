@@ -13,7 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'resolve.tenant' => \Modules\Core\Infrastructure\Http\Middleware\ResolveTenant::class,
+            'resolve.tenant' => \Modules\Tenant\Infrastructure\Http\Middleware\ResolveTenant::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
