@@ -23,6 +23,12 @@ class ResolveTenant
             throw new BadRequestHttpException('Tenant ID is required.');
         }
 
+        // Validate that the tenant ID is a positive integer to prevent injection attacks
+        $tenantId = filter_var($tenantId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($tenantId === false) {
+            throw new BadRequestHttpException('Tenant ID must be a valid positive integer.');
+        }
+
         // Attach tenant ID to request for later use
         $request->merge(['tenant_id' => $tenantId]);
         app()->instance('current_tenant_id', $tenantId);

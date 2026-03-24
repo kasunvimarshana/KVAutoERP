@@ -49,13 +49,13 @@ class TenantServiceProvider extends ServiceProvider
             return new UploadTenantAttachmentService(
                 $app->make(TenantRepositoryInterface::class),
                 $app->make(TenantAttachmentRepositoryInterface::class),
-                $app->make(\Modules\Core\Application\Services\FileStorageServiceInterface::class)
+                $app->make(\Modules\Core\Application\Contracts\FileStorageServiceInterface::class)
             );
         });
         $this->app->bind(DeleteTenantAttachmentServiceInterface::class, function ($app) {
             return new DeleteTenantAttachmentService(
                 $app->make(TenantAttachmentRepositoryInterface::class),
-                $app->make(\Modules\Core\Application\Services\FileStorageServiceInterface::class)
+                $app->make(\Modules\Core\Application\Contracts\FileStorageServiceInterface::class)
             );
         });
     }

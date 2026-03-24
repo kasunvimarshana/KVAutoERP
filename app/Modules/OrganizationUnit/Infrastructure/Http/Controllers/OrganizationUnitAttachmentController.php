@@ -6,7 +6,7 @@ use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachm
 use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitAttachmentRepositoryInterface;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
-use Modules\Core\Application\Services\FileStorageServiceInterface;
+use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\OrganizationUnit\Infrastructure\Http\Requests\UploadOrganizationUnitAttachmentRequest;
 use Modules\OrganizationUnit\Infrastructure\Http\Resources\OrganizationUnitAttachmentResource;
 use Illuminate\Http\JsonResponse;

@@ -49,13 +49,13 @@ class OrganizationUnitServiceProvider extends ServiceProvider
             return new UploadOrganizationUnitAttachmentService(
                 $app->make(OrganizationUnitRepositoryInterface::class),
                 $app->make(OrganizationUnitAttachmentRepositoryInterface::class),
-                $app->make(\Modules\Core\Application\Services\FileStorageServiceInterface::class)
+                $app->make(\Modules\Core\Application\Contracts\FileStorageServiceInterface::class)
             );
         });
         $this->app->bind(DeleteOrganizationUnitAttachmentServiceInterface::class, function ($app) {
             return new DeleteOrganizationUnitAttachmentService(
                 $app->make(OrganizationUnitAttachmentRepositoryInterface::class),
-                $app->make(\Modules\Core\Application\Services\FileStorageServiceInterface::class)
+                $app->make(\Modules\Core\Application\Contracts\FileStorageServiceInterface::class)
             );
         });
     }

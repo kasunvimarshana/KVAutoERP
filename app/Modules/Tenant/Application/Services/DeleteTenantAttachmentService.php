@@ -4,7 +4,7 @@ namespace Modules\Tenant\Application\Services;
 
 use Modules\Core\Application\Services\BaseService;
 use Modules\Tenant\Domain\RepositoryInterfaces\TenantAttachmentRepositoryInterface;
-use Modules\Core\Application\Services\FileStorageServiceInterface;
+use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\Tenant\Domain\Exceptions\AttachmentNotFoundException;
 use Modules\Tenant\Application\Contracts\DeleteTenantAttachmentServiceInterface;
 

@@ -29,6 +29,12 @@ use Modules\OrganizationUnit\Application\Contracts\MoveOrganizationUnitServiceIn
 use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitAttachmentServiceInterface;
 
+// Core contracts
+use Modules\Core\Application\Contracts\FileStorageServiceInterface;
+use Modules\Core\Application\Contracts\ReadServiceInterface;
+use Modules\Core\Application\Contracts\ServiceInterface;
+use Modules\Core\Application\Contracts\WriteServiceInterface;
+
 // Tenant infrastructure
 use Modules\Tenant\Infrastructure\Http\Middleware\ResolveTenant;
 use Modules\Tenant\Infrastructure\Services\TenantConfig;
@@ -112,5 +118,41 @@ class ServiceContractsTest extends TestCase
         $path = dirname(__DIR__, 2)
             . '/app/Modules/Tenant/Domain/Contracts/TenantConfigRepositoryInterface.php';
         $this->assertFalse(file_exists($path), 'TenantConfigRepositoryInterface should have been removed.');
+    }
+
+    /**
+     * Verify FileStorageServiceInterface exists in the correct Contracts namespace (not Services).
+     */
+    public function test_file_storage_service_interface_in_correct_namespace(): void
+    {
+        $this->assertTrue(interface_exists(FileStorageServiceInterface::class));
+
+        $path = dirname(__DIR__, 2)
+            . '/app/Modules/Core/Application/Contracts/FileStorageServiceInterface.php';
+        $this->assertTrue(file_exists($path), 'FileStorageServiceInterface must be in Application/Contracts/.');
+
+        $wrongPath = dirname(__DIR__, 2)
+            . '/app/Modules/Core/Application/Services/FileStorageServiceInterface.php';
+        $this->assertFalse(file_exists($wrongPath), 'FileStorageServiceInterface must NOT remain in Application/Services/.');
+    }
+
+    /**
+     * Verify the ReadServiceInterface exists and ServiceInterface correctly extends it.
+     */
+    public function test_read_service_interface_exists_and_service_interface_extends_it(): void
+    {
+        $this->assertTrue(interface_exists(ReadServiceInterface::class));
+        $this->assertTrue(interface_exists(WriteServiceInterface::class));
+        $this->assertTrue(interface_exists(ServiceInterface::class));
+
+        // ServiceInterface must extend both ReadServiceInterface and WriteServiceInterface
+        $this->assertTrue(
+            is_subclass_of(ServiceInterface::class, ReadServiceInterface::class, true),
+            'ServiceInterface must extend ReadServiceInterface.'
+        );
+        $this->assertTrue(
+            is_subclass_of(ServiceInterface::class, WriteServiceInterface::class, true),
+            'ServiceInterface must extend WriteServiceInterface.'
+        );
     }
 }
