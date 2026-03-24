@@ -5,7 +5,7 @@ namespace Modules\User\Application\Contracts;
 use Modules\Core\Application\Contracts\WriteServiceInterface;
 
 /**
- * @method void execute(array $data = [])
+ * @method null execute(array $data = [])
  */
 interface AssignRoleServiceInterface extends WriteServiceInterface
 {

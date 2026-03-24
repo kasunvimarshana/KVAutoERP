@@ -4,6 +4,7 @@ namespace Modules\Core\Application\Services;
 
 use Modules\Core\Application\Contracts\ServiceInterface;
 use Modules\Core\Domain\Contracts\Repositories\RepositoryInterface;
+use Modules\Core\Domain\Exceptions\NotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 
@@ -119,7 +120,7 @@ abstract class BaseService implements ServiceInterface
     {
         $model = $this->repository->find($id);
         if (!$model) {
-            throw new \RuntimeException('Record not found');
+            throw new NotFoundException('Record', $id);
         }
         $this->repository->update($id, $data);
         return $this->repository->find($id);

@@ -2,7 +2,6 @@
 
 namespace Modules\Tenant\Infrastructure\Services;
 
-use Modules\Tenant\Application\Services\TenantConfigManager;
 use Modules\Tenant\Domain\Contracts\TenantConfigInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;

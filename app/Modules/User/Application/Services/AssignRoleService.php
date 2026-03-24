@@ -7,6 +7,8 @@ use Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface;
 use Modules\User\Domain\RepositoryInterfaces\RoleRepositoryInterface;
 use Modules\User\Domain\Events\RoleAssigned;
 use Modules\User\Domain\Exceptions\UserNotFoundException;
+use Modules\User\Domain\Exceptions\RoleNotFoundException;
+use Modules\Core\Domain\Exceptions\DomainException;
 use Modules\User\Application\Contracts\AssignRoleServiceInterface;
 
 class AssignRoleService extends BaseService implements AssignRoleServiceInterface
@@ -32,10 +34,10 @@ class AssignRoleService extends BaseService implements AssignRoleServiceInterfac
         }
         $role = $this->roleRepo->find($roleId);
         if (!$role) {
-            throw new \RuntimeException('Role not found');
+            throw new RoleNotFoundException($roleId);
         }
         if ($role->getTenantId() !== $user->getTenantId()) {
-            throw new \RuntimeException('Role does not belong to the same tenant');
+            throw new DomainException('Role does not belong to the same tenant');
         }
 
         $user->assignRole($role);

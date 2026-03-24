@@ -3,7 +3,6 @@
 namespace Modules\Tenant\Infrastructure\Http\Controllers;
 
 use Modules\Core\Infrastructure\Http\Controllers\BaseController;
-use Modules\Core\Application\Contracts\ServiceInterface;
 use Modules\Tenant\Application\Contracts\CreateTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\DeleteTenantServiceInterface;
