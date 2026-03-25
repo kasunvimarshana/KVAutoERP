@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Broadcast;
 use Modules\Core\Infrastructure\Broadcasting\Channels\OrgUnitChannel;
+use Modules\Core\Infrastructure\Broadcasting\Channels\PresenceOrgUnitChannel;
+use Modules\Core\Infrastructure\Broadcasting\Channels\PresenceTenantChannel;
 use Modules\Core\Infrastructure\Broadcasting\Channels\TenantChannel;
 use Modules\Core\Infrastructure\Broadcasting\Channels\UserChannel;
 
@@ -29,6 +31,12 @@ Broadcast::channel('tenant.{tenantId}', [TenantChannel::class, 'join']);
 
 // Private channel scoped to a single organization unit.
 Broadcast::channel('org.{orgUnitId}', [OrgUnitChannel::class, 'join']);
+
+// Presence channel scoped to a single tenant — exposes the member list.
+Broadcast::channel('presence-tenant.{tenantId}', [PresenceTenantChannel::class, 'join']);
+
+// Presence channel scoped to a single organization unit — exposes the member list.
+Broadcast::channel('presence-org.{orgUnitId}', [PresenceOrgUnitChannel::class, 'join']);
 
 // Legacy default user-model channel (kept for compatibility).
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {

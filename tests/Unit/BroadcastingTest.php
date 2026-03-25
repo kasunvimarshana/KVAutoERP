@@ -5,8 +5,14 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use Illuminate\Broadcasting\PrivateChannel;
+use Modules\Auth\Domain\Events\UserLoggedIn;
+use Modules\Auth\Domain\Events\UserLoggedOut;
+use Modules\Auth\Domain\Events\UserRegistered;
 use Modules\Core\Domain\Events\BaseEvent;
+use Modules\Core\Domain\Events\UserScopedEvent;
 use Modules\Core\Infrastructure\Broadcasting\Channels\OrgUnitChannel;
+use Modules\Core\Infrastructure\Broadcasting\Channels\PresenceOrgUnitChannel;
+use Modules\Core\Infrastructure\Broadcasting\Channels\PresenceTenantChannel;
 use Modules\Core\Infrastructure\Broadcasting\Channels\TenantChannel;
 use Modules\Core\Infrastructure\Broadcasting\Channels\UserChannel;
 use Modules\Core\Infrastructure\Broadcasting\Contracts\BroadcastServiceInterface;
@@ -288,7 +294,233 @@ class BroadcastingTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // 10. UserScopedEvent — auth events broadcast on the user channel
+    // -----------------------------------------------------------------------
+
+    public function test_user_scoped_event_class_exists(): void
+    {
+        $this->assertTrue(class_exists(UserScopedEvent::class));
+    }
+
+    public function test_user_scoped_event_implements_should_broadcast(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(UserScopedEvent::class, \Illuminate\Contracts\Broadcasting\ShouldBroadcast::class, true),
+        );
+    }
+
+    public function test_user_logged_in_extends_user_scoped_event(): void
+    {
+        $this->assertTrue(is_subclass_of(UserLoggedIn::class, UserScopedEvent::class));
+    }
+
+    public function test_user_logged_out_extends_user_scoped_event(): void
+    {
+        $this->assertTrue(is_subclass_of(UserLoggedOut::class, UserScopedEvent::class));
+    }
+
+    public function test_user_registered_extends_user_scoped_event(): void
+    {
+        $this->assertTrue(is_subclass_of(UserRegistered::class, UserScopedEvent::class));
+    }
+
+    public function test_user_logged_in_broadcasts_on_private_user_channel(): void
+    {
+        $event = new UserLoggedIn(99, 'alice@example.com', '127.0.0.1');
+        $channels = $event->broadcastOn();
+
+        $this->assertCount(1, $channels);
+        $this->assertInstanceOf(PrivateChannel::class, $channels[0]);
+        $this->assertSame('private-user.99', $channels[0]->name);
+    }
+
+    public function test_user_logged_in_broadcast_with_returns_expected_keys(): void
+    {
+        $event = new UserLoggedIn(7, 'bob@example.com', '10.0.0.1', 'Mozilla/5.0');
+        $payload = $event->broadcastWith();
+
+        $this->assertArrayHasKey('userId', $payload);
+        $this->assertArrayHasKey('email', $payload);
+        $this->assertArrayHasKey('ipAddress', $payload);
+        $this->assertSame(7, $payload['userId']);
+        $this->assertSame('bob@example.com', $payload['email']);
+    }
+
+    public function test_user_logged_out_broadcast_with_returns_expected_keys(): void
+    {
+        $event = new UserLoggedOut(3, 'carol@example.com');
+        $payload = $event->broadcastWith();
+
+        $this->assertArrayHasKey('userId', $payload);
+        $this->assertArrayHasKey('email', $payload);
+        $this->assertSame(3, $payload['userId']);
+    }
+
+    public function test_user_registered_broadcast_with_returns_expected_keys(): void
+    {
+        $event = new UserRegistered(12, 'dave@example.com', 'Dave', 'Smith');
+        $payload = $event->broadcastWith();
+
+        $this->assertArrayHasKey('userId', $payload);
+        $this->assertArrayHasKey('email', $payload);
+        $this->assertArrayHasKey('firstName', $payload);
+        $this->assertArrayHasKey('lastName', $payload);
+    }
+
+    public function test_user_scoped_event_broadcast_as_returns_short_class_name(): void
+    {
+        $event = new UserLoggedIn(1, 'x@x.com');
+        $this->assertSame('UserLoggedIn', $event->broadcastAs());
+    }
+
+    // -----------------------------------------------------------------------
+    // 11. BaseEvent::broadcastWith() base payload
+    // -----------------------------------------------------------------------
+
+    public function test_base_event_broadcast_with_contains_tenant_id(): void
+    {
+        $event = $this->makeConcreteBaseEvent(tenantId: 5);
+        $payload = $event->broadcastWith();
+
+        $this->assertArrayHasKey('tenantId', $payload);
+        $this->assertSame(5, $payload['tenantId']);
+    }
+
+    public function test_base_event_broadcast_with_contains_org_unit_id(): void
+    {
+        $event = $this->makeConcreteBaseEvent(tenantId: 2, orgUnitId: 8);
+        $payload = $event->broadcastWith();
+
+        $this->assertArrayHasKey('orgUnitId', $payload);
+        $this->assertSame(8, $payload['orgUnitId']);
+    }
+
+    public function test_base_event_broadcast_with_org_unit_id_null_when_not_set(): void
+    {
+        $event = $this->makeConcreteBaseEvent(tenantId: 1);
+        $payload = $event->broadcastWith();
+
+        $this->assertArrayHasKey('orgUnitId', $payload);
+        $this->assertNull($payload['orgUnitId']);
+    }
+
+    // -----------------------------------------------------------------------
+    // 12. PresenceTenantChannel authorization logic
+    // -----------------------------------------------------------------------
+
+    public function test_presence_tenant_channel_class_exists(): void
+    {
+        $this->assertTrue(class_exists(PresenceTenantChannel::class));
+    }
+
+    public function test_presence_tenant_channel_has_join_method(): void
+    {
+        $this->assertTrue(method_exists(PresenceTenantChannel::class, 'join'));
+    }
+
+    public function test_presence_tenant_channel_returns_user_data_for_matching_tenant(): void
+    {
+        $channel = new PresenceTenantChannel();
+        $user = $this->makePresenceUser(id: 10, tenantId: 3);
+
+        $result = $channel->join($user, 3);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('id', $result);
+        $this->assertSame(10, $result['id']);
+    }
+
+    public function test_presence_tenant_channel_returns_false_for_wrong_tenant(): void
+    {
+        $channel = new PresenceTenantChannel();
+        $user = $this->makePresenceUser(id: 1, tenantId: 2);
+
+        $this->assertFalse($channel->join($user, 99));
+    }
+
+    public function test_presence_tenant_channel_returns_false_without_tenant_id(): void
+    {
+        $channel = new PresenceTenantChannel();
+        $user = $this->makeAuthUser(1); // no tenant_id
+
+        $this->assertFalse($channel->join($user, 1));
+    }
+
+    // -----------------------------------------------------------------------
+    // 13. PresenceOrgUnitChannel authorization logic
+    // -----------------------------------------------------------------------
+
+    public function test_presence_org_unit_channel_class_exists(): void
+    {
+        $this->assertTrue(class_exists(PresenceOrgUnitChannel::class));
+    }
+
+    public function test_presence_org_unit_channel_has_join_method(): void
+    {
+        $this->assertTrue(method_exists(PresenceOrgUnitChannel::class, 'join'));
+    }
+
+    public function test_presence_org_unit_channel_returns_user_data_for_matching_org_unit(): void
+    {
+        $channel = new PresenceOrgUnitChannel();
+        $user = $this->makePresenceUser(id: 5, tenantId: 1, orgUnitId: 20);
+
+        $result = $channel->join($user, 20);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('id', $result);
+        $this->assertSame(5, $result['id']);
+    }
+
+    public function test_presence_org_unit_channel_returns_false_for_wrong_org_unit(): void
+    {
+        $channel = new PresenceOrgUnitChannel();
+        $user = $this->makePresenceUser(id: 1, tenantId: 1, orgUnitId: 5);
+
+        $this->assertFalse($channel->join($user, 99));
+    }
+
+    public function test_presence_org_unit_channel_returns_false_without_org_unit_id(): void
+    {
+        $channel = new PresenceOrgUnitChannel();
+        $user = $this->makeAuthUser(1, tenantId: 2); // no organization_unit_id
+
+        $this->assertFalse($channel->join($user, 1));
+    }
+
+    // -----------------------------------------------------------------------
     // Helpers
+    // -----------------------------------------------------------------------
+
+    /** Create a minimal Authenticatable stub with optional name for presence tests. */
+    private function makePresenceUser(
+        int $id,
+        ?int $tenantId = null,
+        ?int $orgUnitId = null,
+        string $name = 'Test User',
+    ): \Illuminate\Contracts\Auth\Authenticatable {
+        $user = new class ($id, $tenantId, $orgUnitId, $name) implements \Illuminate\Contracts\Auth\Authenticatable {
+            public function __construct(
+                private int $id,
+                public ?int $tenant_id,
+                public ?int $organization_unit_id,
+                public string $name,
+            ) {}
+
+            public function getAuthIdentifierName(): string { return 'id'; }
+            public function getAuthIdentifier(): mixed { return $this->id; }
+            public function getAuthPasswordName(): string { return 'password'; }
+            public function getAuthPassword(): string { return ''; }
+            public function getRememberToken(): string { return ''; }
+            public function setRememberToken($value): void {}
+            public function getRememberTokenName(): string { return 'remember_token'; }
+        };
+
+        return $user;
+    }
+
+    // -----------------------------------------------------------------------
+    // Helpers (original)
     // -----------------------------------------------------------------------
 
     /** Create a minimal Authenticatable stub. */
