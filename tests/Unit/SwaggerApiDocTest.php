@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use Modules\Core\Infrastructure\ApiDoc\Contracts\ApiDocServiceInterface;
 use Modules\Core\Infrastructure\ApiDoc\OpenApiSpec;
 use Modules\Core\Infrastructure\ApiDoc\Services\SwaggerApiDocService;
+use Modules\Core\Infrastructure\Http\Controllers\HealthController;
 use Modules\Auth\Infrastructure\Http\Controllers\AuthController;
 use Modules\OrganizationUnit\Infrastructure\Http\Controllers\OrganizationUnitAttachmentController;
 use Modules\OrganizationUnit\Infrastructure\Http\Controllers\OrganizationUnitController;
@@ -123,6 +124,7 @@ class SwaggerApiDocTest extends TestCase
         );
 
         $expectedTags = [
+            'Health',
             'Auth',
             'Users',
             'Roles',
@@ -177,6 +179,14 @@ class SwaggerApiDocTest extends TestCase
     }
 
     // ── Per-controller OA annotation coverage ────────────────────────────────
+
+    /**
+     * Verify HealthController check method is annotated with an OA operation.
+     */
+    public function test_health_controller_check_method_has_oa_annotation(): void
+    {
+        $this->assertControllerMethodsHaveOaAnnotations(HealthController::class, ['check']);
+    }
 
     /**
      * Verify AuthController methods are annotated with OA operations.
