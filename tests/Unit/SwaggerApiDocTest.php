@@ -327,6 +327,133 @@ class SwaggerApiDocTest extends TestCase
         $this->assertNotEmpty($info->version, 'OA\Info version must not be empty.');
     }
 
+    // ── Schema accuracy ───────────────────────────────────────────────────────
+
+    /**
+     * Verify UserPreferencesObject schema uses the actual domain fields
+     * (language, timezone, notifications) not legacy stubs.
+     */
+    public function test_user_preferences_schema_has_correct_fields(): void
+    {
+        $reflection = new \ReflectionClass(OpenApiSpec::class);
+        $schemaAttributes = $reflection->getAttributes(OA\Schema::class);
+
+        $prefSchema = null;
+        foreach ($schemaAttributes as $attr) {
+            $instance = $attr->newInstance();
+            if ($instance->schema === 'UserPreferencesObject') {
+                $prefSchema = $instance;
+                break;
+            }
+        }
+
+        $this->assertNotNull($prefSchema, 'UserPreferencesObject schema must exist.');
+
+        $propertyNames = array_map(
+            fn (OA\Property $p) => $p->property,
+            $prefSchema->properties,
+        );
+
+        $this->assertContains('language',      $propertyNames, "UserPreferencesObject must have 'language' property.");
+        $this->assertContains('timezone',      $propertyNames, "UserPreferencesObject must have 'timezone' property.");
+        $this->assertContains('notifications', $propertyNames, "UserPreferencesObject must have 'notifications' property.");
+
+        $this->assertNotContains('locale', $propertyNames, "UserPreferencesObject must not have legacy 'locale' property.");
+        $this->assertNotContains('theme',  $propertyNames, "UserPreferencesObject must not have legacy 'theme' property.");
+    }
+
+    // ── Store endpoints return HTTP 201 ───────────────────────────────────────
+
+    /**
+     * Verify that every store/create operation documents a 201 Created response.
+     *
+     * @dataProvider storeOperationProvider
+     */
+    public function test_store_operations_document_201_response(string $controllerClass, string $method): void
+    {
+        $reflection = new \ReflectionClass($controllerClass);
+        $this->assertTrue($reflection->hasMethod($method), "{$controllerClass}::{$method} must exist.");
+
+        $methodRef = $reflection->getMethod($method);
+
+        $oaPostAttrs = $methodRef->getAttributes(OA\Post::class);
+        $this->assertNotEmpty($oaPostAttrs, "{$controllerClass}::{$method} must carry an #[OA\\Post] attribute.");
+
+        /** @var OA\Post $post */
+        $post = $oaPostAttrs[0]->newInstance();
+
+        $responseCodes = array_map(
+            fn (OA\Response $r) => (int) $r->response,
+            $post->responses,
+        );
+
+        $this->assertContains(
+            201,
+            $responseCodes,
+            "{$controllerClass}::{$method} must document a 201 Created response.",
+        );
+    }
+
+    /**
+     * @return array<string, array{0: class-string, 1: string}>
+     */
+    public static function storeOperationProvider(): array
+    {
+        return [
+            'UserController::store'             => [UserController::class,             'store'],
+            'TenantController::store'           => [TenantController::class,           'store'],
+            'OrganizationUnitController::store' => [OrganizationUnitController::class, 'store'],
+            'RoleController::store'             => [RoleController::class,             'store'],
+            'PermissionController::store'       => [PermissionController::class,       'store'],
+        ];
+    }
+
+    // ── Request body accuracy ─────────────────────────────────────────────────
+
+    /**
+     * Verify TenantController::store documents database_config as a required field.
+     */
+    public function test_tenant_store_documents_database_config(): void
+    {
+        $jsonContent = $this->getStoreRequestBodyContent(TenantController::class);
+
+        $this->assertNotNull($jsonContent, 'TenantController::store must have a JSON request body.');
+
+        $required = $jsonContent->required ?? [];
+        $this->assertContains(
+            'database_config',
+            $required,
+            "TenantController::store requestBody must list 'database_config' as required.",
+        );
+    }
+
+    /**
+     * Verify UserController::store does not document password/password_confirmation
+     * (those fields are only for authentication registration, not admin user creation).
+     */
+    public function test_user_store_does_not_document_password_fields(): void
+    {
+        $jsonContent = $this->getStoreRequestBodyContent(UserController::class);
+
+        $this->assertNotNull($jsonContent, 'UserController::store must have a JSON request body.');
+
+        $propertyNames = array_map(
+            fn (OA\Property $p) => $p->property,
+            $jsonContent->properties ?? [],
+        );
+
+        $this->assertNotContains(
+            'password',
+            $propertyNames,
+            "UserController::store must not document a 'password' field (not a validation rule for admin user creation).",
+        );
+        $this->assertNotContains(
+            'password_confirmation',
+            $propertyNames,
+            "UserController::store must not document a 'password_confirmation' field.",
+        );
+    }
+
     // ── l5-swagger config ─────────────────────────────────────────────────────
 
     /**
@@ -406,5 +533,42 @@ class SwaggerApiDocTest extends TestCase
                 "Method {$controllerClass}::{$methodName} must have an OA HTTP-operation attribute.",
             );
         }
+    }
+
+    /**
+     * Retrieve the OA\JsonContent from the store() method's OA\Post requestBody.
+     *
+     * The l5-swagger attribute system stores the JsonContent in the internal
+     * `_unmerged` array of the RequestBody object rather than the `content` property.
+     */
+    private function getStoreRequestBodyContent(string $controllerClass): ?OA\JsonContent
+    {
+        $reflection = new \ReflectionClass($controllerClass);
+        $methodRef  = $reflection->getMethod('store');
+
+        $oaPostAttrs = $methodRef->getAttributes(OA\Post::class);
+        if (empty($oaPostAttrs)) {
+            return null;
+        }
+
+        /** @var OA\Post $post */
+        $post = $oaPostAttrs[0]->newInstance();
+
+        if (! $post->requestBody instanceof OA\RequestBody) {
+            return null;
+        }
+
+        $rbRef       = new \ReflectionObject($post->requestBody);
+        $unmergedProp = $rbRef->getProperty('_unmerged');
+        $unmergedProp->setAccessible(true);
+        $unmerged = $unmergedProp->getValue($post->requestBody);
+
+        foreach ($unmerged as $item) {
+            if ($item instanceof OA\JsonContent) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 }
