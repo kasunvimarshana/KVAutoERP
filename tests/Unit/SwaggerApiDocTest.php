@@ -605,6 +605,127 @@ class SwaggerApiDocTest extends TestCase
         }
     }
 
+    // ── Versioning strategy documentation ────────────────────────────────────
+
+    /**
+     * Verify the OA\Info description documents the versioning strategy.
+     * The description must mention semantic versioning (semver) so that
+     * API consumers know how future releases are communicated.
+     */
+    public function test_open_api_info_description_documents_versioning_strategy(): void
+    {
+        $reflection = new \ReflectionClass(OpenApiSpec::class);
+        $attributes = $reflection->getAttributes(OA\Info::class);
+
+        $this->assertNotEmpty($attributes, 'OpenApiSpec must carry an #[OA\Info] attribute.');
+
+        /** @var OA\Info $info */
+        $info = $attributes[0]->newInstance();
+
+        $this->assertNotEmpty($info->description, 'OA\Info description must not be empty.');
+
+        // Versioning strategy must be mentioned in the description.
+        $lowerDesc = strtolower((string) $info->description);
+        $this->assertTrue(
+            str_contains($lowerDesc, 'versioning') || str_contains($lowerDesc, 'semver'),
+            'OA\Info description must document the API versioning strategy.',
+        );
+    }
+
+    /**
+     * Verify the OA\Info description explains how breaking changes (major versions)
+     * are handled (i.e. a new URL path prefix is introduced for backward compatibility).
+     */
+    public function test_open_api_info_description_explains_major_version_strategy(): void
+    {
+        $reflection = new \ReflectionClass(OpenApiSpec::class);
+        $attributes = $reflection->getAttributes(OA\Info::class);
+
+        $this->assertNotEmpty($attributes);
+
+        /** @var OA\Info $info */
+        $info = $attributes[0]->newInstance();
+
+        $lowerDesc = strtolower((string) $info->description);
+
+        // The description must indicate that breaking changes introduce a new URL
+        // path prefix so that both old and new versions remain accessible.
+        $this->assertTrue(
+            (str_contains($lowerDesc, 'major') && (str_contains($lowerDesc, 'path') || str_contains($lowerDesc, 'url')))
+            || str_contains($lowerDesc, 'breaking'),
+            'OA\Info description must explain the major-version / breaking-change strategy.',
+        );
+    }
+
+    // ── Additional l5-swagger configurability ────────────────────────────────
+
+    /**
+     * Verify that validator_url in l5-swagger config is driven by an environment
+     * variable so operators can enable or disable Swagger UI request validation
+     * without touching the config file.
+     */
+    public function test_l5_swagger_config_validator_url_is_env_driven(): void
+    {
+        $configPath = dirname(__DIR__, 2).'/config/l5-swagger.php';
+        $contents = (string) file_get_contents($configPath);
+
+        $this->assertStringContainsString(
+            'L5_SWAGGER_VALIDATOR_URL',
+            $contents,
+            "config/l5-swagger.php must drive 'validator_url' from the L5_SWAGGER_VALIDATOR_URL env variable.",
+        );
+    }
+
+    /**
+     * Verify that additional_config_url in l5-swagger config is driven by an
+     * environment variable so operators can point to an external Swagger UI
+     * config without touching the config file.
+     */
+    public function test_l5_swagger_config_additional_config_url_is_env_driven(): void
+    {
+        $configPath = dirname(__DIR__, 2).'/config/l5-swagger.php';
+        $contents = (string) file_get_contents($configPath);
+
+        $this->assertStringContainsString(
+            'L5_SWAGGER_ADDITIONAL_CONFIG_URL',
+            $contents,
+            "config/l5-swagger.php must drive 'additional_config_url' from the L5_SWAGGER_ADDITIONAL_CONFIG_URL env variable.",
+        );
+    }
+
+    /**
+     * Verify .env.example documents the L5_SWAGGER_VALIDATOR_URL and
+     * L5_SWAGGER_ADDITIONAL_CONFIG_URL variables for operator awareness.
+     */
+    public function test_env_example_documents_swagger_configurability_variables(): void
+    {
+        $envPath = dirname(__DIR__, 2).'/.env.example';
+        $this->assertFileExists($envPath, '.env.example must exist.');
+
+        $contents = (string) file_get_contents($envPath);
+
+        foreach (['L5_SWAGGER_VALIDATOR_URL', 'L5_SWAGGER_ADDITIONAL_CONFIG_URL'] as $var) {
+            $this->assertStringContainsString($var, $contents,
+                ".env.example must document the {$var} variable.");
+        }
+    }
+
+    /**
+     * Verify .env.example includes documentation about L5_SWAGGER_GENERATE_ALWAYS
+     * so developers know to set it to true in local environments.
+     */
+    public function test_env_example_documents_generate_always_variable(): void
+    {
+        $envPath = dirname(__DIR__, 2).'/.env.example';
+        $contents = (string) file_get_contents($envPath);
+
+        $this->assertStringContainsString(
+            'L5_SWAGGER_GENERATE_ALWAYS',
+            $contents,
+            ".env.example must document the L5_SWAGGER_GENERATE_ALWAYS variable.",
+        );
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     /**
