@@ -15,6 +15,7 @@ use Modules\User\Infrastructure\Http\Controllers\RoleController;
 use Modules\User\Infrastructure\Http\Controllers\UserAttachmentController;
 use Modules\User\Infrastructure\Http\Controllers\UserController;
 use OpenApi\Attributes as OA;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class SwaggerApiDocTest extends TestCase
@@ -366,9 +367,8 @@ class SwaggerApiDocTest extends TestCase
 
     /**
      * Verify that every store/create operation documents a 201 Created response.
-     *
-     * @dataProvider storeOperationProvider
      */
+    #[DataProvider('storeOperationProvider')]
     public function test_store_operations_document_201_response(string $controllerClass, string $method): void
     {
         $reflection = new \ReflectionClass($controllerClass);
