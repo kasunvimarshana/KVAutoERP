@@ -24,7 +24,10 @@ use OpenApi\Attributes as OA;
 )]
 
 // ── Server ────────────────────────────────────────────────────────────────────
-#[OA\Server(url: 'http://localhost', description: 'API Server')]
+// L5_SWAGGER_CONST_HOST is defined by l5-swagger before scanning (see config/l5-swagger.php
+// → defaults.constants). It reads the L5_SWAGGER_CONST_HOST env variable and falls back to
+// APP_URL, so the generated spec always reflects the correct environment-specific base URL.
+#[OA\Server(url: L5_SWAGGER_CONST_HOST, description: 'API Server')]
 
 // ── Security Scheme ───────────────────────────────────────────────────────────
 #[OA\SecurityScheme(
