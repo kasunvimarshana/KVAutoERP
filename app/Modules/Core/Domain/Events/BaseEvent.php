@@ -55,4 +55,20 @@ abstract class BaseEvent implements ShouldBroadcast
 
         return end($parts);
     }
+
+    /**
+     * Base broadcast payload containing tenant and org-unit context.
+     *
+     * Subclasses should call parent::broadcastWith() and merge their own
+     * domain-specific fields to ensure a consistent envelope.
+     *
+     * @return array<string, mixed>
+     */
+    public function broadcastWith(): array
+    {
+        return [
+            'tenantId'  => $this->tenantId,
+            'orgUnitId' => $this->orgUnitId,
+        ];
+    }
 }
