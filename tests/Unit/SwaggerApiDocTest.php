@@ -490,6 +490,121 @@ class SwaggerApiDocTest extends TestCase
         );
     }
 
+    /**
+     * Verify l5-swagger config maps L5_SWAGGER_CONST_HOST to APP_URL so the
+     * generated OpenAPI server URL is driven by an environment variable.
+     */
+    public function test_l5_swagger_config_maps_const_host_to_app_url(): void
+    {
+        $configPath = dirname(__DIR__, 2).'/config/l5-swagger.php';
+        $contents = (string) file_get_contents($configPath);
+
+        // The constants section must define L5_SWAGGER_CONST_HOST and derive
+        // its value from the L5_SWAGGER_CONST_HOST / APP_URL env variables.
+        $this->assertStringContainsString('L5_SWAGGER_CONST_HOST', $contents,
+            "config/l5-swagger.php must define the L5_SWAGGER_CONST_HOST constant.");
+        $this->assertTrue(
+            str_contains($contents, "env('APP_URL'") || str_contains($contents, 'env("APP_URL"'),
+            "The L5_SWAGGER_CONST_HOST constant must fall back to the APP_URL env variable.",
+        );
+    }
+
+    /**
+     * Verify OpenApiSpec server attribute references the configurable host constant
+     * (L5_SWAGGER_CONST_HOST) rather than a hard-coded URL string.
+     */
+    public function test_open_api_spec_server_uses_configurable_host_constant(): void
+    {
+        $specPath = dirname(__DIR__, 2)
+            .'/app/Modules/Core/Infrastructure/ApiDoc/OpenApiSpec.php';
+
+        $this->assertFileExists($specPath, 'OpenApiSpec.php must exist.');
+
+        $contents = (string) file_get_contents($specPath);
+
+        // The #[OA\Server] must reference L5_SWAGGER_CONST_HOST so that
+        // the generated spec URL is driven by the APP_URL / L5_SWAGGER_CONST_HOST
+        // environment variable, not a hard-coded string.
+        $this->assertStringContainsString(
+            'L5_SWAGGER_CONST_HOST',
+            $contents,
+            "OpenApiSpec #[OA\Server] must use L5_SWAGGER_CONST_HOST for a configurable server URL.",
+        );
+    }
+
+    // ── CORS configuration ────────────────────────────────────────────────────
+
+    /**
+     * Verify config/cors.php exists and contains the required top-level keys.
+     */
+    public function test_cors_config_file_exists_and_is_valid(): void
+    {
+        $configPath = dirname(__DIR__, 2).'/config/cors.php';
+
+        $this->assertFileExists($configPath, 'config/cors.php must exist.');
+
+        $contents = (string) file_get_contents($configPath);
+
+        foreach (['paths', 'allowed_methods', 'allowed_origins', 'allowed_headers', 'supports_credentials'] as $key) {
+            $this->assertStringContainsString("'{$key}'", $contents,
+                "config/cors.php must contain the '{$key}' key.");
+        }
+    }
+
+    /**
+     * Verify the CORS config covers the API and documentation paths.
+     */
+    public function test_cors_config_covers_api_and_docs_paths(): void
+    {
+        $configPath = dirname(__DIR__, 2).'/config/cors.php';
+        $contents = (string) file_get_contents($configPath);
+
+        // The paths array must include the main API prefix and the Swagger docs route.
+        $this->assertStringContainsString('api/*', $contents,
+            "config/cors.php 'paths' must include 'api/*'.");
+        $this->assertStringContainsString('docs', $contents,
+            "config/cors.php 'paths' must include the docs route.");
+    }
+
+    /**
+     * Verify that all CORS settings can be overridden via environment variables.
+     */
+    public function test_cors_config_uses_environment_variables(): void
+    {
+        $configPath = dirname(__DIR__, 2).'/config/cors.php';
+        $contents = (string) file_get_contents($configPath);
+
+        $envVars = [
+            'CORS_ALLOWED_ORIGINS',
+            'CORS_ALLOWED_METHODS',
+            'CORS_ALLOWED_HEADERS',
+            'CORS_SUPPORTS_CREDENTIALS',
+            'CORS_MAX_AGE',
+        ];
+
+        foreach ($envVars as $var) {
+            $this->assertStringContainsString($var, $contents,
+                "config/cors.php must reference the {$var} environment variable.");
+        }
+    }
+
+    /**
+     * Verify the .env.example documents all CORS environment variables.
+     */
+    public function test_env_example_documents_cors_variables(): void
+    {
+        $envPath = dirname(__DIR__, 2).'/.env.example';
+
+        $this->assertFileExists($envPath, '.env.example must exist.');
+
+        $contents = (string) file_get_contents($envPath);
+
+        foreach (['CORS_ALLOWED_ORIGINS', 'CORS_ALLOWED_METHODS', 'CORS_ALLOWED_HEADERS', 'CORS_SUPPORTS_CREDENTIALS'] as $var) {
+            $this->assertStringContainsString($var, $contents,
+                ".env.example must document the {$var} variable.");
+        }
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     /**
