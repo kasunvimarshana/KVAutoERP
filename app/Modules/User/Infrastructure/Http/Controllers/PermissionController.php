@@ -104,7 +104,7 @@ class PermissionController extends Controller
         tags: ['Permissions'],
         security: [['bearerAuth' => []]],
         responses: [
-            new OA\Response(response: 200, description: 'Permission created',
+            new OA\Response(response: 201, description: 'Permission created',
                 content: new OA\JsonContent(ref: '#/components/schemas/PermissionObject')),
             new OA\Response(response: 401, description: 'Unauthenticated',
                 content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),

@@ -82,11 +82,11 @@ class OrganizationUnitController extends BaseController
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['tenant_id', 'name', 'code'],
+                required: ['tenant_id', 'name'],
                 properties: [
                     new OA\Property(property: 'tenant_id',   type: 'integer', example: 1),
-                    new OA\Property(property: 'name',        type: 'string',  example: 'Engineering'),
-                    new OA\Property(property: 'code',        type: 'string',  example: 'ENG'),
+                    new OA\Property(property: 'name',        type: 'string',  maxLength: 255, example: 'Engineering'),
+                    new OA\Property(property: 'code',        type: 'string',  nullable: true, maxLength: 50, example: 'ENG'),
                     new OA\Property(property: 'description', type: 'string',  nullable: true),
                     new OA\Property(property: 'parent_id',   type: 'integer', nullable: true),
                     new OA\Property(property: 'metadata',    type: 'object',  nullable: true),
@@ -96,7 +96,7 @@ class OrganizationUnitController extends BaseController
         tags: ['Organization Units'],
         security: [['bearerAuth' => []]],
         responses: [
-            new OA\Response(response: 200, description: 'Organization unit created',
+            new OA\Response(response: 201, description: 'Organization unit created',
                 content: new OA\JsonContent(ref: '#/components/schemas/OrganizationUnitObject')),
             new OA\Response(response: 401, description: 'Unauthenticated',
                 content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),

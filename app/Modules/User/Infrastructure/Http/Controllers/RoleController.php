@@ -107,7 +107,7 @@ class RoleController extends Controller
         tags: ['Roles'],
         security: [['bearerAuth' => []]],
         responses: [
-            new OA\Response(response: 200, description: 'Role created',
+            new OA\Response(response: 201, description: 'Role created',
                 content: new OA\JsonContent(ref: '#/components/schemas/RoleObject')),
             new OA\Response(response: 401, description: 'Unauthenticated',
                 content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),

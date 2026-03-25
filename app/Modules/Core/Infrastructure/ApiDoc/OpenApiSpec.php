@@ -133,9 +133,9 @@ use OpenApi\Attributes as OA;
     schema: 'UserPreferencesObject',
     type: 'object',
     properties: [
-        new OA\Property(property: 'locale',   type: 'string', nullable: true, example: 'en'),
-        new OA\Property(property: 'timezone', type: 'string', nullable: true, example: 'UTC'),
-        new OA\Property(property: 'theme',    type: 'string', nullable: true, example: 'light'),
+        new OA\Property(property: 'language',      type: 'string', nullable: true, example: 'en', enum: ['en', 'es', 'fr', 'de']),
+        new OA\Property(property: 'timezone',      type: 'string', nullable: true, example: 'UTC'),
+        new OA\Property(property: 'notifications', type: 'array',  nullable: true, items: new OA\Items(type: 'string'), example: []),
     ],
 )]
 #[OA\Schema(
