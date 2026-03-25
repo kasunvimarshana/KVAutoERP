@@ -166,6 +166,7 @@ class SwaggerApiDocTest extends TestCase
             'AttachmentObject',
             'DatabaseConfigObject',
             'TenantObject',
+            'TenantConfigObject',
             'OrganizationUnitObject',
         ];
 

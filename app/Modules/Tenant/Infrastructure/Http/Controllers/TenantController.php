@@ -208,7 +208,7 @@ class TenantController extends BaseController
         ],
         responses: [
             new OA\Response(response: 200, description: 'Updated tenant config',
-                content: new OA\JsonContent(ref: '#/components/schemas/TenantObject')),
+                content: new OA\JsonContent(ref: '#/components/schemas/TenantConfigObject')),
             new OA\Response(response: 401, description: 'Unauthenticated',
                 content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
             new OA\Response(response: 403, description: 'Forbidden',
@@ -273,7 +273,7 @@ class TenantController extends BaseController
         ],
         responses: [
             new OA\Response(response: 200, description: 'Tenant config',
-                content: new OA\JsonContent(ref: '#/components/schemas/TenantObject')),
+                content: new OA\JsonContent(ref: '#/components/schemas/TenantConfigObject')),
             new OA\Response(response: 404, description: 'Not found',
                 content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
         ],

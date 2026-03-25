@@ -226,6 +226,24 @@ use OpenApi\Attributes as OA;
     ],
 )]
 
+// ── Tenant Config Schemas ─────────────────────────────────────────────────────
+#[OA\Schema(
+    schema: 'TenantConfigObject',
+    type: 'object',
+    required: ['id', 'database_config', 'feature_flags', 'api_keys', 'active', 'updated_at'],
+    properties: [
+        new OA\Property(property: 'id',              type: 'integer', example: 1),
+        new OA\Property(property: 'database_config', ref: '#/components/schemas/DatabaseConfigObject'),
+        new OA\Property(property: 'mail_config',     type: 'object',  nullable: true, example: ['host' => 'smtp.example.com']),
+        new OA\Property(property: 'cache_config',    type: 'object',  nullable: true, example: ['driver' => 'redis']),
+        new OA\Property(property: 'queue_config',    type: 'object',  nullable: true, example: ['driver' => 'database']),
+        new OA\Property(property: 'feature_flags',   type: 'object',  example: ['billing' => true, 'reports' => false]),
+        new OA\Property(property: 'api_keys',        type: 'object',  example: []),
+        new OA\Property(property: 'active',          type: 'boolean', example: true),
+        new OA\Property(property: 'updated_at',      type: 'string',  format: 'date-time'),
+    ],
+)]
+
 // ── Organization Unit Schemas ─────────────────────────────────────────────────
 #[OA\Schema(
     schema: 'OrganizationUnitObject',
