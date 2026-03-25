@@ -63,6 +63,7 @@ DESC,
 )]
 
 // ── Tags ─────────────────────────────────────────────────────────────────────
+#[OA\Tag(name: 'Health',             description: 'Application health check – liveness and readiness probes')]
 #[OA\Tag(name: 'Auth',               description: 'Authentication – register, login, logout, token refresh, SSO, and password reset')]
 #[OA\Tag(name: 'Users',              description: 'User management – CRUD, role assignment, preference updates')]
 #[OA\Tag(name: 'Roles',              description: 'Role management – create, list, view, delete, sync permissions')]
