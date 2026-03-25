@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Tenant\Infrastructure\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Route;
 use Modules\Tenant\Application\Contracts\TenantConfigClientInterface;
 use Modules\Tenant\Application\Contracts\TenantConfigManagerInterface;
 use Modules\Tenant\Application\Services\TenantConfigManager;
