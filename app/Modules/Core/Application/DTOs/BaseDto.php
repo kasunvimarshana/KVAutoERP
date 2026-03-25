@@ -74,7 +74,12 @@ abstract class BaseDto
 
         foreach ($properties as $property) {
             $name = $property->getName();
-            $value = $this->$name;
+            // Skip uninitialized typed properties to avoid runtime errors.
+            if (! $property->isInitialized($this)) {
+                continue;
+            }
+
+            $value = $property->getValue($this);
 
             // Recursively convert nested DTOs
             if ($value instanceof self) {
@@ -147,7 +152,11 @@ abstract class BaseDto
     public function __get(string $name)
     {
         if (property_exists($this, $name)) {
-            return $this->$name;
+            $property = new \ReflectionProperty($this, $name);
+
+            return $property->isInitialized($this)
+                ? $property->getValue($this)
+                : null;
         }
 
         return null;
