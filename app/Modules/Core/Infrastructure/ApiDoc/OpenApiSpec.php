@@ -17,7 +17,31 @@ use OpenApi\Attributes as OA;
 // ── Info ──────────────────────────────────────────────────────────────────────
 #[OA\Info(
     version: '1.0.0',
-    description: 'KVAutoERP – a modular, multi-tenant ERP REST API built on Laravel 12 with Passport OAuth2 authentication.',
+    description: <<<'DESC'
+KVAutoERP – a modular, multi-tenant ERP REST API built on Laravel 12 with Passport OAuth2 authentication.
+
+## Versioning Strategy
+This API uses **semantic versioning** (semver). The current stable release is `1.0.0`.
+
+- **Minor/patch releases** (e.g. `1.0.x`, `1.x.0`) are backward-compatible and do not break existing
+  integrations. New fields, optional parameters, and additional endpoints may be added.
+- **Major releases** (e.g. `2.0.0`) introduce breaking changes. When a new major version is published,
+  a new URL path prefix (e.g. `/api/v2/`) will be introduced so that both versions remain accessible
+  simultaneously during the migration window. The old version will be deprecated first and removed
+  after the announced sunset date.
+- **Deprecation notices** are communicated via an `X-API-Deprecated` response header and
+  documented in the changelog.
+
+## Authentication
+All protected endpoints require a Bearer token issued by `POST /api/auth/login` or
+`POST /api/auth/register`. Pass it in the `Authorization: Bearer <token>` request header.
+Use the **Authorize** button above to set your token once and apply it to all secured endpoints.
+
+## Cross-Origin Resource Sharing (CORS)
+The API is CORS-enabled. Allowed origins, methods, and headers are configured via environment
+variables (`CORS_ALLOWED_ORIGINS`, `CORS_ALLOWED_METHODS`, `CORS_ALLOWED_HEADERS`). See the
+`.env.example` file for all available CORS settings.
+DESC,
     title: 'KVAutoERP API',
     contact: new OA\Contact(name: 'KVAutoERP Support', email: 'support@kvautoerp.local'),
     license: new OA\License(name: 'MIT', url: 'https://opensource.org/licenses/MIT'),
