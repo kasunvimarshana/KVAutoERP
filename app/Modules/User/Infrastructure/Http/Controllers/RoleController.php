@@ -117,12 +117,12 @@ class RoleController extends Controller
                 content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
         ],
     )]
-    public function store(StoreRoleRequest $request): RoleResource
+    public function store(StoreRoleRequest $request): \Illuminate\Http\JsonResponse
     {
         $this->authorize('create', Role::class);
         $role = $this->createService->execute($request->validated());
 
-        return new RoleResource($role);
+        return (new RoleResource($role))->response()->setStatusCode(201);
     }
 
     #[OA\Delete(

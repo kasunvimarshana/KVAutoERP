@@ -109,13 +109,13 @@ class UserController extends BaseController
                 content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
         ],
     )]
-    public function store(StoreUserRequest $request): UserResource
+    public function store(StoreUserRequest $request): \Illuminate\Http\JsonResponse
     {
         $this->authorize('create', User::class);
         $dto = UserData::fromArray($request->validated());
         $user = $this->service->execute($dto->toArray());
 
-        return new UserResource($user);
+        return (new UserResource($user))->response()->setStatusCode(201);
     }
 
     #[OA\Get(

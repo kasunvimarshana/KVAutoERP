@@ -106,13 +106,13 @@ class OrganizationUnitController extends BaseController
                 content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
         ],
     )]
-    public function store(StoreOrganizationUnitRequest $request): OrganizationUnitResource
+    public function store(StoreOrganizationUnitRequest $request): \Illuminate\Http\JsonResponse
     {
         $this->authorize('create', OrganizationUnit::class);
         $dto = OrganizationUnitData::fromArray($request->validated());
         $unit = $this->service->execute($dto->toArray());
 
-        return new OrganizationUnitResource($unit);
+        return (new OrganizationUnitResource($unit))->response()->setStatusCode(201);
     }
 
     #[OA\Get(

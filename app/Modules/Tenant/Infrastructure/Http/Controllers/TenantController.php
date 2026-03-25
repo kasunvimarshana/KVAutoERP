@@ -121,13 +121,13 @@ class TenantController extends BaseController
                 content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
         ],
     )]
-    public function store(StoreTenantRequest $request): TenantResource
+    public function store(StoreTenantRequest $request): \Illuminate\Http\JsonResponse
     {
         $this->authorize('create', Tenant::class);
         $dto = TenantData::fromArray($request->validated());
         $tenant = $this->service->execute($dto->toArray());
 
-        return new TenantResource($tenant);
+        return (new TenantResource($tenant))->response()->setStatusCode(201);
     }
 
     #[OA\Get(

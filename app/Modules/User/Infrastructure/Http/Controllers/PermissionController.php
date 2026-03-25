@@ -114,12 +114,12 @@ class PermissionController extends Controller
                 content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
         ],
     )]
-    public function store(StorePermissionRequest $request): PermissionResource
+    public function store(StorePermissionRequest $request): \Illuminate\Http\JsonResponse
     {
         $this->authorize('create', Permission::class);
         $permission = $this->createService->execute($request->validated());
 
-        return new PermissionResource($permission);
+        return (new PermissionResource($permission))->response()->setStatusCode(201);
     }
 
     #[OA\Delete(
