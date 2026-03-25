@@ -66,8 +66,13 @@ class OrganizationUnitController extends BaseController
     {
         $this->authorize('viewAny', OrganizationUnit::class);
         $filters = $request->only(['name', 'code', 'parent_id']);
-        $perPage = $request->input('per_page', 15);
-        $page = $request->input('page', 1);
+
+        if ($request->has('parent_id')) {
+            $filters['parent_id'] = $request->integer('parent_id');
+        }
+
+        $perPage = $request->integer('per_page', 15);
+        $page = $request->integer('page', 1);
         $sort = $request->input('sort');
         $include = $request->input('include');
 

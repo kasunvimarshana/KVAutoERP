@@ -66,8 +66,13 @@ class TenantController extends BaseController
     {
         $this->authorize('viewAny', Tenant::class);
         $filters = $request->only(['name', 'domain', 'active']);
-        $perPage = $request->input('per_page', 15);
-        $page = $request->input('page', 1);
+
+        if ($request->has('active')) {
+            $filters['active'] = $request->boolean('active');
+        }
+
+        $perPage = $request->integer('per_page', 15);
+        $page = $request->integer('page', 1);
         $sort = $request->input('sort');
         $include = $request->input('include');
 
