@@ -68,10 +68,6 @@ class AuthorizedController extends Controller
             return $this->uniqueAbilities($candidates);
         }
 
-        foreach ($this->abilityVariants($ability) as $variant) {
-            $candidates[] = $resource.'.'.$variant;
-        }
-
         $mappedAbility = $this->mapControllerAbility($ability);
         if ($mappedAbility !== null) {
             $candidates[] = $resource.'.'.$mappedAbility;
@@ -99,15 +95,6 @@ class AuthorizedController extends Controller
         return Str::plural(Str::snake(class_basename($className)));
     }
 
-    private function abilityVariants(string $ability): array
-    {
-        return $this->uniqueAbilities([
-            $ability,
-            Str::snake($ability),
-            Str::kebab($ability),
-        ]);
-    }
-
     private function mapControllerAbility(string $ability): ?string
     {
         return match ($ability) {
@@ -127,37 +114,24 @@ class AuthorizedController extends Controller
         return match ($ability) {
             'viewAttachments' => [
                 $resource.'.view_attachments',
-                $resource.'.attachments.view',
-                $resource.'.attachments.list',
-                $attachmentResource.'.view',
             ],
             'uploadAttachment' => [
                 $resource.'.upload_attachment',
-                $resource.'.attachments.upload',
-                $resource.'.attachments.create',
-                $attachmentResource.'.upload',
-                $attachmentResource.'.create',
             ],
             'deleteAttachment' => [
                 $resource.'.delete_attachment',
-                $resource.'.attachments.delete',
-                $attachmentResource.'.delete',
             ],
             'updateConfig' => [
                 $resource.'.update_config',
-                $resource.'.config.update',
             ],
             'assignRole' => [
                 $resource.'.assign_role',
-                $resource.'.roles.assign',
             ],
             'updatePreferences' => [
                 $resource.'.update_preferences',
-                $resource.'.preferences.update',
             ],
             'syncPermissions' => [
                 $resource.'.sync_permissions',
-                $resource.'.permissions.sync',
             ],
             default => [],
         };
