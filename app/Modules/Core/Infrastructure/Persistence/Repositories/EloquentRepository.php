@@ -4,16 +4,85 @@ declare(strict_types=1);
 
 namespace Modules\Core\Infrastructure\Persistence\Repositories;
 
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 class EloquentRepository extends BaseRepository
 {
     protected Model $model;
 
+    /**
+     * Optional mapper that converts Eloquent models into Domain entities.
+     *
+     * @var callable(Model): mixed|null
+     */
+    protected $domainEntityMapper = null;
+
     public function __construct(Model $model)
     {
         $this->model = $model;
         $this->provider = $model->newQuery();
+    }
+
+    /**
+     * Configure a mapper for converting Eloquent models to Domain entities.
+     *
+     * @param  callable(Model): mixed  $mapper
+     */
+    protected function setDomainEntityMapper(callable $mapper): void
+    {
+        $this->domainEntityMapper = $mapper;
+    }
+
+    /**
+     * Convert a model to a Domain entity when a mapper is configured.
+     */
+    protected function toDomainEntity(Model $model): mixed
+    {
+        if ($this->domainEntityMapper === null) {
+            return $model;
+        }
+
+        return ($this->domainEntityMapper)($model);
+    }
+
+    /**
+     * Convert a model collection to Domain entities.
+     */
+    protected function toDomainCollection(Collection $models): Collection
+    {
+        return $models->map(fn (Model $model) => $this->toDomainEntity($model));
+    }
+
+    /**
+     * Find a record and convert it to a Domain entity.
+     *
+     * @return mixed
+     */
+    protected function findDomain($id, array $columns = ['*'])
+    {
+        $result = $this->find($id, $columns);
+
+        return $result instanceof Model ? $this->toDomainEntity($result) : $result;
+    }
+
+    /**
+     * Get a collection and convert each model to a Domain entity.
+     */
+    protected function getDomain(array $columns = ['*']): Collection
+    {
+        return $this->toDomainCollection($this->get($columns));
+    }
+
+    /**
+     * Paginate records and convert each model to a Domain entity.
+     */
+    protected function paginateDomain(?int $perPage = null, array $columns = ['*'], ?string $pageName = null, ?int $page = null): LengthAwarePaginator
+    {
+        $paginator = $this->paginate($perPage, $columns, $pageName, $page);
+
+        return $paginator->through(fn (Model $model) => $this->toDomainEntity($model));
     }
 
     /**
