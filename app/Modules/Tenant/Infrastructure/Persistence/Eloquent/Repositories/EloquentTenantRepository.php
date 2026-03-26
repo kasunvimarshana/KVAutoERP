@@ -21,6 +21,7 @@ class EloquentTenantRepository extends EloquentRepository implements TenantRepos
     public function __construct(TenantModel $model)
     {
         parent::__construct($model);
+        $this->setDomainEntityMapper(fn (TenantModel $model): Tenant => $this->mapModelToDomainEntity($model));
     }
 
     public function findByDomain(string $domain): ?Tenant
@@ -51,17 +52,14 @@ class EloquentTenantRepository extends EloquentRepository implements TenantRepos
             $model = $this->create($data);
         }
 
-        return $this->toDomainEntity($model);
+        /** @var TenantModel $model */
+
+        return $this->mapModelToDomainEntity($model);
     }
 
     public function delete($id): bool
     {
-        $record = $this->model->find($id);
-        if ($record) {
-            return (bool) $record->delete();
-        }
-
-        return false;
+        return parent::delete($id);
     }
 
     /**
@@ -71,10 +69,7 @@ class EloquentTenantRepository extends EloquentRepository implements TenantRepos
      */
     public function find($id, array $columns = ['*']): ?Tenant
     {
-        /** @var TenantModel|null $model */
-        $model = $this->model->find($id);
-
-        return $model ? $this->toDomainEntity($model) : null;
+        return parent::find($id, $columns);
     }
 
     /**
@@ -84,12 +79,10 @@ class EloquentTenantRepository extends EloquentRepository implements TenantRepos
      */
     public function paginate(?int $perPage = null, array $columns = ['*'], ?string $pageName = null, ?int $page = null): LengthAwarePaginator
     {
-        $paginator = parent::paginate($perPage, $columns, $pageName, $page);
-
-        return $paginator->through(fn (TenantModel $model) => $this->toDomainEntity($model));
+        return parent::paginate($perPage, $columns, $pageName, $page);
     }
 
-    private function toDomainEntity(TenantModel $model): Tenant
+    private function mapModelToDomainEntity(TenantModel $model): Tenant
     {
         return new Tenant(
             name: $model->name,

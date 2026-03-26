@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\Core\Infrastructure\Persistence\Repositories;
 
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
@@ -32,6 +31,14 @@ class EloquentRepository extends BaseRepository
     protected function toDomainCollection(Collection $models): Collection
     {
         return $models->map(fn (Model $model) => $this->toDomainEntity($model));
+    }
+
+    /**
+     * Retrieve a raw Eloquent model without applying Domain mapping.
+     */
+    protected function findModel($id, array $columns = ['*']): ?Model
+    {
+        return $this->model->newQuery()->find($id, $columns);
     }
 
 
@@ -109,7 +116,7 @@ class EloquentRepository extends BaseRepository
      */
     public function update($id, array $data)
     {
-        $record = $this->find($id);
+        $record = $this->findModel($id);
         if ($record) {
             $record->update($data);
 
@@ -124,7 +131,7 @@ class EloquentRepository extends BaseRepository
      */
     public function delete($id): bool
     {
-        $record = $this->find($id);
+        $record = $this->findModel($id);
         if ($record) {
             return (bool) $record->delete();
         }
