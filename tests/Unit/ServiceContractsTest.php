@@ -14,10 +14,10 @@ use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitService
 use Modules\OrganizationUnit\Application\Contracts\MoveOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
+// Product service interfaces
 use Modules\Product\Application\Contracts\CreateProductServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductImageServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductServiceInterface;
-// Product service interfaces
 use Modules\Product\Application\Contracts\UpdateProductServiceInterface;
 use Modules\Product\Application\Contracts\UploadProductImageServiceInterface;
 use Modules\Tenant\Application\Contracts\CreateTenantServiceInterface;
