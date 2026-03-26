@@ -30,6 +30,11 @@ abstract class BaseDto
      */
     protected array $casts = [];
 
+    public function __construct()
+    {
+        $this->initializeNullableProperties();
+    }
+
     /**
      * Create a new DTO instance from an array of data.
      */
@@ -39,6 +44,24 @@ abstract class BaseDto
         $dto->fill($data);
 
         return $dto;
+    }
+
+    protected function initializeNullableProperties(): void
+    {
+        $reflection = new \ReflectionClass($this);
+        $properties = $reflection->getProperties(\ReflectionProperty::IS_PUBLIC);
+
+        foreach ($properties as $property) {
+            if ($property->isInitialized($this)) {
+                continue;
+            }
+
+            $type = $property->getType();
+
+            if ($type !== null && $type->allowsNull()) {
+                $property->setValue($this, null);
+            }
+        }
     }
 
     /**
