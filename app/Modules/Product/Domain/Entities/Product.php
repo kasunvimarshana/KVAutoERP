@@ -7,6 +7,8 @@ namespace Modules\Product\Domain\Entities;
 use Illuminate\Support\Collection;
 use Modules\Core\Domain\ValueObjects\Money;
 use Modules\Core\Domain\ValueObjects\Sku;
+use Modules\Product\Domain\ValueObjects\ProductType;
+use Modules\Product\Domain\ValueObjects\UnitOfMeasure;
 
 class Product
 {
@@ -26,6 +28,11 @@ class Product
 
     private string $status;
 
+    private ProductType $type;
+
+    /** @var UnitOfMeasure[] */
+    private array $unitsOfMeasure;
+
     private ?array $attributes;
 
     private ?array $metadata;
@@ -44,25 +51,29 @@ class Product
         ?string $description = null,
         ?string $category = null,
         string $status = 'active',
+        string $type = ProductType::PHYSICAL,
+        array $unitsOfMeasure = [],
         ?array $attributes = null,
         ?array $metadata = null,
         ?int $id = null,
         ?\DateTimeInterface $createdAt = null,
         ?\DateTimeInterface $updatedAt = null
     ) {
-        $this->id = $id;
-        $this->tenantId = $tenantId;
-        $this->sku = $sku;
-        $this->name = $name;
-        $this->price = $price;
-        $this->description = $description;
-        $this->category = $category;
-        $this->status = $status;
-        $this->attributes = $attributes;
-        $this->metadata = $metadata;
-        $this->images = new Collection;
-        $this->createdAt = $createdAt ?? new \DateTimeImmutable;
-        $this->updatedAt = $updatedAt ?? new \DateTimeImmutable;
+        $this->id             = $id;
+        $this->tenantId       = $tenantId;
+        $this->sku            = $sku;
+        $this->name           = $name;
+        $this->price          = $price;
+        $this->description    = $description;
+        $this->category       = $category;
+        $this->status         = $status;
+        $this->type           = new ProductType($type);
+        $this->unitsOfMeasure = $unitsOfMeasure;
+        $this->attributes     = $attributes;
+        $this->metadata       = $metadata;
+        $this->images         = new Collection;
+        $this->createdAt      = $createdAt ?? new \DateTimeImmutable;
+        $this->updatedAt      = $updatedAt ?? new \DateTimeImmutable;
     }
 
     public function getId(): ?int
@@ -103,6 +114,50 @@ class Product
     public function getStatus(): string
     {
         return $this->status;
+    }
+
+    public function getType(): ProductType
+    {
+        return $this->type;
+    }
+
+    /** @return UnitOfMeasure[] */
+    public function getUnitsOfMeasure(): array
+    {
+        return $this->unitsOfMeasure;
+    }
+
+    public function getBuyingUnit(): ?UnitOfMeasure
+    {
+        foreach ($this->unitsOfMeasure as $uom) {
+            if ($uom->isBuying()) {
+                return $uom;
+            }
+        }
+
+        return null;
+    }
+
+    public function getSellingUnit(): ?UnitOfMeasure
+    {
+        foreach ($this->unitsOfMeasure as $uom) {
+            if ($uom->isSelling()) {
+                return $uom;
+            }
+        }
+
+        return null;
+    }
+
+    public function getInventoryUnit(): ?UnitOfMeasure
+    {
+        foreach ($this->unitsOfMeasure as $uom) {
+            if ($uom->isInventory()) {
+                return $uom;
+            }
+        }
+
+        return null;
     }
 
     public function getAttributes(): ?array
@@ -151,14 +206,22 @@ class Product
         ?string $description,
         ?string $category,
         ?array $attributes,
-        ?array $metadata
+        ?array $metadata,
+        ?string $type = null,
+        ?array $unitsOfMeasure = null
     ): void {
-        $this->name = $name;
-        $this->price = $price;
+        $this->name        = $name;
+        $this->price       = $price;
         $this->description = $description;
-        $this->category = $category;
-        $this->attributes = $attributes;
-        $this->metadata = $metadata;
+        $this->category    = $category;
+        $this->attributes  = $attributes;
+        $this->metadata    = $metadata;
+        if ($type !== null) {
+            $this->type = new ProductType($type);
+        }
+        if ($unitsOfMeasure !== null) {
+            $this->unitsOfMeasure = $unitsOfMeasure;
+        }
         $this->updatedAt = new \DateTimeImmutable;
     }
 

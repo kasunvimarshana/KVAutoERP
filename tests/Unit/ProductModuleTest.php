@@ -28,6 +28,8 @@ use Modules\Product\Domain\Exceptions\ProductImageNotFoundException;
 use Modules\Product\Domain\Exceptions\ProductNotFoundException;
 use Modules\Product\Domain\RepositoryInterfaces\ProductImageRepositoryInterface;
 use Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface;
+use Modules\Product\Domain\ValueObjects\ProductType;
+use Modules\Product\Domain\ValueObjects\UnitOfMeasure;
 use Modules\Product\Infrastructure\Http\Controllers\ProductController;
 use Modules\Product\Infrastructure\Http\Controllers\ProductImageController;
 use Modules\Product\Infrastructure\Http\Requests\StoreProductRequest;
@@ -322,8 +324,225 @@ class ProductModuleTest extends TestCase
 
     public function test_product_migration_files_exist(): void
     {
-        $dir = dirname(__DIR__, 2).'/app/Modules/Product/database/migrations';
+        $dir   = dirname(__DIR__, 2).'/app/Modules/Product/database/migrations';
         $files = glob($dir.'/*.php');
         $this->assertGreaterThanOrEqual(2, count($files), 'At least 2 product migration files must exist.');
+    }
+
+    // ── Value Objects ─────────────────────────────────────────────────────────
+
+    public function test_product_type_value_object_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ProductType::class));
+    }
+
+    public function test_unit_of_measure_value_object_class_exists(): void
+    {
+        $this->assertTrue(class_exists(UnitOfMeasure::class));
+    }
+
+    public function test_product_type_valid_values(): void
+    {
+        foreach (ProductType::VALID_TYPES as $type) {
+            $pt = new ProductType($type);
+            $this->assertSame($type, $pt->value());
+        }
+    }
+
+    public function test_product_type_invalid_value_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new ProductType('invalid_type');
+    }
+
+    public function test_product_type_predicates(): void
+    {
+        $this->assertTrue((new ProductType('physical'))->isPhysical());
+        $this->assertTrue((new ProductType('service'))->isService());
+        $this->assertTrue((new ProductType('digital'))->isDigital());
+        $this->assertTrue((new ProductType('combo'))->isCombo());
+        $this->assertTrue((new ProductType('variable'))->isVariable());
+    }
+
+    public function test_unit_of_measure_valid_types(): void
+    {
+        foreach (UnitOfMeasure::VALID_TYPES as $type) {
+            $uom = new UnitOfMeasure('kg', $type, 1.0);
+            $this->assertSame('kg', $uom->getUnit());
+            $this->assertSame($type, $uom->getType());
+            $this->assertSame(1.0, $uom->getConversionFactor());
+        }
+    }
+
+    public function test_unit_of_measure_invalid_type_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new UnitOfMeasure('kg', 'invalid', 1.0);
+    }
+
+    public function test_unit_of_measure_invalid_conversion_factor_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new UnitOfMeasure('kg', 'buying', 0.0);
+    }
+
+    public function test_unit_of_measure_predicates(): void
+    {
+        $buying    = new UnitOfMeasure('pcs', 'buying', 1.0);
+        $selling   = new UnitOfMeasure('pcs', 'selling', 1.0);
+        $inventory = new UnitOfMeasure('kg', 'inventory', 0.5);
+
+        $this->assertTrue($buying->isBuying());
+        $this->assertFalse($buying->isSelling());
+        $this->assertTrue($selling->isSelling());
+        $this->assertTrue($inventory->isInventory());
+    }
+
+    public function test_unit_of_measure_to_array_and_from_array(): void
+    {
+        $uom   = new UnitOfMeasure('box', 'buying', 12.0);
+        $array = $uom->toArray();
+
+        $this->assertSame('box', $array['unit']);
+        $this->assertSame('buying', $array['type']);
+        $this->assertSame(12.0, $array['conversion_factor']);
+
+        $restored = UnitOfMeasure::fromArray($array);
+        $this->assertTrue($uom->equals($restored));
+    }
+
+    // ── Product type & UoM integration ───────────────────────────────────────
+
+    public function test_product_entity_defaults_to_physical_type(): void
+    {
+        $sku     = new \Modules\Core\Domain\ValueObjects\Sku('PROD-T01');
+        $price   = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+        $product = new Product(tenantId: 1, sku: $sku, name: 'Default Type', price: $price);
+
+        $this->assertSame('physical', $product->getType()->value());
+        $this->assertSame([], $product->getUnitsOfMeasure());
+    }
+
+    public function test_product_entity_accepts_all_types(): void
+    {
+        $sku   = new \Modules\Core\Domain\ValueObjects\Sku('PROD-T02');
+        $price = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+
+        foreach (ProductType::VALID_TYPES as $type) {
+            $product = new Product(tenantId: 1, sku: $sku, name: 'Type Test', price: $price, type: $type);
+            $this->assertSame($type, $product->getType()->value());
+        }
+    }
+
+    public function test_product_entity_with_units_of_measure(): void
+    {
+        $sku   = new \Modules\Core\Domain\ValueObjects\Sku('PROD-T03');
+        $price = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+
+        $buyingUom    = new UnitOfMeasure('pcs', 'buying', 1.0);
+        $sellingUom   = new UnitOfMeasure('pcs', 'selling', 1.0);
+        $inventoryUom = new UnitOfMeasure('box', 'inventory', 12.0);
+
+        $product = new Product(
+            tenantId: 1,
+            sku: $sku,
+            name: 'UoM Test',
+            price: $price,
+            unitsOfMeasure: [$buyingUom, $sellingUom, $inventoryUom],
+        );
+
+        $this->assertCount(3, $product->getUnitsOfMeasure());
+        $this->assertSame('pcs', $product->getBuyingUnit()->getUnit());
+        $this->assertSame('pcs', $product->getSellingUnit()->getUnit());
+        $this->assertSame('box', $product->getInventoryUnit()->getUnit());
+        $this->assertSame(12.0, $product->getInventoryUnit()->getConversionFactor());
+    }
+
+    public function test_product_entity_uom_helpers_return_null_when_not_set(): void
+    {
+        $sku     = new \Modules\Core\Domain\ValueObjects\Sku('PROD-T04');
+        $price   = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+        $product = new Product(tenantId: 1, sku: $sku, name: 'No UoM', price: $price);
+
+        $this->assertNull($product->getBuyingUnit());
+        $this->assertNull($product->getSellingUnit());
+        $this->assertNull($product->getInventoryUnit());
+    }
+
+    public function test_product_update_details_changes_type_and_uom(): void
+    {
+        $sku     = new \Modules\Core\Domain\ValueObjects\Sku('PROD-T05');
+        $price   = new \Modules\Core\Domain\ValueObjects\Money(5.0, 'USD');
+        $product = new Product(tenantId: 1, sku: $sku, name: 'Original', price: $price, type: 'physical');
+
+        $newPrice = new \Modules\Core\Domain\ValueObjects\Money(20.0, 'USD');
+        $newUom   = new UnitOfMeasure('L', 'selling', 1.0);
+
+        $product->updateDetails(
+            name: 'Updated',
+            price: $newPrice,
+            description: null,
+            category: null,
+            attributes: null,
+            metadata: null,
+            type: 'service',
+            unitsOfMeasure: [$newUom],
+        );
+
+        $this->assertSame('Updated', $product->getName());
+        $this->assertSame('service', $product->getType()->value());
+        $this->assertCount(1, $product->getUnitsOfMeasure());
+        $this->assertSame('L', $product->getSellingUnit()->getUnit());
+    }
+
+    public function test_product_update_details_clears_uom_when_empty_array_passed(): void
+    {
+        $sku     = new \Modules\Core\Domain\ValueObjects\Sku('PROD-T06');
+        $price   = new \Modules\Core\Domain\ValueObjects\Money(5.0, 'USD');
+        $buyUom  = new UnitOfMeasure('pcs', 'buying', 1.0);
+        $product = new Product(
+            tenantId: 1, sku: $sku, name: 'Has UoM', price: $price,
+            unitsOfMeasure: [$buyUom],
+        );
+
+        $this->assertCount(1, $product->getUnitsOfMeasure());
+
+        // Passing empty array should clear the list
+        $product->updateDetails(
+            name: 'Has UoM',
+            price: $price,
+            description: null,
+            category: null,
+            attributes: null,
+            metadata: null,
+            unitsOfMeasure: [],
+        );
+
+        $this->assertCount(0, $product->getUnitsOfMeasure());
+    }
+
+    public function test_product_update_details_preserves_uom_when_null_passed(): void
+    {
+        $sku     = new \Modules\Core\Domain\ValueObjects\Sku('PROD-T07');
+        $price   = new \Modules\Core\Domain\ValueObjects\Money(5.0, 'USD');
+        $buyUom  = new UnitOfMeasure('pcs', 'buying', 1.0);
+        $product = new Product(
+            tenantId: 1, sku: $sku, name: 'Preserve UoM', price: $price,
+            unitsOfMeasure: [$buyUom],
+        );
+
+        // Passing null for unitsOfMeasure should NOT change existing UoMs
+        $product->updateDetails(
+            name: 'Preserve UoM',
+            price: $price,
+            description: null,
+            category: null,
+            attributes: null,
+            metadata: null,
+            unitsOfMeasure: null,
+        );
+
+        $this->assertCount(1, $product->getUnitsOfMeasure());
+        $this->assertSame('pcs', $product->getBuyingUnit()->getUnit());
     }
 }
