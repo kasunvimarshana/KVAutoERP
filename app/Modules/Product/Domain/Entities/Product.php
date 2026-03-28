@@ -7,6 +7,7 @@ namespace Modules\Product\Domain\Entities;
 use Illuminate\Support\Collection;
 use Modules\Core\Domain\ValueObjects\Money;
 use Modules\Core\Domain\ValueObjects\Sku;
+use Modules\Product\Domain\ValueObjects\ProductAttribute;
 use Modules\Product\Domain\ValueObjects\ProductType;
 use Modules\Product\Domain\ValueObjects\UnitOfMeasure;
 
@@ -37,7 +38,16 @@ class Product
 
     private ?array $metadata;
 
+    /** @var ProductAttribute[] */
+    private array $productAttributes;
+
     private Collection $images;
+
+    /** Populated for variable products. */
+    private Collection $variations;
+
+    /** Populated for combo products. */
+    private Collection $comboItems;
 
     private \DateTimeInterface $createdAt;
 
@@ -55,6 +65,7 @@ class Product
         array $unitsOfMeasure = [],
         ?array $attributes = null,
         ?array $metadata = null,
+        array $productAttributes = [],
         ?int $id = null,
         ?\DateTimeInterface $createdAt = null,
         ?\DateTimeInterface $updatedAt = null
@@ -71,7 +82,10 @@ class Product
         $this->unitsOfMeasure = $unitsOfMeasure;
         $this->attributes     = $attributes;
         $this->metadata       = $metadata;
+        $this->productAttributes = $productAttributes;
         $this->images         = new Collection;
+        $this->variations     = new Collection;
+        $this->comboItems     = new Collection;
         $this->createdAt      = $createdAt ?? new \DateTimeImmutable;
         $this->updatedAt      = $updatedAt ?? new \DateTimeImmutable;
     }
@@ -170,6 +184,12 @@ class Product
         return $this->metadata;
     }
 
+    /** @return ProductAttribute[] */
+    public function getProductAttributes(): array
+    {
+        return $this->productAttributes;
+    }
+
     public function getImages(): Collection
     {
         return $this->images;
@@ -178,6 +198,18 @@ class Product
     public function getPrimaryImage(): ?ProductImage
     {
         return $this->images->first(fn (ProductImage $img) => $img->isPrimary()) ?? $this->images->first();
+    }
+
+    /** Returns variations (for variable products). */
+    public function getVariations(): Collection
+    {
+        return $this->variations;
+    }
+
+    /** Returns combo items (for combo products). */
+    public function getComboItems(): Collection
+    {
+        return $this->comboItems;
     }
 
     public function getCreatedAt(): \DateTimeInterface
@@ -200,6 +232,26 @@ class Product
         $this->images->push($image);
     }
 
+    public function setVariations(Collection $variations): void
+    {
+        $this->variations = $variations;
+    }
+
+    public function addVariation(ProductVariation $variation): void
+    {
+        $this->variations->push($variation);
+    }
+
+    public function setComboItems(Collection $comboItems): void
+    {
+        $this->comboItems = $comboItems;
+    }
+
+    public function addComboItem(ComboItem $comboItem): void
+    {
+        $this->comboItems->push($comboItem);
+    }
+
     public function updateDetails(
         string $name,
         Money $price,
@@ -208,7 +260,8 @@ class Product
         ?array $attributes,
         ?array $metadata,
         ?string $type = null,
-        ?array $unitsOfMeasure = null
+        ?array $unitsOfMeasure = null,
+        ?array $productAttributes = null
     ): void {
         $this->name        = $name;
         $this->price       = $price;
@@ -221,6 +274,9 @@ class Product
         }
         if ($unitsOfMeasure !== null) {
             $this->unitsOfMeasure = $unitsOfMeasure;
+        }
+        if ($productAttributes !== null) {
+            $this->productAttributes = $productAttributes;
         }
         $this->updatedAt = new \DateTimeImmutable;
     }
