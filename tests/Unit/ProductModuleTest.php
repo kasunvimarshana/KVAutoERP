@@ -10,6 +10,7 @@ use Modules\Product\Application\Contracts\DeleteProductImageServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductVariationServiceInterface;
 use Modules\Product\Application\Contracts\FindComboItemsServiceInterface;
+use Modules\Product\Application\Contracts\FindProductServiceInterface;
 use Modules\Product\Application\Contracts\FindProductVariationsServiceInterface;
 use Modules\Product\Application\Contracts\UpdateComboItemServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductServiceInterface;
@@ -27,6 +28,7 @@ use Modules\Product\Application\Services\DeleteProductImageService;
 use Modules\Product\Application\Services\DeleteProductService;
 use Modules\Product\Application\Services\DeleteProductVariationService;
 use Modules\Product\Application\Services\FindComboItemsService;
+use Modules\Product\Application\Services\FindProductService;
 use Modules\Product\Application\Services\FindProductVariationsService;
 use Modules\Product\Application\Services\UpdateComboItemService;
 use Modules\Product\Application\Services\UpdateProductService;
@@ -140,6 +142,7 @@ class ProductModuleTest extends TestCase
     public function test_all_product_service_interfaces_exist(): void
     {
         $this->assertTrue(interface_exists(CreateProductServiceInterface::class));
+        $this->assertTrue(interface_exists(FindProductServiceInterface::class));
         $this->assertTrue(interface_exists(UpdateProductServiceInterface::class));
         $this->assertTrue(interface_exists(DeleteProductServiceInterface::class));
         $this->assertTrue(interface_exists(UploadProductImageServiceInterface::class));
@@ -151,6 +154,7 @@ class ProductModuleTest extends TestCase
     public function test_all_product_service_implementations_exist(): void
     {
         $this->assertTrue(class_exists(CreateProductService::class));
+        $this->assertTrue(class_exists(FindProductService::class));
         $this->assertTrue(class_exists(UpdateProductService::class));
         $this->assertTrue(class_exists(DeleteProductService::class));
         $this->assertTrue(class_exists(UploadProductImageService::class));
@@ -162,6 +166,10 @@ class ProductModuleTest extends TestCase
         $this->assertTrue(
             is_subclass_of(CreateProductService::class, CreateProductServiceInterface::class),
             'CreateProductService must implement CreateProductServiceInterface.'
+        );
+        $this->assertTrue(
+            is_subclass_of(FindProductService::class, FindProductServiceInterface::class),
+            'FindProductService must implement FindProductServiceInterface.'
         );
         $this->assertTrue(
             is_subclass_of(UpdateProductService::class, UpdateProductServiceInterface::class),
@@ -178,6 +186,90 @@ class ProductModuleTest extends TestCase
         $this->assertTrue(
             is_subclass_of(DeleteProductImageService::class, DeleteProductImageServiceInterface::class),
             'DeleteProductImageService must implement DeleteProductImageServiceInterface.'
+        );
+    }
+
+    public function test_find_product_service_interface_extends_read_service_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(FindProductServiceInterface::class, \Modules\Core\Application\Contracts\ReadServiceInterface::class),
+            'FindProductServiceInterface must extend ReadServiceInterface.'
+        );
+    }
+
+    public function test_find_product_service_find_delegates_to_repository(): void
+    {
+        $product = new \Modules\Product\Domain\Entities\Product(
+            tenantId: 1,
+            sku: new \Modules\Core\Domain\ValueObjects\Sku('SKU-001'),
+            name: 'Test Product',
+            price: new \Modules\Core\Domain\ValueObjects\Money(9.99, 'USD'),
+            id: 42,
+        );
+
+        $repo = $this->createMock(\Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface::class);
+        $repo->method('find')->with(42)->willReturn($product);
+
+        $service = new FindProductService($repo);
+
+        $found = $service->find(42);
+
+        $this->assertInstanceOf(\Modules\Product\Domain\Entities\Product::class, $found);
+        $this->assertSame(42, $found->getId());
+    }
+
+    public function test_find_product_service_find_returns_null_when_missing(): void
+    {
+        $repo = $this->createMock(\Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface::class);
+        $repo->method('find')->willReturn(null);
+
+        $service = new FindProductService($repo);
+
+        $this->assertNull($service->find(999));
+    }
+
+    public function test_find_product_service_execute_throws_bad_method_call_exception(): void
+    {
+        $repo = $this->createMock(\Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface::class);
+        $repo->method('find')->willReturn(null);
+
+        $service = new FindProductService($repo);
+
+        $this->expectException(\BadMethodCallException::class);
+
+        $ref = new \ReflectionMethod($service, 'handle');
+        $ref->setAccessible(true);
+        $ref->invoke($service, []);
+    }
+
+    public function test_product_controller_uses_find_product_service_interface(): void
+    {
+        $rc = new \ReflectionClass(\Modules\Product\Infrastructure\Http\Controllers\ProductController::class);
+        $constructor = $rc->getConstructor();
+        $paramTypes = array_map(
+            fn (\ReflectionParameter $p) => $p->getType()?->getName(),
+            $constructor->getParameters()
+        );
+
+        $this->assertContains(
+            FindProductServiceInterface::class,
+            $paramTypes,
+            'ProductController must inject FindProductServiceInterface.'
+        );
+        $this->assertContains(
+            CreateProductServiceInterface::class,
+            $paramTypes,
+            'ProductController must inject CreateProductServiceInterface.'
+        );
+        $this->assertContains(
+            UpdateProductServiceInterface::class,
+            $paramTypes,
+            'ProductController must inject UpdateProductServiceInterface.'
+        );
+        $this->assertContains(
+            DeleteProductServiceInterface::class,
+            $paramTypes,
+            'ProductController must inject DeleteProductServiceInterface.'
         );
     }
 
