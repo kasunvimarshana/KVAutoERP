@@ -12,6 +12,7 @@ use Modules\Product\Domain\Entities\Product;
 use Modules\Product\Domain\Events\ProductUpdated;
 use Modules\Product\Domain\Exceptions\ProductNotFoundException;
 use Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface;
+use Modules\Product\Domain\ValueObjects\ProductAttribute;
 use Modules\Product\Domain\ValueObjects\UnitOfMeasure;
 
 class UpdateProductService extends BaseService implements UpdateProductServiceInterface
@@ -41,6 +42,14 @@ class UpdateProductService extends BaseService implements UpdateProductServiceIn
             }
         }
 
+        $productAttributes = null;
+        if (isset($dto->product_attributes)) {
+            $productAttributes = [];
+            foreach ($dto->product_attributes as $attrData) {
+                $productAttributes[] = ProductAttribute::fromArray($attrData);
+            }
+        }
+
         $product->updateDetails(
             name: $dto->name,
             price: $price,
@@ -50,6 +59,7 @@ class UpdateProductService extends BaseService implements UpdateProductServiceIn
             metadata: $dto->metadata,
             type: $dto->type ?? null,
             unitsOfMeasure: $unitsOfMeasure,
+            productAttributes: $productAttributes,
         );
 
         if (isset($dto->status)) {

@@ -99,6 +99,19 @@ class ProductController extends BaseController
                     ),
                     new OA\Property(property: 'attributes',       type: 'object',   nullable: true),
                     new OA\Property(property: 'metadata',         type: 'object',   nullable: true),
+                    new OA\Property(
+                        property: 'product_attributes',
+                        type: 'array',
+                        nullable: true,
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'code',           type: 'string', maxLength: 50,  example: 'color'),
+                                new OA\Property(property: 'name',           type: 'string', maxLength: 100, example: 'Color'),
+                                new OA\Property(property: 'allowed_values', type: 'array',  nullable: true,
+                                    items: new OA\Items(type: 'string', example: 'Red')),
+                            ],
+                        ),
+                    ),
                 ],
             ),
         ),
@@ -183,6 +196,19 @@ class ProductController extends BaseController
                     ),
                     new OA\Property(property: 'attributes',       type: 'object',  nullable: true),
                     new OA\Property(property: 'metadata',         type: 'object',  nullable: true),
+                    new OA\Property(
+                        property: 'product_attributes',
+                        type: 'array',
+                        nullable: true,
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'code',           type: 'string', maxLength: 50),
+                                new OA\Property(property: 'name',           type: 'string', maxLength: 100),
+                                new OA\Property(property: 'allowed_values', type: 'array',  nullable: true,
+                                    items: new OA\Items(type: 'string')),
+                            ],
+                        ),
+                    ),
                 ],
             ),
         ),
