@@ -7,6 +7,7 @@ namespace Modules\Product\Infrastructure\Storage;
 use Illuminate\Http\UploadedFile;
 use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\Product\Application\Contracts\ImageStorageStrategyInterface;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Default image storage strategy that delegates to the core FileStorageService.
@@ -36,5 +37,10 @@ class DefaultImageStorageStrategy implements ImageStorageStrategyInterface
     public function delete(string $path): bool
     {
         return $this->fileStorage->delete($path);
+    }
+
+    public function stream(string $path): StreamedResponse
+    {
+        return $this->fileStorage->stream($path);
     }
 }

@@ -16,6 +16,7 @@ use Modules\Product\Application\Contracts\DeleteProductImageServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductVariationServiceInterface;
 use Modules\Product\Application\Contracts\FindComboItemsServiceInterface;
+use Modules\Product\Application\Contracts\FindProductImagesServiceInterface;
 use Modules\Product\Application\Contracts\FindProductServiceInterface;
 use Modules\Product\Application\Contracts\FindProductVariationsServiceInterface;
 use Modules\Product\Application\Contracts\ImageStorageStrategyInterface;
@@ -32,6 +33,7 @@ use Modules\Product\Application\Services\DeleteProductImageService;
 use Modules\Product\Application\Services\DeleteProductService;
 use Modules\Product\Application\Services\DeleteProductVariationService;
 use Modules\Product\Application\Services\FindComboItemsService;
+use Modules\Product\Application\Services\FindProductImagesService;
 use Modules\Product\Application\Services\FindProductService;
 use Modules\Product\Application\Services\FindProductVariationsService;
 use Modules\Product\Application\Services\UpdateComboItemService;
@@ -120,6 +122,10 @@ class ProductServiceProvider extends ServiceProvider
                 $app->make(ProductImageRepositoryInterface::class),
                 $app->make(ImageStorageStrategyInterface::class)
             );
+        });
+
+        $this->app->bind(FindProductImagesServiceInterface::class, function ($app) {
+            return new FindProductImagesService($app->make(ProductImageRepositoryInterface::class));
         });
 
         $this->app->bind(CreateProductVariationServiceInterface::class, function ($app) {

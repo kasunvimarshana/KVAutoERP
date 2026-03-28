@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Product\Application\Contracts;
 
 use Illuminate\Http\UploadedFile;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Pluggable image storage strategy for product images.
@@ -29,4 +30,14 @@ interface ImageStorageStrategyInterface
      * Delete a stored image by its path.
      */
     public function delete(string $path): bool;
+
+    /**
+     * Stream a stored image as an HTTP response.
+     *
+     * Controllers must call this method through the strategy rather than
+     * accessing the underlying storage layer directly, preserving loose
+     * coupling and allowing implementations to add CDN redirection,
+     * access-control checks, or caching headers transparently.
+     */
+    public function stream(string $path): StreamedResponse;
 }
