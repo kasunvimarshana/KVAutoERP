@@ -33,6 +33,9 @@ class ProductData extends BaseDto
 
     public ?array $metadata;
 
+    /** @var array<array{code: string, name: string, allowed_values?: string[]}>|null */
+    public ?array $product_attributes;
+
     public function __construct()
     {
         $this->currency = 'USD';
@@ -59,6 +62,11 @@ class ProductData extends BaseDto
             'units_of_measure.*.conversion_factor' => 'nullable|numeric|min:0.0001',
             'attributes'                          => 'nullable|array',
             'metadata'                            => 'nullable|array',
+            'product_attributes'                  => 'nullable|array',
+            'product_attributes.*.code'           => 'required_with:product_attributes|string|max:50',
+            'product_attributes.*.name'           => 'required_with:product_attributes|string|max:100',
+            'product_attributes.*.allowed_values' => 'nullable|array',
+            'product_attributes.*.allowed_values.*' => 'string|max:100',
         ];
     }
 }

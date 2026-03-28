@@ -14,6 +14,8 @@ use Modules\Product\Application\Contracts\DeleteComboItemServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductImageServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductVariationServiceInterface;
+use Modules\Product\Application\Contracts\FindComboItemsServiceInterface;
+use Modules\Product\Application\Contracts\FindProductVariationsServiceInterface;
 use Modules\Product\Application\Contracts\UpdateComboItemServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductVariationServiceInterface;
@@ -25,6 +27,8 @@ use Modules\Product\Application\Services\DeleteComboItemService;
 use Modules\Product\Application\Services\DeleteProductImageService;
 use Modules\Product\Application\Services\DeleteProductService;
 use Modules\Product\Application\Services\DeleteProductVariationService;
+use Modules\Product\Application\Services\FindComboItemsService;
+use Modules\Product\Application\Services\FindProductVariationsService;
 use Modules\Product\Application\Services\UpdateComboItemService;
 use Modules\Product\Application\Services\UpdateProductService;
 use Modules\Product\Application\Services\UpdateProductVariationService;
@@ -121,6 +125,14 @@ class ProductServiceProvider extends ServiceProvider
 
         $this->app->bind(DeleteComboItemServiceInterface::class, function ($app) {
             return new DeleteComboItemService($app->make(ComboItemRepositoryInterface::class));
+        });
+
+        $this->app->bind(FindProductVariationsServiceInterface::class, function ($app) {
+            return new FindProductVariationsService($app->make(ProductVariationRepositoryInterface::class));
+        });
+
+        $this->app->bind(FindComboItemsServiceInterface::class, function ($app) {
+            return new FindComboItemsService($app->make(ComboItemRepositoryInterface::class));
         });
     }
 

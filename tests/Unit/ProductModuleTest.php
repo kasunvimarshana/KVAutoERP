@@ -9,6 +9,8 @@ use Modules\Product\Application\Contracts\DeleteComboItemServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductImageServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductVariationServiceInterface;
+use Modules\Product\Application\Contracts\FindComboItemsServiceInterface;
+use Modules\Product\Application\Contracts\FindProductVariationsServiceInterface;
 use Modules\Product\Application\Contracts\UpdateComboItemServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductVariationServiceInterface;
@@ -24,6 +26,8 @@ use Modules\Product\Application\Services\DeleteComboItemService;
 use Modules\Product\Application\Services\DeleteProductImageService;
 use Modules\Product\Application\Services\DeleteProductService;
 use Modules\Product\Application\Services\DeleteProductVariationService;
+use Modules\Product\Application\Services\FindComboItemsService;
+use Modules\Product\Application\Services\FindProductVariationsService;
 use Modules\Product\Application\Services\UpdateComboItemService;
 use Modules\Product\Application\Services\UpdateProductService;
 use Modules\Product\Application\Services\UpdateProductVariationService;
@@ -1083,5 +1087,338 @@ class ProductModuleTest extends TestCase
         $dir   = dirname(__DIR__, 2).'/app/Modules/Product/database/migrations';
         $files = glob($dir.'/*combo_items*.php');
         $this->assertGreaterThanOrEqual(1, count($files), 'product_combo_items migration must exist.');
+    }
+
+    // ── Find service interfaces (new) ─────────────────────────────────────────
+
+    public function test_find_product_variations_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(FindProductVariationsServiceInterface::class));
+    }
+
+    public function test_find_combo_items_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(FindComboItemsServiceInterface::class));
+    }
+
+    // ── Find service implementations (new) ────────────────────────────────────
+
+    public function test_find_product_variations_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(FindProductVariationsService::class));
+    }
+
+    public function test_find_combo_items_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(FindComboItemsService::class));
+    }
+
+    public function test_find_product_variations_service_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(FindProductVariationsService::class, FindProductVariationsServiceInterface::class)
+        );
+    }
+
+    public function test_find_combo_items_service_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(FindComboItemsService::class, FindComboItemsServiceInterface::class)
+        );
+    }
+
+    // ── Service interfaces extend full ServiceInterface (new) ─────────────────
+
+    public function test_create_product_service_interface_extends_service_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(CreateProductServiceInterface::class, \Modules\Core\Application\Contracts\ServiceInterface::class, true)
+        );
+    }
+
+    public function test_create_product_variation_service_interface_extends_service_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(CreateProductVariationServiceInterface::class, \Modules\Core\Application\Contracts\ServiceInterface::class, true)
+        );
+    }
+
+    public function test_create_combo_item_service_interface_extends_service_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(CreateComboItemServiceInterface::class, \Modules\Core\Application\Contracts\ServiceInterface::class, true)
+        );
+    }
+
+    // ── ProductData DTO has product_attributes field (new) ────────────────────
+
+    public function test_product_data_dto_has_product_attributes_field(): void
+    {
+        $reflection = new \ReflectionClass(\Modules\Product\Application\DTOs\ProductData::class);
+        $this->assertTrue($reflection->hasProperty('product_attributes'));
+    }
+
+    public function test_product_data_dto_product_attributes_validation_rules_exist(): void
+    {
+        $dto = new \Modules\Product\Application\DTOs\ProductData();
+        $rules = $dto->rules();
+        $this->assertArrayHasKey('product_attributes', $rules);
+        $this->assertArrayHasKey('product_attributes.*.code', $rules);
+        $this->assertArrayHasKey('product_attributes.*.name', $rules);
+        $this->assertArrayHasKey('product_attributes.*.allowed_values', $rules);
+    }
+
+    // ── product_attributes wired through entity and services (new) ────────────
+
+    public function test_create_product_service_handle_builds_product_attributes(): void
+    {
+        $repo = $this->createMock(\Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface::class);
+        $repo->method('find')->willReturn(null);
+        $repo->method('save')->willReturnArgument(0);
+
+        $service = new \Modules\Product\Application\Services\CreateProductService($repo);
+
+        $data = [
+            'tenant_id'          => 1,
+            'sku'                => 'TEST-PA-001',
+            'name'               => 'T-Shirt',
+            'price'              => 19.99,
+            'currency'           => 'USD',
+            'type'               => 'variable',
+            'product_attributes' => [
+                ['code' => 'color', 'name' => 'Color', 'allowed_values' => ['Red', 'Blue']],
+                ['code' => 'size',  'name' => 'Size',  'allowed_values' => ['S', 'M', 'L']],
+            ],
+        ];
+
+        // Call the protected handle() via reflection to avoid requiring a real DB transaction
+        $ref    = new \ReflectionMethod($service, 'handle');
+        $ref->setAccessible(true);
+        $product = $ref->invoke($service, $data);
+
+        $this->assertCount(2, $product->getProductAttributes());
+        $this->assertSame('color', $product->getProductAttributes()[0]->getCode());
+        $this->assertSame(['Red', 'Blue'], $product->getProductAttributes()[0]->getAllowedValues());
+        $this->assertSame('size', $product->getProductAttributes()[1]->getCode());
+    }
+
+    public function test_update_product_service_updates_product_attributes(): void
+    {
+        $colorAttr = new ProductAttribute('color', 'Color', ['Red']);
+        $sku   = new \Modules\Core\Domain\ValueObjects\Sku('TEST-PA-002');
+        $price = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+        $existing = new Product(
+            tenantId:          1,
+            sku:               $sku,
+            name:              'T-Shirt',
+            price:             $price,
+            type:              'variable',
+            productAttributes: [$colorAttr],
+        );
+
+        $repo = $this->createMock(\Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface::class);
+        $repo->method('find')->willReturn($existing);
+        $repo->method('save')->willReturnArgument(0);
+
+        $service = new \Modules\Product\Application\Services\UpdateProductService($repo);
+
+        $ref    = new \ReflectionMethod($service, 'handle');
+        $ref->setAccessible(true);
+        $updated = $ref->invoke($service, [
+            'id'                 => 1,
+            'tenant_id'          => 1,
+            'sku'                => 'TEST-PA-002',
+            'name'               => 'T-Shirt Updated',
+            'price'              => 15.0,
+            'currency'           => 'USD',
+            'product_attributes' => [
+                ['code' => 'color', 'name' => 'Color', 'allowed_values' => ['Red', 'Green']],
+                ['code' => 'size',  'name' => 'Size',  'allowed_values' => ['XS', 'S', 'M']],
+            ],
+        ]);
+
+        $this->assertCount(2, $updated->getProductAttributes());
+        $this->assertSame(['Red', 'Green'], $updated->getProductAttributes()[0]->getAllowedValues());
+        $this->assertSame('size', $updated->getProductAttributes()[1]->getCode());
+    }
+
+    public function test_update_product_service_preserves_product_attributes_when_not_provided(): void
+    {
+        $colorAttr = new ProductAttribute('color', 'Color', ['Red']);
+        $sku   = new \Modules\Core\Domain\ValueObjects\Sku('TEST-PA-003');
+        $price = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+        $existing = new Product(
+            tenantId:          1,
+            sku:               $sku,
+            name:              'T-Shirt',
+            price:             $price,
+            type:              'variable',
+            productAttributes: [$colorAttr],
+        );
+
+        $repo = $this->createMock(\Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface::class);
+        $repo->method('find')->willReturn($existing);
+        $repo->method('save')->willReturnArgument(0);
+
+        $service = new \Modules\Product\Application\Services\UpdateProductService($repo);
+
+        $ref    = new \ReflectionMethod($service, 'handle');
+        $ref->setAccessible(true);
+        $updated = $ref->invoke($service, [
+            'id'        => 1,
+            'tenant_id' => 1,
+            'sku'       => 'TEST-PA-003',
+            'name'      => 'T-Shirt',
+            'price'     => 10.0,
+            'currency'  => 'USD',
+            // No product_attributes → should preserve existing
+        ]);
+
+        // product_attributes is not in the data, so updateDetails gets null and preserves existing
+        $this->assertCount(1, $updated->getProductAttributes());
+        $this->assertSame('color', $updated->getProductAttributes()[0]->getCode());
+    }
+
+    // ── ProductResource includes product_attributes (new) ────────────────────
+
+    public function test_product_resource_includes_product_attributes_key(): void
+    {
+        $sku   = new \Modules\Core\Domain\ValueObjects\Sku('TEST-RES-001');
+        $price = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+        $attr  = new ProductAttribute('color', 'Color', ['Red', 'Blue']);
+
+        $product = new Product(
+            tenantId:          1,
+            sku:               $sku,
+            name:              'T-Shirt',
+            price:             $price,
+            type:              'variable',
+            productAttributes: [$attr],
+        );
+
+        $resource = new \Modules\Product\Infrastructure\Http\Resources\ProductResource($product);
+        $array    = $resource->toArray(new \Illuminate\Http\Request());
+
+        $this->assertArrayHasKey('product_attributes', $array);
+        $this->assertCount(1, $array['product_attributes']);
+        $this->assertSame('color', $array['product_attributes'][0]['code']);
+        $this->assertSame('Color', $array['product_attributes'][0]['name']);
+        $this->assertSame(['Red', 'Blue'], $array['product_attributes'][0]['allowed_values']);
+    }
+
+    // ── Controller constructors use service interfaces only (new) ─────────────
+
+    public function test_product_variation_controller_uses_service_interfaces(): void
+    {
+        $rc = new \ReflectionClass(ProductVariationController::class);
+        $constructor = $rc->getConstructor();
+        $paramTypes = array_map(
+            fn (\ReflectionParameter $p) => $p->getType()?->getName(),
+            $constructor->getParameters()
+        );
+
+        $this->assertContains(CreateProductVariationServiceInterface::class, $paramTypes);
+        $this->assertContains(UpdateProductVariationServiceInterface::class, $paramTypes);
+        $this->assertContains(DeleteProductVariationServiceInterface::class, $paramTypes);
+        $this->assertContains(CreateProductServiceInterface::class, $paramTypes);
+        $this->assertContains(FindProductVariationsServiceInterface::class, $paramTypes);
+
+        // Must NOT inject repository interfaces directly
+        $this->assertNotContains(\Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface::class, $paramTypes);
+        $this->assertNotContains(\Modules\Product\Domain\RepositoryInterfaces\ProductVariationRepositoryInterface::class, $paramTypes);
+    }
+
+    public function test_product_combo_item_controller_uses_service_interfaces(): void
+    {
+        $rc = new \ReflectionClass(ProductComboItemController::class);
+        $constructor = $rc->getConstructor();
+        $paramTypes = array_map(
+            fn (\ReflectionParameter $p) => $p->getType()?->getName(),
+            $constructor->getParameters()
+        );
+
+        $this->assertContains(CreateComboItemServiceInterface::class, $paramTypes);
+        $this->assertContains(UpdateComboItemServiceInterface::class, $paramTypes);
+        $this->assertContains(DeleteComboItemServiceInterface::class, $paramTypes);
+        $this->assertContains(CreateProductServiceInterface::class, $paramTypes);
+        $this->assertContains(FindComboItemsServiceInterface::class, $paramTypes);
+
+        // Must NOT inject repository interfaces directly
+        $this->assertNotContains(\Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface::class, $paramTypes);
+        $this->assertNotContains(\Modules\Product\Domain\RepositoryInterfaces\ComboItemRepositoryInterface::class, $paramTypes);
+    }
+
+    // ── find_product_variations_service and find_combo_items_service behaviour ─
+
+    public function test_find_product_variations_service_find_by_product(): void
+    {
+        $collection = new \Illuminate\Support\Collection([]);
+        $repo = $this->createMock(ProductVariationRepositoryInterface::class);
+        $repo->expects($this->once())
+             ->method('findByProduct')
+             ->with(42)
+             ->willReturn($collection);
+
+        $service = new FindProductVariationsService($repo);
+        $result  = $service->findByProduct(42);
+        $this->assertSame($collection, $result);
+    }
+
+    public function test_find_product_variations_service_find_single(): void
+    {
+        $sku       = new \Modules\Core\Domain\ValueObjects\Sku('VAR-FIND-01');
+        $price     = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+        $variation = new ProductVariation(1, 1, $sku, 'Test', $price);
+
+        $repo = $this->createMock(ProductVariationRepositoryInterface::class);
+        $repo->method('find')->with(7)->willReturn($variation);
+
+        $service = new FindProductVariationsService($repo);
+        $result  = $service->find(7);
+        $this->assertSame($variation, $result);
+    }
+
+    public function test_find_product_variations_service_find_returns_null_when_missing(): void
+    {
+        $repo = $this->createMock(ProductVariationRepositoryInterface::class);
+        $repo->method('find')->willReturn(null);
+
+        $service = new FindProductVariationsService($repo);
+        $this->assertNull($service->find(999));
+    }
+
+    public function test_find_combo_items_service_find_by_product(): void
+    {
+        $collection = new \Illuminate\Support\Collection([]);
+        $repo = $this->createMock(ComboItemRepositoryInterface::class);
+        $repo->expects($this->once())
+             ->method('findByProduct')
+             ->with(55)
+             ->willReturn($collection);
+
+        $service = new FindComboItemsService($repo);
+        $result  = $service->findByProduct(55);
+        $this->assertSame($collection, $result);
+    }
+
+    public function test_find_combo_items_service_find_single(): void
+    {
+        $item = new ComboItem(10, 1, 5, 2.0);
+
+        $repo = $this->createMock(ComboItemRepositoryInterface::class);
+        $repo->method('find')->with(3)->willReturn($item);
+
+        $service = new FindComboItemsService($repo);
+        $result  = $service->find(3);
+        $this->assertSame($item, $result);
+    }
+
+    public function test_find_combo_items_service_find_returns_null_when_missing(): void
+    {
+        $repo = $this->createMock(ComboItemRepositoryInterface::class);
+        $repo->method('find')->willReturn(null);
+
+        $service = new FindComboItemsService($repo);
+        $this->assertNull($service->find(999));
     }
 }

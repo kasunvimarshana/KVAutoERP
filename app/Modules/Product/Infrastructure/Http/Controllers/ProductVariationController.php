@@ -6,13 +6,13 @@ namespace Modules\Product\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
+use Modules\Product\Application\Contracts\CreateProductServiceInterface;
 use Modules\Product\Application\Contracts\CreateProductVariationServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductVariationServiceInterface;
+use Modules\Product\Application\Contracts\FindProductVariationsServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductVariationServiceInterface;
 use Modules\Product\Application\DTOs\ProductVariationData;
 use Modules\Product\Domain\Entities\Product;
-use Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface;
-use Modules\Product\Domain\RepositoryInterfaces\ProductVariationRepositoryInterface;
 use Modules\Product\Infrastructure\Http\Requests\StoreProductVariationRequest;
 use Modules\Product\Infrastructure\Http\Requests\UpdateProductVariationRequest;
 use Modules\Product\Infrastructure\Http\Resources\ProductVariationResource;
@@ -24,8 +24,8 @@ class ProductVariationController extends AuthorizedController
         protected CreateProductVariationServiceInterface $createService,
         protected UpdateProductVariationServiceInterface $updateService,
         protected DeleteProductVariationServiceInterface $deleteService,
-        protected ProductRepositoryInterface $productRepo,
-        protected ProductVariationRepositoryInterface $variationRepo,
+        protected CreateProductServiceInterface $productService,
+        protected FindProductVariationsServiceInterface $variationService,
     ) {}
 
     #[OA\Get(
@@ -46,7 +46,7 @@ class ProductVariationController extends AuthorizedController
     public function index(int $productId): JsonResponse
     {
         $this->authorize('viewAny', Product::class);
-        $variations = $this->variationRepo->findByProduct($productId);
+        $variations = $this->variationService->findByProduct($productId);
 
         return response()->json(['data' => ProductVariationResource::collection($variations)]);
     }
@@ -86,7 +86,7 @@ class ProductVariationController extends AuthorizedController
     public function store(StoreProductVariationRequest $request, int $productId): JsonResponse
     {
         $this->authorize('create', Product::class);
-        $product = $this->productRepo->find($productId);
+        $product = $this->productService->find($productId);
         if (! $product) {
             abort(404);
         }
@@ -134,7 +134,7 @@ class ProductVariationController extends AuthorizedController
     public function update(UpdateProductVariationRequest $request, int $productId, int $variationId): ProductVariationResource
     {
         $this->authorize('update', Product::class);
-        $variation = $this->variationRepo->find($variationId);
+        $variation = $this->variationService->find($variationId);
         if (! $variation) {
             abort(404);
         }
@@ -170,7 +170,7 @@ class ProductVariationController extends AuthorizedController
     public function destroy(int $productId, int $variationId): JsonResponse
     {
         $this->authorize('delete', Product::class);
-        $variation = $this->variationRepo->find($variationId);
+        $variation = $this->variationService->find($variationId);
         if (! $variation) {
             abort(404);
         }

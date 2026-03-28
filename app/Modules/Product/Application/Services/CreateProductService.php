@@ -12,6 +12,7 @@ use Modules\Product\Application\DTOs\ProductData;
 use Modules\Product\Domain\Entities\Product;
 use Modules\Product\Domain\Events\ProductCreated;
 use Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface;
+use Modules\Product\Domain\ValueObjects\ProductAttribute;
 use Modules\Product\Domain\ValueObjects\UnitOfMeasure;
 
 class CreateProductService extends BaseService implements CreateProductServiceInterface
@@ -33,6 +34,11 @@ class CreateProductService extends BaseService implements CreateProductServiceIn
             $unitsOfMeasure[] = UnitOfMeasure::fromArray($uomData);
         }
 
+        $productAttributes = [];
+        foreach ($dto->product_attributes ?? [] as $attrData) {
+            $productAttributes[] = ProductAttribute::fromArray($attrData);
+        }
+
         $product = new Product(
             tenantId: $dto->tenant_id,
             sku: $sku,
@@ -45,6 +51,7 @@ class CreateProductService extends BaseService implements CreateProductServiceIn
             unitsOfMeasure: $unitsOfMeasure,
             attributes: $dto->attributes,
             metadata: $dto->metadata,
+            productAttributes: $productAttributes,
         );
 
         $saved = $this->productRepository->save($product);
