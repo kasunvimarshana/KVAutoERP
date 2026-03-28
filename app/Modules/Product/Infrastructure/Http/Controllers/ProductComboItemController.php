@@ -7,12 +7,12 @@ namespace Modules\Product\Infrastructure\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Product\Application\Contracts\CreateComboItemServiceInterface;
+use Modules\Product\Application\Contracts\CreateProductServiceInterface;
 use Modules\Product\Application\Contracts\DeleteComboItemServiceInterface;
+use Modules\Product\Application\Contracts\FindComboItemsServiceInterface;
 use Modules\Product\Application\Contracts\UpdateComboItemServiceInterface;
 use Modules\Product\Application\DTOs\ComboItemData;
 use Modules\Product\Domain\Entities\Product;
-use Modules\Product\Domain\RepositoryInterfaces\ComboItemRepositoryInterface;
-use Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface;
 use Modules\Product\Infrastructure\Http\Requests\StoreComboItemRequest;
 use Modules\Product\Infrastructure\Http\Requests\UpdateComboItemRequest;
 use Modules\Product\Infrastructure\Http\Resources\ComboItemResource;
@@ -24,8 +24,8 @@ class ProductComboItemController extends AuthorizedController
         protected CreateComboItemServiceInterface $createService,
         protected UpdateComboItemServiceInterface $updateService,
         protected DeleteComboItemServiceInterface $deleteService,
-        protected ProductRepositoryInterface $productRepo,
-        protected ComboItemRepositoryInterface $comboItemRepo,
+        protected CreateProductServiceInterface $productService,
+        protected FindComboItemsServiceInterface $comboItemService,
     ) {}
 
     #[OA\Get(
@@ -44,7 +44,7 @@ class ProductComboItemController extends AuthorizedController
     public function index(int $productId): JsonResponse
     {
         $this->authorize('viewAny', Product::class);
-        $comboItems = $this->comboItemRepo->findByProduct($productId);
+        $comboItems = $this->comboItemService->findByProduct($productId);
 
         return response()->json(['data' => ComboItemResource::collection($comboItems)]);
     }
@@ -79,7 +79,7 @@ class ProductComboItemController extends AuthorizedController
     public function store(StoreComboItemRequest $request, int $productId): JsonResponse
     {
         $this->authorize('create', Product::class);
-        $product = $this->productRepo->find($productId);
+        $product = $this->productService->find($productId);
         if (! $product) {
             abort(404);
         }
@@ -124,7 +124,7 @@ class ProductComboItemController extends AuthorizedController
     public function update(UpdateComboItemRequest $request, int $productId, int $itemId): ComboItemResource
     {
         $this->authorize('update', Product::class);
-        $comboItem = $this->comboItemRepo->find($itemId);
+        $comboItem = $this->comboItemService->find($itemId);
         if (! $comboItem) {
             abort(404);
         }
@@ -158,7 +158,7 @@ class ProductComboItemController extends AuthorizedController
     public function destroy(int $productId, int $itemId): JsonResponse
     {
         $this->authorize('delete', Product::class);
-        $comboItem = $this->comboItemRepo->find($itemId);
+        $comboItem = $this->comboItemService->find($itemId);
         if (! $comboItem) {
             abort(404);
         }

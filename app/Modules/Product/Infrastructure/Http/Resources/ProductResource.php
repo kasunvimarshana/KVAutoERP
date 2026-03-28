@@ -29,6 +29,10 @@ class ProductResource extends JsonResource
             ),
             'attributes'        => $this->getAttributes(),
             'metadata'          => $this->getMetadata(),
+            'product_attributes' => array_map(
+                fn ($attr) => $attr->toArray(),
+                $this->getProductAttributes()
+            ),
             'images'            => ProductImageResource::collection($this->getImages()),
             'variations'        => ProductVariationResource::collection($this->getVariations()),
             'combo_items'       => ComboItemResource::collection($this->getComboItems()),
