@@ -6,13 +6,13 @@ namespace Modules\Product\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Product\Application\Contracts\BulkUploadProductImagesServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductImageServiceInterface;
+use Modules\Product\Application\Contracts\FindProductImagesServiceInterface;
+use Modules\Product\Application\Contracts\ImageStorageStrategyInterface;
 use Modules\Product\Application\Contracts\UploadProductImageServiceInterface;
 use Modules\Product\Domain\Entities\Product;
-use Modules\Product\Domain\RepositoryInterfaces\ProductImageRepositoryInterface;
 use Modules\Product\Infrastructure\Http\Requests\UploadProductImageRequest;
 use Modules\Product\Infrastructure\Http\Resources\ProductImageResource;
 use OpenApi\Attributes as OA;
@@ -23,8 +23,8 @@ class ProductImageController extends AuthorizedController
         protected UploadProductImageServiceInterface $uploadService,
         protected BulkUploadProductImagesServiceInterface $bulkUploadService,
         protected DeleteProductImageServiceInterface $deleteService,
-        protected ProductImageRepositoryInterface $imageRepo,
-        protected FileStorageServiceInterface $storage
+        protected FindProductImagesServiceInterface $findImagesService,
+        protected ImageStorageStrategyInterface $storageStrategy
     ) {}
 
     #[OA\Get(
@@ -45,7 +45,7 @@ class ProductImageController extends AuthorizedController
     public function index(int $productId, Request $request)
     {
         $this->authorize('viewAny', Product::class);
-        $images = $this->imageRepo->getByProduct($productId);
+        $images = $this->findImagesService->findByProduct($productId);
 
         return ProductImageResource::collection($images);
     }
@@ -201,12 +201,12 @@ class ProductImageController extends AuthorizedController
     )]
     public function serve(string $uuid)
     {
-        $image = $this->imageRepo->findByUuid($uuid);
+        $image = $this->findImagesService->findByUuid($uuid);
         if (! $image) {
             abort(404);
         }
 
-        return $this->storage->stream($image->getFilePath());
+        return $this->storageStrategy->stream($image->getFilePath());
     }
 }
 
