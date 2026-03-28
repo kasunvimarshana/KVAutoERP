@@ -7,6 +7,7 @@ namespace Modules\Product\Infrastructure\Providers;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Core\Application\Contracts\FileStorageServiceInterface;
+use Modules\Product\Application\Contracts\BulkUploadProductImagesServiceInterface;
 use Modules\Product\Application\Contracts\CreateComboItemServiceInterface;
 use Modules\Product\Application\Contracts\CreateProductServiceInterface;
 use Modules\Product\Application\Contracts\CreateProductVariationServiceInterface;
@@ -16,10 +17,12 @@ use Modules\Product\Application\Contracts\DeleteProductServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductVariationServiceInterface;
 use Modules\Product\Application\Contracts\FindComboItemsServiceInterface;
 use Modules\Product\Application\Contracts\FindProductVariationsServiceInterface;
+use Modules\Product\Application\Contracts\ImageStorageStrategyInterface;
 use Modules\Product\Application\Contracts\UpdateComboItemServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductVariationServiceInterface;
 use Modules\Product\Application\Contracts\UploadProductImageServiceInterface;
+use Modules\Product\Application\Services\BulkUploadProductImagesService;
 use Modules\Product\Application\Services\CreateComboItemService;
 use Modules\Product\Application\Services\CreateProductService;
 use Modules\Product\Application\Services\CreateProductVariationService;
@@ -45,6 +48,7 @@ use Modules\Product\Infrastructure\Persistence\Eloquent\Repositories\EloquentCom
 use Modules\Product\Infrastructure\Persistence\Eloquent\Repositories\EloquentProductImageRepository;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Repositories\EloquentProductRepository;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Repositories\EloquentProductVariationRepository;
+use Modules\Product\Infrastructure\Storage\DefaultImageStorageStrategy;
 
 class ProductServiceProvider extends ServiceProvider
 {
@@ -68,6 +72,13 @@ class ProductServiceProvider extends ServiceProvider
             return new EloquentComboItemRepository($app->make(ProductComboItemModel::class));
         });
 
+        // ── Image Storage Strategy ────────────────────────────────────────────
+        // Swap this binding to plug in a different strategy (CDN, resizing, etc.)
+
+        $this->app->bind(ImageStorageStrategyInterface::class, function ($app) {
+            return new DefaultImageStorageStrategy($app->make(FileStorageServiceInterface::class));
+        });
+
         // ── Application Services ──────────────────────────────────────────────
 
         $this->app->bind(CreateProductServiceInterface::class, function ($app) {
@@ -86,14 +97,22 @@ class ProductServiceProvider extends ServiceProvider
             return new UploadProductImageService(
                 $app->make(ProductRepositoryInterface::class),
                 $app->make(ProductImageRepositoryInterface::class),
-                $app->make(FileStorageServiceInterface::class)
+                $app->make(ImageStorageStrategyInterface::class)
             );
         });
 
         $this->app->bind(DeleteProductImageServiceInterface::class, function ($app) {
             return new DeleteProductImageService(
                 $app->make(ProductImageRepositoryInterface::class),
-                $app->make(FileStorageServiceInterface::class)
+                $app->make(ImageStorageStrategyInterface::class)
+            );
+        });
+
+        $this->app->bind(BulkUploadProductImagesServiceInterface::class, function ($app) {
+            return new BulkUploadProductImagesService(
+                $app->make(ProductRepositoryInterface::class),
+                $app->make(ProductImageRepositoryInterface::class),
+                $app->make(ImageStorageStrategyInterface::class)
             );
         });
 
@@ -147,3 +166,4 @@ class ProductServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
     }
 }
+
