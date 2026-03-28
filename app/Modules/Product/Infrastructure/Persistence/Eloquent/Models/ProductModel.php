@@ -23,14 +23,17 @@ class ProductModel extends Model
         'currency',
         'category',
         'status',
+        'type',
+        'units_of_measure',
         'attributes',
         'metadata',
     ];
 
     protected $casts = [
-        'price'      => 'float',
-        'attributes' => 'array',
-        'metadata'   => 'array',
+        'price'            => 'float',
+        'units_of_measure' => 'array',
+        'attributes'       => 'array',
+        'metadata'         => 'array',
     ];
 
     public function images(): HasMany

@@ -12,6 +12,7 @@ use Modules\Product\Domain\Entities\Product;
 use Modules\Product\Domain\Events\ProductUpdated;
 use Modules\Product\Domain\Exceptions\ProductNotFoundException;
 use Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface;
+use Modules\Product\Domain\ValueObjects\UnitOfMeasure;
 
 class UpdateProductService extends BaseService implements UpdateProductServiceInterface
 {
@@ -29,8 +30,16 @@ class UpdateProductService extends BaseService implements UpdateProductServiceIn
             throw new ProductNotFoundException($id);
         }
 
-        $dto = ProductData::fromArray($data);
+        $dto   = ProductData::fromArray($data);
         $price = new Money($dto->price, $dto->currency ?? 'USD');
+
+        $unitsOfMeasure = null;
+        if (isset($dto->units_of_measure)) {
+            $unitsOfMeasure = [];
+            foreach ($dto->units_of_measure as $uomData) {
+                $unitsOfMeasure[] = UnitOfMeasure::fromArray($uomData);
+            }
+        }
 
         $product->updateDetails(
             name: $dto->name,
@@ -39,6 +48,8 @@ class UpdateProductService extends BaseService implements UpdateProductServiceIn
             category: $dto->category,
             attributes: $dto->attributes,
             metadata: $dto->metadata,
+            type: $dto->type ?? null,
+            unitsOfMeasure: $unitsOfMeasure,
         );
 
         if (isset($dto->status)) {

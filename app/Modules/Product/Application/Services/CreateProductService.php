@@ -12,6 +12,7 @@ use Modules\Product\Application\DTOs\ProductData;
 use Modules\Product\Domain\Entities\Product;
 use Modules\Product\Domain\Events\ProductCreated;
 use Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface;
+use Modules\Product\Domain\ValueObjects\UnitOfMeasure;
 
 class CreateProductService extends BaseService implements CreateProductServiceInterface
 {
@@ -24,8 +25,13 @@ class CreateProductService extends BaseService implements CreateProductServiceIn
     {
         $dto = ProductData::fromArray($data);
 
-        $sku = new Sku($dto->sku);
+        $sku   = new Sku($dto->sku);
         $price = new Money($dto->price, $dto->currency ?? 'USD');
+
+        $unitsOfMeasure = [];
+        foreach ($dto->units_of_measure ?? [] as $uomData) {
+            $unitsOfMeasure[] = UnitOfMeasure::fromArray($uomData);
+        }
 
         $product = new Product(
             tenantId: $dto->tenant_id,
@@ -35,6 +41,8 @@ class CreateProductService extends BaseService implements CreateProductServiceIn
             description: $dto->description,
             category: $dto->category,
             status: $dto->status ?? 'active',
+            type: $dto->type ?? 'physical',
+            unitsOfMeasure: $unitsOfMeasure,
             attributes: $dto->attributes,
             metadata: $dto->metadata,
         );

@@ -12,6 +12,7 @@ use Modules\Core\Infrastructure\Persistence\Repositories\EloquentRepository;
 use Modules\Product\Domain\Entities\Product;
 use Modules\Product\Domain\Entities\ProductImage;
 use Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface;
+use Modules\Product\Domain\ValueObjects\UnitOfMeasure;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductImageModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductModel;
 
@@ -38,16 +39,18 @@ class EloquentProductRepository extends EloquentRepository implements ProductRep
     public function save(Product $product): Product
     {
         $data = [
-            'tenant_id'   => $product->getTenantId(),
-            'sku'         => $product->getSku()->value(),
-            'name'        => $product->getName(),
-            'description' => $product->getDescription(),
-            'price'       => $product->getPrice()->getAmount(),
-            'currency'    => $product->getPrice()->getCurrency(),
-            'category'    => $product->getCategory(),
-            'status'      => $product->getStatus(),
-            'attributes'  => $product->getAttributes(),
-            'metadata'    => $product->getMetadata(),
+            'tenant_id'        => $product->getTenantId(),
+            'sku'              => $product->getSku()->value(),
+            'name'             => $product->getName(),
+            'description'      => $product->getDescription(),
+            'price'            => $product->getPrice()->getAmount(),
+            'currency'         => $product->getPrice()->getCurrency(),
+            'category'         => $product->getCategory(),
+            'status'           => $product->getStatus(),
+            'type'             => $product->getType()->value(),
+            'units_of_measure' => array_map(fn (UnitOfMeasure $u) => $u->toArray(), $product->getUnitsOfMeasure()),
+            'attributes'       => $product->getAttributes(),
+            'metadata'         => $product->getMetadata(),
         ];
 
         if ($product->getId()) {
@@ -78,6 +81,11 @@ class EloquentProductRepository extends EloquentRepository implements ProductRep
 
     private function mapModelToDomainEntity(ProductModel $model): Product
     {
+        $unitsOfMeasure = [];
+        foreach ($model->units_of_measure ?? [] as $uomData) {
+            $unitsOfMeasure[] = UnitOfMeasure::fromArray($uomData);
+        }
+
         $product = new Product(
             tenantId: $model->tenant_id,
             sku: new Sku($model->sku),
@@ -86,6 +94,8 @@ class EloquentProductRepository extends EloquentRepository implements ProductRep
             description: $model->description,
             category: $model->category,
             status: $model->status,
+            type: $model->type ?? 'physical',
+            unitsOfMeasure: $unitsOfMeasure,
             attributes: $model->attributes,
             metadata: $model->metadata,
             id: $model->id,
