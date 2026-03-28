@@ -1810,4 +1810,172 @@ class ProductModuleTest extends TestCase
 
         $this->assertTrue($result);
     }
+
+    // ── FindProductImagesService ──────────────────────────────────────────────
+
+    public function test_find_product_images_service_interface_exists(): void
+    {
+        $this->assertTrue(
+            interface_exists(\Modules\Product\Application\Contracts\FindProductImagesServiceInterface::class)
+        );
+    }
+
+    public function test_find_product_images_service_class_exists(): void
+    {
+        $this->assertTrue(
+            class_exists(\Modules\Product\Application\Services\FindProductImagesService::class)
+        );
+    }
+
+    public function test_find_product_images_service_implements_interface(): void
+    {
+        $this->assertContains(
+            \Modules\Product\Application\Contracts\FindProductImagesServiceInterface::class,
+            class_implements(\Modules\Product\Application\Services\FindProductImagesService::class)
+        );
+    }
+
+    public function test_find_product_images_service_find_by_product(): void
+    {
+        $image = new \Modules\Product\Domain\Entities\ProductImage(
+            tenantId: 1, productId: 7, uuid: 'u1', name: 'a.jpg',
+            filePath: 'products/7/a.jpg', mimeType: 'image/jpeg', size: 1024,
+            id: 1,
+        );
+
+        $imageRepo = $this->createMock(\Modules\Product\Domain\RepositoryInterfaces\ProductImageRepositoryInterface::class);
+        $imageRepo->expects($this->once())
+            ->method('getByProduct')
+            ->with(7)
+            ->willReturn(collect([$image]));
+
+        $service = new \Modules\Product\Application\Services\FindProductImagesService($imageRepo);
+        $result  = $service->findByProduct(7);
+
+        $this->assertCount(1, $result);
+        $this->assertSame($image, $result->first());
+    }
+
+    public function test_find_product_images_service_find_by_uuid(): void
+    {
+        $image = new \Modules\Product\Domain\Entities\ProductImage(
+            tenantId: 1, productId: 7, uuid: 'abc-uuid', name: 'b.jpg',
+            filePath: 'products/7/b.jpg', mimeType: 'image/jpeg', size: 512,
+            id: 2,
+        );
+
+        $imageRepo = $this->createMock(\Modules\Product\Domain\RepositoryInterfaces\ProductImageRepositoryInterface::class);
+        $imageRepo->expects($this->once())
+            ->method('findByUuid')
+            ->with('abc-uuid')
+            ->willReturn($image);
+
+        $service = new \Modules\Product\Application\Services\FindProductImagesService($imageRepo);
+        $result  = $service->findByUuid('abc-uuid');
+
+        $this->assertSame($image, $result);
+    }
+
+    public function test_find_product_images_service_find_by_uuid_returns_null_when_missing(): void
+    {
+        $imageRepo = $this->createMock(\Modules\Product\Domain\RepositoryInterfaces\ProductImageRepositoryInterface::class);
+        $imageRepo->method('findByUuid')->willReturn(null);
+
+        $service = new \Modules\Product\Application\Services\FindProductImagesService($imageRepo);
+        $this->assertNull($service->findByUuid('nonexistent'));
+    }
+
+    // ── ImageStorageStrategyInterface::stream ─────────────────────────────────
+
+    public function test_image_storage_strategy_interface_has_stream_method(): void
+    {
+        $rc = new \ReflectionClass(\Modules\Product\Application\Contracts\ImageStorageStrategyInterface::class);
+        $this->assertTrue($rc->hasMethod('stream'));
+
+        $method = $rc->getMethod('stream');
+        $params = $method->getParameters();
+        $this->assertCount(1, $params);
+        $this->assertSame('path', $params[0]->getName());
+    }
+
+    public function test_default_image_storage_strategy_delegates_stream(): void
+    {
+        $path     = 'products/1/img.jpg';
+        $response = $this->createMock(\Symfony\Component\HttpFoundation\StreamedResponse::class);
+
+        $fileStorage = $this->createMock(\Modules\Core\Application\Contracts\FileStorageServiceInterface::class);
+        $fileStorage->expects($this->once())
+            ->method('stream')
+            ->with($path)
+            ->willReturn($response);
+
+        $strategy = new \Modules\Product\Infrastructure\Storage\DefaultImageStorageStrategy($fileStorage);
+        $result   = $strategy->stream($path);
+
+        $this->assertSame($response, $result);
+    }
+
+    // ── ProductImageController DI (no direct repo/storage injection) ──────────
+
+    public function test_product_image_controller_uses_find_product_images_service_interface(): void
+    {
+        $rc = new \ReflectionClass(\Modules\Product\Infrastructure\Http\Controllers\ProductImageController::class);
+        $constructor = $rc->getConstructor();
+        $paramTypes  = array_map(
+            fn (\ReflectionParameter $p) => $p->getType()?->getName(),
+            $constructor->getParameters()
+        );
+
+        $this->assertContains(
+            \Modules\Product\Application\Contracts\FindProductImagesServiceInterface::class,
+            $paramTypes,
+            'ProductImageController must inject FindProductImagesServiceInterface.'
+        );
+        $this->assertContains(
+            \Modules\Product\Application\Contracts\ImageStorageStrategyInterface::class,
+            $paramTypes,
+            'ProductImageController must inject ImageStorageStrategyInterface.'
+        );
+    }
+
+    public function test_product_image_controller_does_not_inject_repository_or_file_storage_directly(): void
+    {
+        $rc = new \ReflectionClass(\Modules\Product\Infrastructure\Http\Controllers\ProductImageController::class);
+        $constructor = $rc->getConstructor();
+        $paramTypes  = array_map(
+            fn (\ReflectionParameter $p) => $p->getType()?->getName(),
+            $constructor->getParameters()
+        );
+
+        $this->assertNotContains(
+            \Modules\Product\Domain\RepositoryInterfaces\ProductImageRepositoryInterface::class,
+            $paramTypes,
+            'ProductImageController must not inject ProductImageRepositoryInterface directly.'
+        );
+        $this->assertNotContains(
+            \Modules\Core\Application\Contracts\FileStorageServiceInterface::class,
+            $paramTypes,
+            'ProductImageController must not inject FileStorageServiceInterface directly.'
+        );
+    }
+
+    // ── UpdateProductRequest partial-update rules ─────────────────────────────
+
+    public function test_update_product_request_name_is_optional_for_partial_updates(): void
+    {
+        $request = new \Modules\Product\Infrastructure\Http\Requests\UpdateProductRequest();
+        $rules   = $request->rules();
+
+        $this->assertStringContainsString('sometimes', $rules['name'],
+            'UpdateProductRequest name should use sometimes to allow partial updates.');
+    }
+
+    public function test_update_product_request_price_is_optional_for_partial_updates(): void
+    {
+        $request = new \Modules\Product\Infrastructure\Http\Requests\UpdateProductRequest();
+        $rules   = $request->rules();
+
+        $this->assertStringContainsString('sometimes', $rules['price'],
+            'UpdateProductRequest price should use sometimes to allow partial updates.');
+    }
 }
