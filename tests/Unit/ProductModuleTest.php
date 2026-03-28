@@ -2,46 +2,85 @@
 
 namespace Tests\Unit;
 
+use Modules\Product\Application\Contracts\CreateComboItemServiceInterface;
 use Modules\Product\Application\Contracts\CreateProductServiceInterface;
+use Modules\Product\Application\Contracts\CreateProductVariationServiceInterface;
+use Modules\Product\Application\Contracts\DeleteComboItemServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductImageServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductServiceInterface;
+use Modules\Product\Application\Contracts\DeleteProductVariationServiceInterface;
+use Modules\Product\Application\Contracts\UpdateComboItemServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductServiceInterface;
+use Modules\Product\Application\Contracts\UpdateProductVariationServiceInterface;
 use Modules\Product\Application\Contracts\UploadProductImageServiceInterface;
+use Modules\Product\Application\DTOs\ComboItemData;
 use Modules\Product\Application\DTOs\ProductData;
 use Modules\Product\Application\DTOs\ProductImageData;
+use Modules\Product\Application\DTOs\ProductVariationData;
+use Modules\Product\Application\Services\CreateComboItemService;
 use Modules\Product\Application\Services\CreateProductService;
+use Modules\Product\Application\Services\CreateProductVariationService;
+use Modules\Product\Application\Services\DeleteComboItemService;
 use Modules\Product\Application\Services\DeleteProductImageService;
 use Modules\Product\Application\Services\DeleteProductService;
+use Modules\Product\Application\Services\DeleteProductVariationService;
+use Modules\Product\Application\Services\UpdateComboItemService;
 use Modules\Product\Application\Services\UpdateProductService;
+use Modules\Product\Application\Services\UpdateProductVariationService;
 use Modules\Product\Application\Services\UploadProductImageService;
 use Modules\Product\Application\UseCases\CreateProduct;
 use Modules\Product\Application\UseCases\DeleteProduct;
 use Modules\Product\Application\UseCases\GetProduct;
 use Modules\Product\Application\UseCases\ListProducts;
 use Modules\Product\Application\UseCases\UpdateProduct;
+use Modules\Product\Domain\Entities\ComboItem;
 use Modules\Product\Domain\Entities\Product;
 use Modules\Product\Domain\Entities\ProductImage;
+use Modules\Product\Domain\Entities\ProductVariation;
+use Modules\Product\Domain\Events\ComboItemCreated;
+use Modules\Product\Domain\Events\ComboItemDeleted;
+use Modules\Product\Domain\Events\ComboItemUpdated;
 use Modules\Product\Domain\Events\ProductCreated;
 use Modules\Product\Domain\Events\ProductDeleted;
 use Modules\Product\Domain\Events\ProductUpdated;
+use Modules\Product\Domain\Events\ProductVariationCreated;
+use Modules\Product\Domain\Events\ProductVariationDeleted;
+use Modules\Product\Domain\Events\ProductVariationUpdated;
+use Modules\Product\Domain\Exceptions\ComboItemNotFoundException;
 use Modules\Product\Domain\Exceptions\ProductImageNotFoundException;
 use Modules\Product\Domain\Exceptions\ProductNotFoundException;
+use Modules\Product\Domain\Exceptions\ProductVariationNotFoundException;
+use Modules\Product\Domain\RepositoryInterfaces\ComboItemRepositoryInterface;
 use Modules\Product\Domain\RepositoryInterfaces\ProductImageRepositoryInterface;
 use Modules\Product\Domain\RepositoryInterfaces\ProductRepositoryInterface;
+use Modules\Product\Domain\RepositoryInterfaces\ProductVariationRepositoryInterface;
+use Modules\Product\Domain\ValueObjects\ProductAttribute;
 use Modules\Product\Domain\ValueObjects\ProductType;
 use Modules\Product\Domain\ValueObjects\UnitOfMeasure;
+use Modules\Product\Infrastructure\Http\Controllers\ProductComboItemController;
 use Modules\Product\Infrastructure\Http\Controllers\ProductController;
 use Modules\Product\Infrastructure\Http\Controllers\ProductImageController;
+use Modules\Product\Infrastructure\Http\Controllers\ProductVariationController;
+use Modules\Product\Infrastructure\Http\Requests\StoreComboItemRequest;
 use Modules\Product\Infrastructure\Http\Requests\StoreProductRequest;
+use Modules\Product\Infrastructure\Http\Requests\StoreProductVariationRequest;
+use Modules\Product\Infrastructure\Http\Requests\UpdateComboItemRequest;
 use Modules\Product\Infrastructure\Http\Requests\UpdateProductRequest;
+use Modules\Product\Infrastructure\Http\Requests\UpdateProductVariationRequest;
 use Modules\Product\Infrastructure\Http\Requests\UploadProductImageRequest;
+use Modules\Product\Infrastructure\Http\Resources\ComboItemResource;
 use Modules\Product\Infrastructure\Http\Resources\ProductCollection;
 use Modules\Product\Infrastructure\Http\Resources\ProductImageResource;
 use Modules\Product\Infrastructure\Http\Resources\ProductResource;
+use Modules\Product\Infrastructure\Http\Resources\ProductVariationResource;
+use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductComboItemModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductImageModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductModel;
+use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductVariationModel;
+use Modules\Product\Infrastructure\Persistence\Eloquent\Repositories\EloquentComboItemRepository;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Repositories\EloquentProductImageRepository;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Repositories\EloquentProductRepository;
+use Modules\Product\Infrastructure\Persistence\Eloquent\Repositories\EloquentProductVariationRepository;
 use Modules\Product\Infrastructure\Providers\ProductServiceProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -544,5 +583,505 @@ class ProductModuleTest extends TestCase
 
         $this->assertCount(1, $product->getUnitsOfMeasure());
         $this->assertSame('pcs', $product->getBuyingUnit()->getUnit());
+    }
+
+    // ── ProductAttribute Value Object ─────────────────────────────────────────
+
+    public function test_product_attribute_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ProductAttribute::class));
+    }
+
+    public function test_product_attribute_can_be_constructed(): void
+    {
+        $attr = new ProductAttribute('color', 'Color', ['Red', 'Blue', 'Green']);
+
+        $this->assertSame('color', $attr->getCode());
+        $this->assertSame('Color', $attr->getName());
+        $this->assertSame(['Red', 'Blue', 'Green'], $attr->getAllowedValues());
+    }
+
+    public function test_product_attribute_code_is_lowercased(): void
+    {
+        $attr = new ProductAttribute('SIZE', 'Size');
+        $this->assertSame('size', $attr->getCode());
+    }
+
+    public function test_product_attribute_empty_code_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new ProductAttribute('', 'Empty');
+    }
+
+    public function test_product_attribute_empty_name_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new ProductAttribute('code', '');
+    }
+
+    public function test_product_attribute_open_ended_allows_any_value(): void
+    {
+        $attr = new ProductAttribute('tag', 'Tag'); // no allowed values = open-ended
+        $this->assertTrue($attr->isValueAllowed('anything'));
+        $this->assertTrue($attr->isValueAllowed(''));
+    }
+
+    public function test_product_attribute_restricted_values(): void
+    {
+        $attr = new ProductAttribute('color', 'Color', ['Red', 'Blue']);
+        $this->assertTrue($attr->isValueAllowed('Red'));
+        $this->assertFalse($attr->isValueAllowed('Green'));
+    }
+
+    public function test_product_attribute_to_array_and_from_array(): void
+    {
+        $attr  = new ProductAttribute('size', 'Size', ['S', 'M', 'L']);
+        $array = $attr->toArray();
+
+        $this->assertSame('size', $array['code']);
+        $this->assertSame('Size', $array['name']);
+        $this->assertSame(['S', 'M', 'L'], $array['allowed_values']);
+
+        $restored = ProductAttribute::fromArray($array);
+        $this->assertTrue($attr->equals($restored));
+    }
+
+    public function test_product_attribute_equals(): void
+    {
+        $a = new ProductAttribute('color', 'Color');
+        $b = new ProductAttribute('color', 'Colour'); // same code, different name
+        $c = new ProductAttribute('size', 'Size');
+
+        $this->assertTrue($a->equals($b));
+        $this->assertFalse($a->equals($c));
+    }
+
+    // ── ProductVariation Entity ───────────────────────────────────────────────
+
+    public function test_product_variation_entity_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ProductVariation::class));
+    }
+
+    public function test_product_variation_can_be_constructed(): void
+    {
+        $sku       = new \Modules\Core\Domain\ValueObjects\Sku('PROD-001-RED-M');
+        $price     = new \Modules\Core\Domain\ValueObjects\Money(29.99, 'USD');
+        $variation = new ProductVariation(
+            productId:       1,
+            tenantId:        1,
+            sku:             $sku,
+            name:            'Widget (Red, M)',
+            price:           $price,
+            attributeValues: ['color' => 'Red', 'size' => 'M'],
+            status:          'active',
+            sortOrder:       0,
+        );
+
+        $this->assertNull($variation->getId());
+        $this->assertSame(1, $variation->getProductId());
+        $this->assertSame(1, $variation->getTenantId());
+        $this->assertSame('PROD-001-RED-M', $variation->getSku()->value());
+        $this->assertSame('Widget (Red, M)', $variation->getName());
+        $this->assertSame(29.99, $variation->getPrice()->getAmount());
+        $this->assertSame('active', $variation->getStatus());
+        $this->assertSame(['color' => 'Red', 'size' => 'M'], $variation->getAttributeValues());
+        $this->assertSame('Red', $variation->getAttributeValue('color'));
+        $this->assertNull($variation->getAttributeValue('weight'));
+        $this->assertTrue($variation->isActive());
+    }
+
+    public function test_product_variation_activate_deactivate(): void
+    {
+        $sku       = new \Modules\Core\Domain\ValueObjects\Sku('VAR-001');
+        $price     = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+        $variation = new ProductVariation(1, 1, $sku, 'Test', $price, [], 'inactive');
+
+        $this->assertFalse($variation->isActive());
+        $variation->activate();
+        $this->assertTrue($variation->isActive());
+        $variation->deactivate();
+        $this->assertFalse($variation->isActive());
+    }
+
+    public function test_product_variation_update_details(): void
+    {
+        $sku       = new \Modules\Core\Domain\ValueObjects\Sku('VAR-002');
+        $price     = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+        $variation = new ProductVariation(1, 1, $sku, 'Original', $price);
+
+        $newPrice = new \Modules\Core\Domain\ValueObjects\Money(25.0, 'EUR');
+        $variation->updateDetails(
+            name:            'Updated',
+            price:           $newPrice,
+            attributeValues: ['color' => 'Blue'],
+            status:          'active',
+            sortOrder:       2,
+            metadata:        ['note' => 'test'],
+        );
+
+        $this->assertSame('Updated', $variation->getName());
+        $this->assertSame(25.0, $variation->getPrice()->getAmount());
+        $this->assertSame('EUR', $variation->getPrice()->getCurrency());
+        $this->assertSame(['color' => 'Blue'], $variation->getAttributeValues());
+        $this->assertSame(2, $variation->getSortOrder());
+        $this->assertSame(['note' => 'test'], $variation->getMetadata());
+    }
+
+    // ── ComboItem Entity ──────────────────────────────────────────────────────
+
+    public function test_combo_item_entity_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ComboItem::class));
+    }
+
+    public function test_combo_item_can_be_constructed(): void
+    {
+        $item = new ComboItem(
+            productId:          10,
+            tenantId:           1,
+            componentProductId: 5,
+            quantity:           2.0,
+        );
+
+        $this->assertNull($item->getId());
+        $this->assertSame(10, $item->getProductId());
+        $this->assertSame(1, $item->getTenantId());
+        $this->assertSame(5, $item->getComponentProductId());
+        $this->assertSame(2.0, $item->getQuantity());
+        $this->assertNull($item->getPriceOverride());
+        $this->assertSame(0, $item->getSortOrder());
+    }
+
+    public function test_combo_item_with_price_override(): void
+    {
+        $priceOverride = new \Modules\Core\Domain\ValueObjects\Money(9.99, 'USD');
+        $item = new ComboItem(
+            productId:          10,
+            tenantId:           1,
+            componentProductId: 5,
+            quantity:           3.0,
+            priceOverride:      $priceOverride,
+        );
+
+        $this->assertNotNull($item->getPriceOverride());
+        $this->assertSame(9.99, $item->getPriceOverride()->getAmount());
+        $this->assertSame('USD', $item->getPriceOverride()->getCurrency());
+    }
+
+    public function test_combo_item_invalid_quantity_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new ComboItem(10, 1, 5, 0.0);
+    }
+
+    public function test_combo_item_update_details(): void
+    {
+        $item = new ComboItem(10, 1, 5, 1.0);
+
+        $item->updateDetails(
+            quantity:      4.5,
+            priceOverride: new \Modules\Core\Domain\ValueObjects\Money(5.0, 'USD'),
+            sortOrder:     1,
+            metadata:      ['note' => 'updated'],
+        );
+
+        $this->assertSame(4.5, $item->getQuantity());
+        $this->assertSame(5.0, $item->getPriceOverride()->getAmount());
+        $this->assertSame(1, $item->getSortOrder());
+    }
+
+    public function test_combo_item_update_with_invalid_quantity_throws(): void
+    {
+        $item = new ComboItem(10, 1, 5, 1.0);
+        $this->expectException(\InvalidArgumentException::class);
+        $item->updateDetails(0.0, null, 0, null);
+    }
+
+    // ── Domain Exceptions (new) ───────────────────────────────────────────────
+
+    public function test_product_variation_not_found_exception_exists(): void
+    {
+        $this->assertTrue(class_exists(ProductVariationNotFoundException::class));
+    }
+
+    public function test_combo_item_not_found_exception_exists(): void
+    {
+        $this->assertTrue(class_exists(ComboItemNotFoundException::class));
+    }
+
+    public function test_product_variation_not_found_exception_message(): void
+    {
+        $ex = new ProductVariationNotFoundException(42);
+        $this->assertStringContainsString('42', $ex->getMessage());
+    }
+
+    public function test_combo_item_not_found_exception_message(): void
+    {
+        $ex = new ComboItemNotFoundException(99);
+        $this->assertStringContainsString('99', $ex->getMessage());
+    }
+
+    // ── Domain Events (variation & combo) ─────────────────────────────────────
+
+    public function test_product_variation_event_classes_exist(): void
+    {
+        $this->assertTrue(class_exists(ProductVariationCreated::class));
+        $this->assertTrue(class_exists(ProductVariationUpdated::class));
+        $this->assertTrue(class_exists(ProductVariationDeleted::class));
+    }
+
+    public function test_combo_item_event_classes_exist(): void
+    {
+        $this->assertTrue(class_exists(ComboItemCreated::class));
+        $this->assertTrue(class_exists(ComboItemUpdated::class));
+        $this->assertTrue(class_exists(ComboItemDeleted::class));
+    }
+
+    // ── Domain Repository Interfaces (new) ────────────────────────────────────
+
+    public function test_product_variation_repository_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(ProductVariationRepositoryInterface::class));
+    }
+
+    public function test_combo_item_repository_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(ComboItemRepositoryInterface::class));
+    }
+
+    // ── Application DTOs (new) ────────────────────────────────────────────────
+
+    public function test_product_variation_dto_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ProductVariationData::class));
+    }
+
+    public function test_combo_item_dto_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ComboItemData::class));
+    }
+
+    // ── Application Service Interfaces (new) ──────────────────────────────────
+
+    public function test_product_variation_service_interfaces_exist(): void
+    {
+        $this->assertTrue(interface_exists(CreateProductVariationServiceInterface::class));
+        $this->assertTrue(interface_exists(UpdateProductVariationServiceInterface::class));
+        $this->assertTrue(interface_exists(DeleteProductVariationServiceInterface::class));
+    }
+
+    public function test_combo_item_service_interfaces_exist(): void
+    {
+        $this->assertTrue(interface_exists(CreateComboItemServiceInterface::class));
+        $this->assertTrue(interface_exists(UpdateComboItemServiceInterface::class));
+        $this->assertTrue(interface_exists(DeleteComboItemServiceInterface::class));
+    }
+
+    // ── Application Service Implementations (new) ─────────────────────────────
+
+    public function test_product_variation_service_implementations_exist(): void
+    {
+        $this->assertTrue(class_exists(CreateProductVariationService::class));
+        $this->assertTrue(class_exists(UpdateProductVariationService::class));
+        $this->assertTrue(class_exists(DeleteProductVariationService::class));
+    }
+
+    public function test_combo_item_service_implementations_exist(): void
+    {
+        $this->assertTrue(class_exists(CreateComboItemService::class));
+        $this->assertTrue(class_exists(UpdateComboItemService::class));
+        $this->assertTrue(class_exists(DeleteComboItemService::class));
+    }
+
+    public function test_product_variation_services_implement_interfaces(): void
+    {
+        $this->assertTrue(is_subclass_of(CreateProductVariationService::class, CreateProductVariationServiceInterface::class));
+        $this->assertTrue(is_subclass_of(UpdateProductVariationService::class, UpdateProductVariationServiceInterface::class));
+        $this->assertTrue(is_subclass_of(DeleteProductVariationService::class, DeleteProductVariationServiceInterface::class));
+    }
+
+    public function test_combo_item_services_implement_interfaces(): void
+    {
+        $this->assertTrue(is_subclass_of(CreateComboItemService::class, CreateComboItemServiceInterface::class));
+        $this->assertTrue(is_subclass_of(UpdateComboItemService::class, UpdateComboItemServiceInterface::class));
+        $this->assertTrue(is_subclass_of(DeleteComboItemService::class, DeleteComboItemServiceInterface::class));
+    }
+
+    // ── Infrastructure Models (new) ───────────────────────────────────────────
+
+    public function test_product_variation_model_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ProductVariationModel::class));
+    }
+
+    public function test_product_combo_item_model_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ProductComboItemModel::class));
+    }
+
+    // ── Infrastructure Repositories (new) ─────────────────────────────────────
+
+    public function test_product_variation_repository_class_exists(): void
+    {
+        $this->assertTrue(class_exists(EloquentProductVariationRepository::class));
+    }
+
+    public function test_combo_item_repository_class_exists(): void
+    {
+        $this->assertTrue(class_exists(EloquentComboItemRepository::class));
+    }
+
+    public function test_product_variation_repository_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(EloquentProductVariationRepository::class, ProductVariationRepositoryInterface::class)
+        );
+    }
+
+    public function test_combo_item_repository_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(EloquentComboItemRepository::class, ComboItemRepositoryInterface::class)
+        );
+    }
+
+    // ── Infrastructure Controllers (new) ──────────────────────────────────────
+
+    public function test_product_variation_controller_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ProductVariationController::class));
+    }
+
+    public function test_product_combo_item_controller_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ProductComboItemController::class));
+    }
+
+    // ── Infrastructure Requests (new) ─────────────────────────────────────────
+
+    public function test_product_variation_request_classes_exist(): void
+    {
+        $this->assertTrue(class_exists(StoreProductVariationRequest::class));
+        $this->assertTrue(class_exists(UpdateProductVariationRequest::class));
+    }
+
+    public function test_combo_item_request_classes_exist(): void
+    {
+        $this->assertTrue(class_exists(StoreComboItemRequest::class));
+        $this->assertTrue(class_exists(UpdateComboItemRequest::class));
+    }
+
+    // ── Infrastructure Resources (new) ────────────────────────────────────────
+
+    public function test_product_variation_resource_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ProductVariationResource::class));
+    }
+
+    public function test_combo_item_resource_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ComboItemResource::class));
+    }
+
+    // ── Product entity collections ────────────────────────────────────────────
+
+    public function test_product_entity_has_empty_variations_and_combo_items_by_default(): void
+    {
+        $sku     = new \Modules\Core\Domain\ValueObjects\Sku('PROD-V01');
+        $price   = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+        $product = new Product(tenantId: 1, sku: $sku, name: 'Test', price: $price);
+
+        $this->assertTrue($product->getVariations()->isEmpty());
+        $this->assertTrue($product->getComboItems()->isEmpty());
+    }
+
+    public function test_product_entity_add_and_get_variations(): void
+    {
+        $sku     = new \Modules\Core\Domain\ValueObjects\Sku('PROD-V02');
+        $price   = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+        $product = new Product(tenantId: 1, sku: $sku, name: 'Variable', price: $price, type: 'variable');
+
+        $varSku = new \Modules\Core\Domain\ValueObjects\Sku('PROD-V02-RED');
+        $varPrice = new \Modules\Core\Domain\ValueObjects\Money(12.0, 'USD');
+        $variation = new ProductVariation(1, 1, $varSku, 'Red variant', $varPrice, ['color' => 'Red']);
+
+        $product->addVariation($variation);
+
+        $this->assertCount(1, $product->getVariations());
+        $this->assertSame('Red variant', $product->getVariations()->first()->getName());
+    }
+
+    public function test_product_entity_add_and_get_combo_items(): void
+    {
+        $sku     = new \Modules\Core\Domain\ValueObjects\Sku('PROD-C01');
+        $price   = new \Modules\Core\Domain\ValueObjects\Money(50.0, 'USD');
+        $product = new Product(tenantId: 1, sku: $sku, name: 'Bundle', price: $price, type: 'combo');
+
+        $item = new ComboItem(productId: 1, tenantId: 1, componentProductId: 5, quantity: 2.0);
+        $product->addComboItem($item);
+
+        $this->assertCount(1, $product->getComboItems());
+        $this->assertSame(5, $product->getComboItems()->first()->getComponentProductId());
+        $this->assertSame(2.0, $product->getComboItems()->first()->getQuantity());
+    }
+
+    public function test_product_entity_set_variations_replaces_collection(): void
+    {
+        $sku     = new \Modules\Core\Domain\ValueObjects\Sku('PROD-V03');
+        $price   = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+        $product = new Product(tenantId: 1, sku: $sku, name: 'Variable', price: $price, type: 'variable');
+
+        $v1Sku = new \Modules\Core\Domain\ValueObjects\Sku('V1');
+        $v2Sku = new \Modules\Core\Domain\ValueObjects\Sku('V2');
+        $vPrice = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+
+        $variations = new \Illuminate\Support\Collection([
+            new ProductVariation(1, 1, $v1Sku, 'V1', $vPrice),
+            new ProductVariation(1, 1, $v2Sku, 'V2', $vPrice),
+        ]);
+
+        $product->setVariations($variations);
+        $this->assertCount(2, $product->getVariations());
+    }
+
+    // ── Product attribute options ─────────────────────────────────────────────
+
+    public function test_product_entity_with_product_attributes(): void
+    {
+        $sku   = new \Modules\Core\Domain\ValueObjects\Sku('PROD-PA01');
+        $price = new \Modules\Core\Domain\ValueObjects\Money(10.0, 'USD');
+
+        $colorAttr = new ProductAttribute('color', 'Color', ['Red', 'Blue', 'Green']);
+        $sizeAttr  = new ProductAttribute('size', 'Size', ['S', 'M', 'L', 'XL']);
+
+        $product = new Product(
+            tenantId:          1,
+            sku:               $sku,
+            name:              'T-Shirt',
+            price:             $price,
+            type:              'variable',
+            productAttributes: [$colorAttr, $sizeAttr],
+        );
+
+        $this->assertCount(2, $product->getProductAttributes());
+        $this->assertSame('color', $product->getProductAttributes()[0]->getCode());
+        $this->assertSame('size', $product->getProductAttributes()[1]->getCode());
+    }
+
+    // ── Migration files ───────────────────────────────────────────────────────
+
+    public function test_product_variation_migration_file_exists(): void
+    {
+        $dir   = dirname(__DIR__, 2).'/app/Modules/Product/database/migrations';
+        $files = glob($dir.'/*product_variations*.php');
+        $this->assertGreaterThanOrEqual(1, count($files), 'product_variations migration must exist.');
+    }
+
+    public function test_product_combo_items_migration_file_exists(): void
+    {
+        $dir   = dirname(__DIR__, 2).'/app/Modules/Product/database/migrations';
+        $files = glob($dir.'/*combo_items*.php');
+        $this->assertGreaterThanOrEqual(1, count($files), 'product_combo_items migration must exist.');
     }
 }
