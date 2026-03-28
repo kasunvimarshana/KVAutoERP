@@ -11,6 +11,7 @@ Route::middleware(['auth:api', 'resolve.tenant'])->group(function () {
 
     Route::get('products/{product}/images', [ProductImageController::class, 'index']);
     Route::post('products/{product}/images', [ProductImageController::class, 'store']);
+    Route::post('products/{product}/images/bulk', [ProductImageController::class, 'storeMany']);
     Route::delete('products/{product}/images/{image}', [ProductImageController::class, 'destroy']);
 
     // Variable product variations
