@@ -40,4 +40,15 @@ class ProductModel extends Model
     {
         return $this->hasMany(ProductImageModel::class, 'product_id')->orderBy('sort_order');
     }
+
+    public function variations(): HasMany
+    {
+        return $this->hasMany(ProductVariationModel::class, 'product_id')->orderBy('sort_order');
+    }
+
+    public function comboItems(): HasMany
+    {
+        return $this->hasMany(ProductComboItemModel::class, 'product_id')->orderBy('sort_order');
+    }
 }
+
