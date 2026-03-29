@@ -11,6 +11,7 @@ use Modules\Tenant\Application\Contracts\CreateTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\DeleteTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantConfigServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantServiceInterface;
+use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
 use Modules\Tenant\Application\DTOs\TenantConfigData;
 use Modules\Tenant\Application\DTOs\TenantData;
 use Modules\Tenant\Domain\Entities\Tenant;
@@ -30,7 +31,8 @@ class TenantController extends BaseController
         protected UpdateTenantServiceInterface $updateService,
         protected DeleteTenantServiceInterface $deleteService,
         protected UpdateTenantConfigServiceInterface $configService,
-        protected TenantRepositoryInterface $tenantRepository
+        protected TenantRepositoryInterface $tenantRepository,
+        protected UploadTenantAttachmentServiceInterface $uploadAttachmentService
     ) {
         parent::__construct($createService, TenantResource::class, TenantData::class);
     }
@@ -72,8 +74,8 @@ class TenantController extends BaseController
         }
 
         $perPage = $request->integer('per_page', 15);
-        $page = $request->integer('page', 1);
-        $sort = $request->input('sort');
+        $page    = $request->integer('page', 1);
+        $sort    = $request->input('sort');
         $include = $request->input('include');
 
         $tenants = $this->service->list($filters, $perPage, $page, $sort, $include);
@@ -110,6 +112,7 @@ class TenantController extends BaseController
                     new OA\Property(property: 'feature_flags', type: 'object', nullable: true, example: ['billing' => true]),
                     new OA\Property(property: 'api_keys',      type: 'object', nullable: true, example: []),
                     new OA\Property(property: 'active',        type: 'boolean', default: true),
+                    new OA\Property(property: 'logo',          type: 'string',  format: 'binary', nullable: true),
                 ],
             ),
         ),
@@ -126,11 +129,21 @@ class TenantController extends BaseController
                 content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
         ],
     )]
-    public function store(StoreTenantRequest $request): \Illuminate\Http\JsonResponse
+    public function store(StoreTenantRequest $request): JsonResponse
     {
         $this->authorize('create', Tenant::class);
-        $dto = TenantData::fromArray($request->validated());
+        $dto    = TenantData::fromArray($request->validated());
         $tenant = $this->service->execute($dto->toArray());
+
+        if ($request->hasFile('logo')) {
+            $this->uploadAttachmentService->execute([
+                'tenant_id' => $tenant->getId(),
+                'file'      => $request->file('logo'),
+                'type'      => 'logo',
+            ]);
+            $tenant = $this->service->find($tenant->getId())
+                ?? throw new \RuntimeException('Tenant disappeared after logo upload.');
+        }
 
         return (new TenantResource($tenant))->response()->setStatusCode(201);
     }
@@ -175,6 +188,7 @@ class TenantController extends BaseController
                     new OA\Property(property: 'name',   type: 'string'),
                     new OA\Property(property: 'domain', type: 'string'),
                     new OA\Property(property: 'active', type: 'boolean'),
+                    new OA\Property(property: 'logo',   type: 'string', format: 'binary', nullable: true),
                 ],
             ),
         ),
@@ -203,10 +217,20 @@ class TenantController extends BaseController
             abort(404);
         }
         $this->authorize('update', $tenant);
-        $validated = $request->validated();
+        $validated       = $request->validated();
         $validated['id'] = $id;
-        $dto = TenantData::fromArray($validated);
-        $updated = $this->updateService->execute($dto->toArray());
+        $dto             = TenantData::fromArray($validated);
+        $updated         = $this->updateService->execute($dto->toArray());
+
+        if ($request->hasFile('logo')) {
+            $this->uploadAttachmentService->execute([
+                'tenant_id' => $id,
+                'file'      => $request->file('logo'),
+                'type'      => 'logo',
+            ]);
+            $updated = $this->service->find($id)
+                ?? throw new \RuntimeException('Tenant disappeared after logo upload.');
+        }
 
         return new TenantResource($updated);
     }
@@ -247,10 +271,10 @@ class TenantController extends BaseController
             abort(404);
         }
         $this->authorize('updateConfig', $tenant);
-        $validated = $request->validated();
+        $validated       = $request->validated();
         $validated['id'] = $id;
-        $dto = TenantConfigData::fromArray($validated);
-        $updated = $this->configService->execute($dto->toArray());
+        $dto             = TenantConfigData::fromArray($validated);
+        $updated         = $this->configService->execute($dto->toArray());
 
         return new TenantConfigResource($updated);
     }
