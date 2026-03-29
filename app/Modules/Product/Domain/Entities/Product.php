@@ -293,8 +293,19 @@ class Product
         $this->updatedAt = new \DateTimeImmutable;
     }
 
+    public function draft(): void
+    {
+        $this->status = 'draft';
+        $this->updatedAt = new \DateTimeImmutable;
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->status === 'draft';
     }
 }
