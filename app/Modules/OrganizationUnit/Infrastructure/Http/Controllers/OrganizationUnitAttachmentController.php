@@ -6,12 +6,13 @@ namespace Modules\OrganizationUnit\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
+use Modules\OrganizationUnit\Application\Contracts\AttachmentStorageStrategyInterface;
+use Modules\OrganizationUnit\Application\Contracts\BulkUploadOrganizationUnitAttachmentsServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitAttachmentServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitAttachmentsServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
-use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitAttachmentRepositoryInterface;
 use Modules\OrganizationUnit\Infrastructure\Http\Requests\UploadOrganizationUnitAttachmentRequest;
 use Modules\OrganizationUnit\Infrastructure\Http\Resources\OrganizationUnitAttachmentResource;
 use OpenApi\Attributes as OA;
@@ -20,9 +21,10 @@ class OrganizationUnitAttachmentController extends AuthorizedController
 {
     public function __construct(
         protected UploadOrganizationUnitAttachmentServiceInterface $uploadService,
+        protected BulkUploadOrganizationUnitAttachmentsServiceInterface $bulkUploadService,
         protected DeleteOrganizationUnitAttachmentServiceInterface $deleteService,
-        protected OrganizationUnitAttachmentRepositoryInterface $attachmentRepo,
-        protected FileStorageServiceInterface $storage
+        protected FindOrganizationUnitAttachmentsServiceInterface $findAttachmentsService,
+        protected AttachmentStorageStrategyInterface $storageStrategy
     ) {}
 
     #[OA\Get(
@@ -44,15 +46,15 @@ class OrganizationUnitAttachmentController extends AuthorizedController
     public function index(int $orgUnitId, Request $request)
     {
         $this->authorize('viewAttachments', OrganizationUnit::class);
-        $type = $request->query('type');
-        $attachments = $this->attachmentRepo->getByOrganizationUnit($orgUnitId, $type);
+        $type        = $request->query('type');
+        $attachments = $this->findAttachmentsService->findByOrganizationUnit($orgUnitId, $type);
 
         return OrganizationUnitAttachmentResource::collection($attachments);
     }
 
     #[OA\Post(
         path: '/api/org-units/{orgUnitId}/attachments',
-        summary: 'Upload organization unit attachment',
+        summary: 'Upload a single organization unit attachment',
         tags: ['OrgUnit Attachments'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -67,13 +69,13 @@ class OrganizationUnitAttachmentController extends AuthorizedController
                     properties: [
                         new OA\Property(property: 'file',     type: 'string', format: 'binary'),
                         new OA\Property(property: 'type',     type: 'string', nullable: true),
-                        new OA\Property(property: 'metadata', type: 'string', nullable: true),
+                        new OA\Property(property: 'metadata', type: 'string', format: 'json', nullable: true),
                     ],
                 ),
             ),
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Attachment uploaded',
+            new OA\Response(response: 201, description: 'Attachment uploaded',
                 content: new OA\JsonContent(ref: '#/components/schemas/AttachmentObject')),
             new OA\Response(response: 401, description: 'Unauthenticated',
                 content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
@@ -81,24 +83,68 @@ class OrganizationUnitAttachmentController extends AuthorizedController
                 content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
         ],
     )]
-    public function store(UploadOrganizationUnitAttachmentRequest $request, int $orgUnitId): OrganizationUnitAttachmentResource
+    public function store(UploadOrganizationUnitAttachmentRequest $request, int $orgUnitId): JsonResponse
     {
         $this->authorize('uploadAttachment', OrganizationUnit::class);
-        $file = $request->file('file');
-        $fileInfo = [
-            'tmp_path' => $file->getPathname(),
-            'name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getMimeType(),
-            'size' => $file->getSize(),
-        ];
+
         $attachment = $this->uploadService->execute([
             'organization_unit_id' => $orgUnitId,
-            'file' => $fileInfo,
-            'type' => $request->input('type'),
-            'metadata' => $request->input('metadata'),
+            'file'                 => $request->file('file'),
+            'type'                 => $request->input('type'),
+            'metadata'             => $this->decodeMetadata($request),
         ]);
 
-        return new OrganizationUnitAttachmentResource($attachment);
+        return (new OrganizationUnitAttachmentResource($attachment))
+            ->response()
+            ->setStatusCode(201);
+    }
+
+    #[OA\Post(
+        path: '/api/org-units/{orgUnitId}/attachments/bulk',
+        summary: 'Upload multiple organization unit attachments in one request',
+        tags: ['OrgUnit Attachments'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'orgUnitId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['files[]'],
+                    properties: [
+                        new OA\Property(property: 'files[]', type: 'array',
+                            items: new OA\Items(type: 'string', format: 'binary')),
+                        new OA\Property(property: 'type',     type: 'string',  nullable: true),
+                        new OA\Property(property: 'metadata', type: 'string',  format: 'json', nullable: true),
+                    ],
+                ),
+            ),
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Attachments uploaded',
+                content: new OA\JsonContent(type: 'array', items: new OA\Items(ref: '#/components/schemas/AttachmentObject'))),
+            new OA\Response(response: 401, description: 'Unauthenticated',
+                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
+            new OA\Response(response: 422, description: 'Validation error',
+                content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
+        ],
+    )]
+    public function storeMany(UploadOrganizationUnitAttachmentRequest $request, int $orgUnitId): JsonResponse
+    {
+        $this->authorize('uploadAttachment', OrganizationUnit::class);
+
+        $attachments = $this->bulkUploadService->execute([
+            'organization_unit_id' => $orgUnitId,
+            'files'                => $request->file('files') ?? [],
+            'type'                 => $request->input('type'),
+            'metadata'             => $this->decodeMetadata($request),
+        ]);
+
+        return OrganizationUnitAttachmentResource::collection($attachments)
+            ->response()
+            ->setStatusCode(201);
     }
 
     #[OA\Delete(
@@ -117,11 +163,19 @@ class OrganizationUnitAttachmentController extends AuthorizedController
                 content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
             new OA\Response(response: 403, description: 'Forbidden',
                 content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
+            new OA\Response(response: 404, description: 'Not found',
+                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
         ],
     )]
     public function destroy(int $orgUnitId, int $attachmentId): JsonResponse
     {
         $this->authorize('deleteAttachment', OrganizationUnit::class);
+
+        $attachment = $this->findAttachmentsService->find($attachmentId);
+        if (! $attachment) {
+            abort(404);
+        }
+
         $this->deleteService->execute(['attachment_id' => $attachmentId]);
 
         return response()->json(['message' => 'Attachment deleted successfully']);
@@ -147,12 +201,28 @@ class OrganizationUnitAttachmentController extends AuthorizedController
     )]
     public function serve(string $uuid)
     {
-        $attachment = $this->attachmentRepo->findByUuid($uuid);
+        $attachment = $this->findAttachmentsService->findByUuid($uuid);
         if (! $attachment) {
             abort(404);
         }
         $this->authorize('view', $attachment);
 
-        return $this->storage->stream($attachment->getFilePath());
+        return $this->storageStrategy->stream($attachment->getFilePath());
+    }
+
+    /**
+     * Decode the optional JSON metadata string from the request.
+     * The 'metadata' field is validated as valid JSON by UploadOrganizationUnitAttachmentRequest.
+     */
+    private function decodeMetadata(Request $request): ?array
+    {
+        $raw = $request->input('metadata');
+        if ($raw === null) {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : null;
     }
 }

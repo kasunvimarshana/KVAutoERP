@@ -7,15 +7,20 @@ namespace Modules\OrganizationUnit\Infrastructure\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
 use Modules\Core\Application\Contracts\FileStorageServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\AttachmentStorageStrategyInterface;
+use Modules\OrganizationUnit\Application\Contracts\BulkUploadOrganizationUnitAttachmentsServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\CreateOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitAttachmentsServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\MoveOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
+use Modules\OrganizationUnit\Application\Services\BulkUploadOrganizationUnitAttachmentsService;
 use Modules\OrganizationUnit\Application\Services\CreateOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitService;
+use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitAttachmentsService;
 use Modules\OrganizationUnit\Application\Services\MoveOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\UploadOrganizationUnitAttachmentService;
@@ -25,6 +30,7 @@ use Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Models\Organiza
 use Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Models\OrganizationUnitModel;
 use Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Repositories\EloquentOrganizationUnitAttachmentRepository;
 use Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Repositories\EloquentOrganizationUnitRepository;
+use Modules\OrganizationUnit\Infrastructure\Storage\DefaultAttachmentStorageStrategy;
 
 class OrganizationUnitServiceProvider extends ServiceProvider
 {
@@ -35,6 +41,10 @@ class OrganizationUnitServiceProvider extends ServiceProvider
         });
         $this->app->bind(OrganizationUnitAttachmentRepositoryInterface::class, function ($app) {
             return new EloquentOrganizationUnitAttachmentRepository($app->make(OrganizationUnitAttachmentModel::class));
+        });
+
+        $this->app->bind(AttachmentStorageStrategyInterface::class, function ($app) {
+            return new DefaultAttachmentStorageStrategy($app->make(FileStorageServiceInterface::class));
         });
 
         $this->app->bind(CreateOrganizationUnitServiceInterface::class, function ($app) {
@@ -49,17 +59,29 @@ class OrganizationUnitServiceProvider extends ServiceProvider
         $this->app->bind(MoveOrganizationUnitServiceInterface::class, function ($app) {
             return new MoveOrganizationUnitService($app->make(OrganizationUnitRepositoryInterface::class));
         });
+        $this->app->bind(FindOrganizationUnitAttachmentsServiceInterface::class, function ($app) {
+            return new FindOrganizationUnitAttachmentsService(
+                $app->make(OrganizationUnitAttachmentRepositoryInterface::class)
+            );
+        });
         $this->app->bind(UploadOrganizationUnitAttachmentServiceInterface::class, function ($app) {
             return new UploadOrganizationUnitAttachmentService(
                 $app->make(OrganizationUnitRepositoryInterface::class),
                 $app->make(OrganizationUnitAttachmentRepositoryInterface::class),
-                $app->make(FileStorageServiceInterface::class)
+                $app->make(AttachmentStorageStrategyInterface::class)
+            );
+        });
+        $this->app->bind(BulkUploadOrganizationUnitAttachmentsServiceInterface::class, function ($app) {
+            return new BulkUploadOrganizationUnitAttachmentsService(
+                $app->make(OrganizationUnitRepositoryInterface::class),
+                $app->make(OrganizationUnitAttachmentRepositoryInterface::class),
+                $app->make(AttachmentStorageStrategyInterface::class)
             );
         });
         $this->app->bind(DeleteOrganizationUnitAttachmentServiceInterface::class, function ($app) {
             return new DeleteOrganizationUnitAttachmentService(
                 $app->make(OrganizationUnitAttachmentRepositoryInterface::class),
-                $app->make(FileStorageServiceInterface::class)
+                $app->make(AttachmentStorageStrategyInterface::class)
             );
         });
     }
