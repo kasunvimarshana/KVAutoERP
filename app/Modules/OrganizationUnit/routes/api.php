@@ -11,6 +11,7 @@ Route::middleware(['auth:api', 'resolve.tenant'])->group(function () {
 
     Route::get('org-units/{unit}/attachments', [OrganizationUnitAttachmentController::class, 'index']);
     Route::post('org-units/{unit}/attachments', [OrganizationUnitAttachmentController::class, 'store']);
+    Route::post('org-units/{unit}/attachments/bulk', [OrganizationUnitAttachmentController::class, 'storeMany']);
     Route::delete('org-units/{unit}/attachments/{attachment}', [OrganizationUnitAttachmentController::class, 'destroy']);
 });
 
