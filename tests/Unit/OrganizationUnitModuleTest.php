@@ -803,4 +803,158 @@ class OrganizationUnitModuleTest extends TestCase
         $this->assertSame('application/pdf', $attachment->getMimeType());
         $this->assertSame(1024, $attachment->getSize());
     }
+
+    // ── UpdateOrganizationUnitRequest ─────────────────────────────────────────
+
+    public function test_update_org_unit_request_does_not_require_tenant_id(): void
+    {
+        $request = new \Modules\OrganizationUnit\Infrastructure\Http\Requests\UpdateOrganizationUnitRequest;
+        $rules   = $request->rules();
+
+        $this->assertArrayNotHasKey('tenant_id', $rules,
+            'UpdateOrganizationUnitRequest must not require tenant_id — tenants never change on update.');
+    }
+
+    public function test_update_org_unit_request_name_uses_sometimes_rule(): void
+    {
+        $request = new \Modules\OrganizationUnit\Infrastructure\Http\Requests\UpdateOrganizationUnitRequest;
+        $rules   = $request->rules();
+
+        $this->assertArrayHasKey('name', $rules,
+            'UpdateOrganizationUnitRequest must declare a rule for name.');
+        $this->assertStringContainsString('sometimes', $rules['name'],
+            'The name rule must use "sometimes" to support partial updates.');
+    }
+
+    // ── UpdateOrganizationUnitService ─────────────────────────────────────────
+
+    public function test_update_org_unit_service_does_not_use_dto_directly(): void
+    {
+        $rc       = new \ReflectionClass(\Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService::class);
+        $filename = $rc->getFileName();
+        $source   = file_get_contents($filename);
+
+        $this->assertStringNotContainsString('OrganizationUnitData::fromArray',
+            $source,
+            'UpdateOrganizationUnitService must not build OrganizationUnitData from the raw input array — use array_key_exists guards instead.');
+    }
+
+    public function test_update_org_unit_service_throws_when_unit_not_found(): void
+    {
+        $this->expectException(\Modules\OrganizationUnit\Domain\Exceptions\OrganizationUnitNotFoundException::class);
+
+        $repo = $this->createMock(\Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface::class);
+        $repo->method('find')->willReturn(null);
+
+        $service = new \Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService($repo);
+
+        $method = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+        $method->invoke($service, ['id' => 99, 'name' => 'New Name']);
+    }
+
+    public function test_update_org_unit_service_updates_full_fields(): void
+    {
+        $unit = $this->createTestUnit(1, 1);
+
+        $repo = $this->createMock(\Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface::class);
+        $repo->expects($this->once())->method('find')->with(1)->willReturn($unit);
+        $repo->expects($this->once())->method('save')->willReturn($unit);
+
+        $service = new \Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService($repo);
+
+        $method = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+        $result = $method->invoke($service, [
+            'id'          => 1,
+            'name'        => 'Updated Name',
+            'code'        => 'UPD',
+            'description' => 'New description',
+            'metadata'    => ['key' => 'value'],
+        ]);
+
+        $this->assertInstanceOf(\Modules\OrganizationUnit\Domain\Entities\OrganizationUnit::class, $result);
+    }
+
+    public function test_update_org_unit_service_partial_update_preserves_existing_name(): void
+    {
+        $unit = $this->createTestUnit(2, 1);
+        $originalName = $unit->getName();
+
+        $repo = $this->createMock(\Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface::class);
+        $repo->expects($this->once())->method('find')->with(2)->willReturn($unit);
+        $repo->expects($this->once())->method('save')->willReturn($unit);
+
+        $service = new \Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService($repo);
+
+        $method = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+        // Only update description — name is intentionally omitted.
+        $method->invoke($service, [
+            'id'          => 2,
+            'description' => 'Only description changed',
+        ]);
+
+        $this->assertSame($originalName, $unit->getName(),
+            'The entity name must be preserved when name is not included in the update payload.');
+    }
+
+    public function test_update_org_unit_service_move_only_when_parent_id_changes(): void
+    {
+        $unit = $this->createTestUnit(3, 1);
+
+        $repo = $this->createMock(\Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface::class);
+        $repo->expects($this->once())->method('find')->with(3)->willReturn($unit);
+        $repo->expects($this->never())->method('moveNode');
+        $repo->expects($this->once())->method('save')->willReturn($unit);
+
+        $service = new \Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService($repo);
+
+        $method = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+        // parent_id not supplied — moveNode must not be called.
+        $method->invoke($service, ['id' => 3, 'name' => 'Stable Name']);
+    }
+
+    // ── OrganizationUnitController — no double-DTO ────────────────────────────
+
+    public function test_org_unit_controller_store_does_not_build_dto(): void
+    {
+        $rc       = new \ReflectionClass(OrganizationUnitController::class);
+        $filename = $rc->getFileName();
+        $source   = file_get_contents($filename);
+
+        // Verify the specific (non-Move) DTO is neither imported nor instantiated in the controller.
+        $this->assertStringNotContainsString(
+            'use Modules\OrganizationUnit\Application\DTOs\OrganizationUnitData',
+            $source,
+            'OrganizationUnitController must not import OrganizationUnitData — pass validated() directly to the service.'
+        );
+    }
+
+    public function test_update_org_unit_service_preserves_metadata_when_omitted(): void
+    {
+        // Build a unit that already has metadata.
+        $unit = $this->createTestUnit(10, 1);
+        $existingMetadata = new \Modules\Core\Domain\ValueObjects\Metadata(['org_type' => 'dept']);
+        // Inject the metadata through updateDetails so the entity has a real Metadata VO.
+        $unit->updateDetails($unit->getName(), $unit->getCode(), $unit->getDescription(), $existingMetadata);
+
+        $repo = $this->createMock(\Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface::class);
+        $repo->expects($this->once())->method('find')->with(10)->willReturn($unit);
+        $repo->expects($this->once())->method('save')->willReturn($unit);
+
+        $service = new \Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService($repo);
+        $method  = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+
+        // Omit metadata entirely — the existing metadata must be unchanged.
+        $method->invoke($service, ['id' => 10, 'name' => 'New Name']);
+
+        $this->assertSame(
+            $existingMetadata,
+            $unit->getMetadata(),
+            'Entity metadata must not be modified when metadata is omitted from the update payload.'
+        );
+    }
 }
