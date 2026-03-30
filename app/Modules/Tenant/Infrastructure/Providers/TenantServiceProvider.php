@@ -13,6 +13,7 @@ use Modules\Tenant\Application\Contracts\CreateTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\DeleteTenantAttachmentServiceInterface;
 use Modules\Tenant\Application\Contracts\DeleteTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\FindTenantAttachmentsServiceInterface;
+use Modules\Tenant\Application\Contracts\FindTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantConfigServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
@@ -21,6 +22,7 @@ use Modules\Tenant\Application\Services\CreateTenantService;
 use Modules\Tenant\Application\Services\DeleteTenantAttachmentService;
 use Modules\Tenant\Application\Services\DeleteTenantService;
 use Modules\Tenant\Application\Services\FindTenantAttachmentsService;
+use Modules\Tenant\Application\Services\FindTenantService;
 use Modules\Tenant\Application\Services\UpdateTenantConfigService;
 use Modules\Tenant\Application\Services\UpdateTenantService;
 use Modules\Tenant\Application\Services\UploadTenantAttachmentService;
@@ -61,6 +63,10 @@ class TenantServiceProvider extends ServiceProvider
         });
         $this->app->bind(UpdateTenantConfigServiceInterface::class, function ($app) {
             return new UpdateTenantConfigService($app->make(TenantRepositoryInterface::class));
+        });
+
+        $this->app->bind(FindTenantServiceInterface::class, function ($app) {
+            return new FindTenantService($app->make(TenantRepositoryInterface::class));
         });
 
         // Attachment services

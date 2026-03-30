@@ -9,13 +9,13 @@ use Illuminate\Http\Request;
 use Modules\Core\Infrastructure\Http\Controllers\BaseController;
 use Modules\Tenant\Application\Contracts\CreateTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\DeleteTenantServiceInterface;
+use Modules\Tenant\Application\Contracts\FindTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantConfigServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
 use Modules\Tenant\Application\DTOs\TenantConfigData;
 use Modules\Tenant\Application\DTOs\TenantData;
 use Modules\Tenant\Domain\Entities\Tenant;
-use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 use Modules\Tenant\Infrastructure\Http\Requests\StoreTenantRequest;
 use Modules\Tenant\Infrastructure\Http\Requests\UpdateTenantConfigRequest;
 use Modules\Tenant\Infrastructure\Http\Requests\UpdateTenantRequest;
@@ -31,7 +31,7 @@ class TenantController extends BaseController
         protected UpdateTenantServiceInterface $updateService,
         protected DeleteTenantServiceInterface $deleteService,
         protected UpdateTenantConfigServiceInterface $configService,
-        protected TenantRepositoryInterface $tenantRepository,
+        protected FindTenantServiceInterface $findTenantService,
         protected UploadTenantAttachmentServiceInterface $uploadAttachmentService
     ) {
         parent::__construct($createService, TenantResource::class, TenantData::class);
@@ -327,7 +327,7 @@ class TenantController extends BaseController
     )]
     public function configByDomain(string $domain): TenantConfigResource
     {
-        $tenant = $this->tenantRepository->findByDomain($domain);
+        $tenant = $this->findTenantService->findByDomain($domain);
         if (! $tenant) {
             abort(404);
         }

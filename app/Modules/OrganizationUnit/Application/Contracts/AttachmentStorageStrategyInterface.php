@@ -33,6 +33,15 @@ interface AttachmentStorageStrategyInterface
     public function delete(string $path): bool;
 
     /**
+     * Return the public URL for a stored file.
+     *
+     * Route all URL generation through the strategy so that alternative
+     * implementations (CDN, signed URLs, etc.) can override it without
+     * touching resource or controller code.
+     */
+    public function url(string $path): string;
+
+    /**
      * Stream a stored file as an HTTP response.
      *
      * Controllers must call this method through the strategy rather than

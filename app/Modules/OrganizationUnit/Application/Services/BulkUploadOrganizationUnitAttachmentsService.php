@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\OrganizationUnit\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\OrganizationUnit\Application\Contracts\BulkUploadOrganizationUnitAttachmentsServiceInterface;
+use Modules\OrganizationUnit\Application\DTOs\OrganizationUnitAttachmentData;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnitAttachment;
 use Modules\OrganizationUnit\Domain\Exceptions\OrganizationUnitNotFoundException;
 use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitAttachmentRepositoryInterface;
@@ -52,19 +53,29 @@ class BulkUploadOrganizationUnitAttachmentsService implements BulkUploadOrganiza
 
             foreach ($files as $file) {
                 /** @var UploadedFile $file */
-                $uuid = (string) Str::uuid();
                 $path = $this->storageStrategy->store($file, $orgUnitId);
 
+                $dto = OrganizationUnitAttachmentData::fromArray([
+                    'organization_unit_id' => $orgUnitId,
+                    'tenant_id'            => $tenantId,
+                    'name'                 => $file->getClientOriginalName(),
+                    'file_path'            => $path,
+                    'mime_type'            => (string) $file->getMimeType(),
+                    'size'                 => (int) $file->getSize(),
+                    'type'                 => $type,
+                    'metadata'             => $metadata,
+                ]);
+
                 $attachment = new OrganizationUnitAttachment(
-                    tenantId:           $tenantId,
-                    organizationUnitId: $orgUnitId,
-                    uuid:               $uuid,
-                    name:               $file->getClientOriginalName(),
-                    filePath:           $path,
-                    mimeType:           (string) $file->getMimeType(),
-                    size:               (int) $file->getSize(),
-                    type:               $type,
-                    metadata:           $metadata,
+                    tenantId:           $dto->tenant_id,
+                    organizationUnitId: $dto->organization_unit_id,
+                    uuid:               (string) Str::uuid(),
+                    name:               $dto->name,
+                    filePath:           $dto->file_path,
+                    mimeType:           $dto->mime_type,
+                    size:               $dto->size,
+                    type:               $dto->type,
+                    metadata:           $dto->metadata,
                 );
 
                 $saved->push($this->attachmentRepository->save($attachment));
