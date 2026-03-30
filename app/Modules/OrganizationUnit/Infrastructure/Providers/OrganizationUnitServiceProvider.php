@@ -15,6 +15,7 @@ use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitService
 use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitAttachmentsServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\MoveOrganizationUnitServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\ReplaceOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Services\BulkUploadOrganizationUnitAttachmentsService;
@@ -24,6 +25,7 @@ use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitAttachmentsService;
 use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\MoveOrganizationUnitService;
+use Modules\OrganizationUnit\Application\Services\ReplaceOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\UploadOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitAttachmentRepositoryInterface;
@@ -85,6 +87,12 @@ class OrganizationUnitServiceProvider extends ServiceProvider
         });
         $this->app->bind(DeleteOrganizationUnitAttachmentServiceInterface::class, function ($app) {
             return new DeleteOrganizationUnitAttachmentService(
+                $app->make(OrganizationUnitAttachmentRepositoryInterface::class),
+                $app->make(AttachmentStorageStrategyInterface::class)
+            );
+        });
+        $this->app->bind(ReplaceOrganizationUnitAttachmentServiceInterface::class, function ($app) {
+            return new ReplaceOrganizationUnitAttachmentService(
                 $app->make(OrganizationUnitAttachmentRepositoryInterface::class),
                 $app->make(AttachmentStorageStrategyInterface::class)
             );

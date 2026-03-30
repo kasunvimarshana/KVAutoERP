@@ -12,13 +12,16 @@ use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitService
 use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitAttachmentsServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\MoveOrganizationUnitServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\ReplaceOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
+use Modules\OrganizationUnit\Application\DTOs\OrganizationUnitAttachmentData;
 use Modules\OrganizationUnit\Application\DTOs\UpdateOrganizationUnitData;
 use Modules\OrganizationUnit\Application\Services\BulkUploadOrganizationUnitAttachmentsService;
 use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitAttachmentsService;
 use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitService;
+use Modules\OrganizationUnit\Application\Services\ReplaceOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\UploadOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
@@ -1206,5 +1209,334 @@ class OrganizationUnitModuleTest extends TestCase
 
         $this->assertStringContainsString('ancestors', $content,
             'Routes must include an ancestors endpoint.');
+    }
+
+    // ── AttachmentStorageStrategyInterface — url() method ────────────────────
+
+    public function test_attachment_storage_strategy_interface_declares_url_method(): void
+    {
+        $rc = new \ReflectionClass(AttachmentStorageStrategyInterface::class);
+
+        $this->assertTrue(
+            $rc->hasMethod('url'),
+            'AttachmentStorageStrategyInterface must declare url(string $path): string.'
+        );
+    }
+
+    public function test_default_attachment_storage_strategy_url_delegates_to_file_storage(): void
+    {
+        $fileStorage = $this->createMock(\Modules\Core\Application\Contracts\FileStorageServiceInterface::class);
+        $fileStorage->expects($this->once())
+            ->method('url')
+            ->with('org-units/1/file.pdf')
+            ->willReturn('https://example.com/file.pdf');
+
+        $strategy = new DefaultAttachmentStorageStrategy($fileStorage);
+        $result   = $strategy->url('org-units/1/file.pdf');
+
+        $this->assertSame('https://example.com/file.pdf', $result);
+    }
+
+    // ── OrganizationUnitAttachmentResource — uses strategy, not FileStorage ──
+
+    public function test_org_unit_attachment_resource_uses_strategy_interface_not_file_storage(): void
+    {
+        $rc     = new \ReflectionClass(OrganizationUnitAttachmentResource::class);
+        $source = file_get_contents($rc->getFileName());
+
+        $this->assertStringContainsString(
+            'AttachmentStorageStrategyInterface',
+            $source,
+            'OrganizationUnitAttachmentResource must resolve the URL via AttachmentStorageStrategyInterface.'
+        );
+        $this->assertStringNotContainsString(
+            'FileStorageServiceInterface',
+            $source,
+            'OrganizationUnitAttachmentResource must not couple to FileStorageServiceInterface directly.'
+        );
+    }
+
+    // ── OrganizationUnitAttachmentData DTO ────────────────────────────────────
+
+    public function test_org_unit_attachment_data_dto_class_exists(): void
+    {
+        $this->assertTrue(class_exists(OrganizationUnitAttachmentData::class));
+    }
+
+    public function test_org_unit_attachment_data_dto_extends_base_dto(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(OrganizationUnitAttachmentData::class, \Modules\Core\Application\DTOs\BaseDto::class),
+            'OrganizationUnitAttachmentData must extend BaseDto.'
+        );
+    }
+
+    public function test_org_unit_attachment_data_dto_has_required_properties(): void
+    {
+        $rc = new \ReflectionClass(OrganizationUnitAttachmentData::class);
+
+        foreach (['organization_unit_id', 'tenant_id', 'name', 'file_path', 'mime_type', 'size'] as $prop) {
+            $this->assertTrue(
+                $rc->hasProperty($prop),
+                "OrganizationUnitAttachmentData must declare the '$prop' property."
+            );
+        }
+    }
+
+    public function test_org_unit_attachment_data_dto_has_nullable_optional_fields(): void
+    {
+        $dto = OrganizationUnitAttachmentData::fromArray([
+            'organization_unit_id' => 1,
+            'tenant_id'            => 1,
+            'name'                 => 'file.pdf',
+            'file_path'            => 'org-units/1/file.pdf',
+            'mime_type'            => 'application/pdf',
+            'size'                 => 1024,
+        ]);
+
+        $this->assertNull($dto->type);
+        $this->assertNull($dto->metadata);
+    }
+
+    public function test_org_unit_attachment_data_dto_fill_sets_all_fields(): void
+    {
+        $dto = OrganizationUnitAttachmentData::fromArray([
+            'organization_unit_id' => 5,
+            'tenant_id'            => 2,
+            'name'                 => 'report.pdf',
+            'file_path'            => 'org-units/5/report.pdf',
+            'mime_type'            => 'application/pdf',
+            'size'                 => 2048,
+            'type'                 => 'report',
+            'metadata'             => ['author' => 'test'],
+        ]);
+
+        $this->assertSame(5, $dto->organization_unit_id);
+        $this->assertSame(2, $dto->tenant_id);
+        $this->assertSame('report.pdf', $dto->name);
+        $this->assertSame('org-units/5/report.pdf', $dto->file_path);
+        $this->assertSame('application/pdf', $dto->mime_type);
+        $this->assertSame(2048, $dto->size);
+        $this->assertSame('report', $dto->type);
+        $this->assertSame(['author' => 'test'], $dto->metadata);
+    }
+
+    // ── UploadOrganizationUnitAttachmentService — uses DTO ───────────────────
+
+    public function test_upload_org_unit_attachment_service_uses_attachment_data_dto(): void
+    {
+        $rc     = new \ReflectionClass(UploadOrganizationUnitAttachmentService::class);
+        $source = file_get_contents($rc->getFileName());
+
+        $this->assertStringContainsString(
+            'OrganizationUnitAttachmentData',
+            $source,
+            'UploadOrganizationUnitAttachmentService must use OrganizationUnitAttachmentData DTO.'
+        );
+    }
+
+    // ── BulkUploadOrganizationUnitAttachmentsService — uses DTO ──────────────
+
+    public function test_bulk_upload_org_unit_attachments_service_uses_attachment_data_dto(): void
+    {
+        $rc     = new \ReflectionClass(BulkUploadOrganizationUnitAttachmentsService::class);
+        $source = file_get_contents($rc->getFileName());
+
+        $this->assertStringContainsString(
+            'OrganizationUnitAttachmentData',
+            $source,
+            'BulkUploadOrganizationUnitAttachmentsService must use OrganizationUnitAttachmentData DTO.'
+        );
+    }
+
+    // ── ReplaceOrganizationUnitAttachmentServiceInterface ────────────────────
+
+    public function test_replace_org_unit_attachment_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(ReplaceOrganizationUnitAttachmentServiceInterface::class));
+    }
+
+    public function test_replace_org_unit_attachment_service_interface_extends_write_service(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(
+                ReplaceOrganizationUnitAttachmentServiceInterface::class,
+                \Modules\Core\Application\Contracts\WriteServiceInterface::class
+            ),
+            'ReplaceOrganizationUnitAttachmentServiceInterface must extend WriteServiceInterface.'
+        );
+    }
+
+    // ── ReplaceOrganizationUnitAttachmentService ──────────────────────────────
+
+    public function test_replace_org_unit_attachment_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ReplaceOrganizationUnitAttachmentService::class));
+    }
+
+    public function test_replace_org_unit_attachment_service_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(
+                ReplaceOrganizationUnitAttachmentService::class,
+                ReplaceOrganizationUnitAttachmentServiceInterface::class
+            ),
+            'ReplaceOrganizationUnitAttachmentService must implement ReplaceOrganizationUnitAttachmentServiceInterface.'
+        );
+    }
+
+    public function test_replace_org_unit_attachment_service_injects_storage_strategy(): void
+    {
+        $rc         = new \ReflectionClass(ReplaceOrganizationUnitAttachmentService::class);
+        $params     = $rc->getConstructor()->getParameters();
+        $paramTypes = array_map(fn ($p) => $p->getType()?->getName(), $params);
+
+        $this->assertContains(
+            AttachmentStorageStrategyInterface::class,
+            $paramTypes,
+            'ReplaceOrganizationUnitAttachmentService must inject AttachmentStorageStrategyInterface.'
+        );
+    }
+
+    public function test_replace_org_unit_attachment_service_throws_when_not_found(): void
+    {
+        $this->expectException(AttachmentNotFoundException::class);
+
+        $attachRepo = $this->createMock(OrganizationUnitAttachmentRepositoryInterface::class);
+        $attachRepo->method('find')->willReturn(null);
+
+        $strategy = $this->createMock(AttachmentStorageStrategyInterface::class);
+
+        $service = new ReplaceOrganizationUnitAttachmentService($attachRepo, $strategy);
+        $method  = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+
+        $file = $this->createMock(UploadedFile::class);
+        $method->invoke($service, ['attachment_id' => 99, 'file' => $file]);
+    }
+
+    public function test_replace_org_unit_attachment_service_deletes_old_file_and_stores_new(): void
+    {
+        $existing = $this->createTestAttachment(7, 1, 2);
+
+        $attachRepo = $this->createMock(OrganizationUnitAttachmentRepositoryInterface::class);
+        $attachRepo->method('find')->with(7)->willReturn($existing);
+        $attachRepo->expects($this->once())->method('save')->willReturn($existing);
+
+        $strategy = $this->createMock(AttachmentStorageStrategyInterface::class);
+        $strategy->expects($this->once())->method('delete')->with($existing->getFilePath());
+        $strategy->expects($this->once())->method('store')->willReturn('org-units/1/new-file.pdf');
+
+        $file = $this->createMock(UploadedFile::class);
+        $file->method('getClientOriginalName')->willReturn('new-file.pdf');
+        $file->method('getMimeType')->willReturn('application/pdf');
+        $file->method('getSize')->willReturn(2048);
+
+        $service = new ReplaceOrganizationUnitAttachmentService($attachRepo, $strategy);
+        $method  = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($service, ['attachment_id' => 7, 'file' => $file]);
+
+        $this->assertInstanceOf(OrganizationUnitAttachment::class, $result);
+    }
+
+    public function test_replace_org_unit_attachment_service_preserves_uuid(): void
+    {
+        $existing = $this->createTestAttachment(8, 1, 2);
+        $origUuid = $existing->getUuid();
+
+        $attachRepo = $this->createMock(OrganizationUnitAttachmentRepositoryInterface::class);
+        $attachRepo->method('find')->with(8)->willReturn($existing);
+
+        $savedEntity = null;
+        $attachRepo->expects($this->once())
+            ->method('save')
+            ->willReturnCallback(function (OrganizationUnitAttachment $a) use (&$savedEntity): OrganizationUnitAttachment {
+                $savedEntity = $a;
+
+                return $a;
+            });
+
+        $strategy = $this->createMock(AttachmentStorageStrategyInterface::class);
+        $strategy->method('delete')->willReturn(true);
+        $strategy->method('store')->willReturn('org-units/1/replaced.pdf');
+
+        $file = $this->createMock(UploadedFile::class);
+        $file->method('getClientOriginalName')->willReturn('replaced.pdf');
+        $file->method('getMimeType')->willReturn('application/pdf');
+        $file->method('getSize')->willReturn(512);
+
+        $service = new ReplaceOrganizationUnitAttachmentService($attachRepo, $strategy);
+        $method  = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+        $method->invoke($service, ['attachment_id' => 8, 'file' => $file]);
+
+        $this->assertSame($origUuid, $savedEntity->getUuid(),
+            'ReplaceOrganizationUnitAttachmentService must preserve the original UUID.');
+    }
+
+    public function test_replace_org_unit_attachment_service_uses_attachment_data_dto(): void
+    {
+        $rc     = new \ReflectionClass(ReplaceOrganizationUnitAttachmentService::class);
+        $source = file_get_contents($rc->getFileName());
+
+        $this->assertStringContainsString(
+            'OrganizationUnitAttachmentData',
+            $source,
+            'ReplaceOrganizationUnitAttachmentService must use OrganizationUnitAttachmentData DTO.'
+        );
+    }
+
+    // ── OrganizationUnitAttachmentController — replace action ────────────────
+
+    public function test_org_unit_attachment_controller_has_replace_method(): void
+    {
+        $rc = new \ReflectionClass(OrganizationUnitAttachmentController::class);
+
+        $this->assertTrue(
+            $rc->hasMethod('replace'),
+            'OrganizationUnitAttachmentController must declare a replace() action.'
+        );
+    }
+
+    public function test_org_unit_attachment_controller_injects_replace_service(): void
+    {
+        $rc         = new \ReflectionClass(OrganizationUnitAttachmentController::class);
+        $params     = $rc->getConstructor()->getParameters();
+        $paramTypes = array_map(fn ($p) => $p->getType()?->getName(), $params);
+
+        $this->assertContains(
+            ReplaceOrganizationUnitAttachmentServiceInterface::class,
+            $paramTypes,
+            'OrganizationUnitAttachmentController must inject ReplaceOrganizationUnitAttachmentServiceInterface.'
+        );
+    }
+
+    // ── ServiceProvider — registers ReplaceOrganizationUnitAttachmentService ─
+
+    public function test_org_unit_service_provider_registers_replace_attachment_service(): void
+    {
+        $rc       = new \ReflectionClass(OrganizationUnitServiceProvider::class);
+        $method   = $rc->getMethod('register');
+        $filename = $rc->getFileName();
+        $start    = $method->getStartLine();
+        $end      = $method->getEndLine();
+        $lines    = array_slice(file($filename), $start - 1, $end - $start + 1);
+        $body     = implode('', $lines);
+
+        $this->assertStringContainsString('ReplaceOrganizationUnitAttachmentServiceInterface', $body,
+            'ServiceProvider must bind ReplaceOrganizationUnitAttachmentServiceInterface.');
+    }
+
+    // ── Routes — replace route ────────────────────────────────────────────────
+
+    public function test_routes_file_has_replace_route(): void
+    {
+        $routesFile = __DIR__.'/../../app/Modules/OrganizationUnit/routes/api.php';
+        $content    = file_get_contents($routesFile);
+
+        $this->assertStringContainsString('replace', $content,
+            'Routes must include a replace endpoint for attachments.');
     }
 }

@@ -11,6 +11,7 @@ use Modules\OrganizationUnit\Application\Contracts\AttachmentStorageStrategyInte
 use Modules\OrganizationUnit\Application\Contracts\BulkUploadOrganizationUnitAttachmentsServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitAttachmentsServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\ReplaceOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
 use Modules\OrganizationUnit\Infrastructure\Http\Requests\UploadOrganizationUnitAttachmentRequest;
@@ -23,6 +24,7 @@ class OrganizationUnitAttachmentController extends AuthorizedController
         protected UploadOrganizationUnitAttachmentServiceInterface $uploadService,
         protected BulkUploadOrganizationUnitAttachmentsServiceInterface $bulkUploadService,
         protected DeleteOrganizationUnitAttachmentServiceInterface $deleteService,
+        protected ReplaceOrganizationUnitAttachmentServiceInterface $replaceService,
         protected FindOrganizationUnitAttachmentsServiceInterface $findAttachmentsService,
         protected AttachmentStorageStrategyInterface $storageStrategy
     ) {}
@@ -179,6 +181,67 @@ class OrganizationUnitAttachmentController extends AuthorizedController
         $this->deleteService->execute(['attachment_id' => $attachmentId]);
 
         return response()->json(['message' => 'Attachment deleted successfully']);
+    }
+
+    #[OA\Post(
+        path: '/api/org-units/{orgUnitId}/attachments/{attachmentId}/replace',
+        summary: 'Replace an existing organization unit attachment',
+        description: 'Deletes the old stored file and replaces it with the uploaded file. The attachment UUID and record ID are preserved.',
+        tags: ['OrgUnit Attachments'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'orgUnitId',    in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'attachmentId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['file'],
+                    properties: [
+                        new OA\Property(property: 'file',     type: 'string', format: 'binary'),
+                        new OA\Property(property: 'type',     type: 'string', nullable: true),
+                        new OA\Property(property: 'metadata', type: 'string', format: 'json', nullable: true),
+                    ],
+                ),
+            ),
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Attachment replaced',
+                content: new OA\JsonContent(ref: '#/components/schemas/AttachmentObject')),
+            new OA\Response(response: 401, description: 'Unauthenticated',
+                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
+            new OA\Response(response: 403, description: 'Forbidden',
+                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
+            new OA\Response(response: 404, description: 'Not found',
+                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
+            new OA\Response(response: 422, description: 'Validation error',
+                content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
+        ],
+    )]
+    public function replace(UploadOrganizationUnitAttachmentRequest $request, int $orgUnitId, int $attachmentId): JsonResponse
+    {
+        $this->authorize('uploadAttachment', OrganizationUnit::class);
+
+        $attachment = $this->findAttachmentsService->find($attachmentId);
+        if (! $attachment) {
+            abort(404);
+        }
+
+        $payload = ['attachment_id' => $attachmentId, 'file' => $request->file('file')];
+        if ($request->has('type')) {
+            $payload['type'] = $request->input('type');
+        }
+        if ($request->has('metadata')) {
+            $payload['metadata'] = $this->decodeMetadata($request);
+        }
+
+        $updated = $this->replaceService->execute($payload);
+
+        return (new OrganizationUnitAttachmentResource($updated))
+            ->response()
+            ->setStatusCode(200);
     }
 
     #[OA\Get(

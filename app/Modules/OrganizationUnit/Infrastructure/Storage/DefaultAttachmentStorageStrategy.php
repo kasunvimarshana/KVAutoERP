@@ -40,6 +40,11 @@ class DefaultAttachmentStorageStrategy implements AttachmentStorageStrategyInter
         return $this->fileStorage->delete($path);
     }
 
+    public function url(string $path): string
+    {
+        return $this->fileStorage->url($path);
+    }
+
     public function stream(string $path): StreamedResponse
     {
         return $this->fileStorage->stream($path);
