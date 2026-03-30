@@ -9,6 +9,7 @@ use Modules\Core\Domain\ValueObjects\Code;
 use Modules\Core\Domain\ValueObjects\Metadata;
 use Modules\Core\Domain\ValueObjects\Name;
 use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
+use Modules\OrganizationUnit\Application\DTOs\UpdateOrganizationUnitData;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
 use Modules\OrganizationUnit\Domain\Events\OrganizationUnitUpdated;
 use Modules\OrganizationUnit\Domain\Exceptions\OrganizationUnitNotFoundException;
@@ -26,34 +27,36 @@ class UpdateOrganizationUnitService extends BaseService implements UpdateOrganiz
 
     protected function handle(array $data): OrganizationUnit
     {
-        $id   = (int) $data['id'];
+        $dto  = UpdateOrganizationUnitData::fromArray($data);
+        $id   = (int) ($dto->id ?? 0);
         $unit = $this->orgUnitRepository->find($id);
         if (! $unit) {
             throw new OrganizationUnitNotFoundException($id);
         }
 
-        // Use existing entity values as defaults so partial updates are safe.
-        $name = array_key_exists('name', $data)
-            ? new Name((string) $data['name'])
+        // isProvided() distinguishes "field was absent" from "field was sent as null",
+        // enabling safe partial updates that never unintentionally clear existing data.
+        $name = $dto->isProvided('name')
+            ? new Name((string) $dto->name)
             : $unit->getName();
 
-        $code = array_key_exists('code', $data)
-            ? ($data['code'] !== null ? new Code((string) $data['code']) : null)
+        $code = $dto->isProvided('code')
+            ? ($dto->code !== null ? new Code($dto->code) : null)
             : $unit->getCode();
 
-        $description = array_key_exists('description', $data)
-            ? $data['description']
+        $description = $dto->isProvided('description')
+            ? $dto->description
             : $unit->getDescription();
 
-        $metadata = array_key_exists('metadata', $data)
-            ? (is_array($data['metadata']) ? new Metadata($data['metadata']) : null)
+        $metadata = $dto->isProvided('metadata')
+            ? ($dto->metadata !== null ? new Metadata($dto->metadata) : null)
             : $unit->getMetadata();
 
         $unit->updateDetails($name, $code, $description, $metadata);
 
-        // Only move the node when parent_id is explicitly supplied and differs.
-        if (array_key_exists('parent_id', $data) && $data['parent_id'] !== $unit->getParentId()) {
-            $this->orgUnitRepository->moveNode($id, $data['parent_id']);
+        // Only move the node when parent_id was explicitly supplied and differs.
+        if ($dto->isProvided('parent_id') && $dto->parent_id !== $unit->getParentId()) {
+            $this->orgUnitRepository->moveNode($id, $dto->parent_id);
         }
 
         $saved = $this->orgUnitRepository->save($unit);

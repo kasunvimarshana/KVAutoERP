@@ -13,6 +13,8 @@ use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitServiceIn
 use Modules\OrganizationUnit\Application\Contracts\MoveOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\DTOs\MoveOrganizationUnitData;
+use Modules\OrganizationUnit\Application\DTOs\OrganizationUnitData;
+use Modules\OrganizationUnit\Application\DTOs\UpdateOrganizationUnitData;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
 use Modules\OrganizationUnit\Infrastructure\Http\Requests\MoveOrganizationUnitRequest;
 use Modules\OrganizationUnit\Infrastructure\Http\Requests\StoreOrganizationUnitRequest;
@@ -111,7 +113,8 @@ class OrganizationUnitController extends AuthorizedController
     public function store(StoreOrganizationUnitRequest $request): \Illuminate\Http\JsonResponse
     {
         $this->authorize('create', OrganizationUnit::class);
-        $unit = $this->createService->execute($request->validated());
+        $dto  = OrganizationUnitData::fromArray($request->validated());
+        $unit = $this->createService->execute($dto->toArray());
 
         return (new OrganizationUnitResource($unit))->response()->setStatusCode(201);
     }
@@ -187,7 +190,8 @@ class OrganizationUnitController extends AuthorizedController
         $this->authorize('update', $unit);
         $validated       = $request->validated();
         $validated['id'] = $id;
-        $updated = $this->updateService->execute($validated);
+        $dto             = UpdateOrganizationUnitData::fromArray($validated);
+        $updated         = $this->updateService->execute($dto->toArray());
 
         return new OrganizationUnitResource($updated);
     }
