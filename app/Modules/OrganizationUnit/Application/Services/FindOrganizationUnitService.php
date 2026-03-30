@@ -32,6 +32,26 @@ class FindOrganizationUnitService extends BaseService implements FindOrganizatio
         return $this->orgUnitRepository->getTree($tenantId, $rootId);
     }
 
+    /**
+     * Return all descendants of the given unit (depth-first, ordered by _lft).
+     *
+     * @return array<int, \Modules\OrganizationUnit\Domain\Entities\OrganizationUnit>
+     */
+    public function getDescendants(int $id): array
+    {
+        return $this->orgUnitRepository->getDescendants($id);
+    }
+
+    /**
+     * Return the ancestor chain of the given unit (root → direct parent order).
+     *
+     * @return array<int, \Modules\OrganizationUnit\Domain\Entities\OrganizationUnit>
+     */
+    public function getAncestors(int $id): array
+    {
+        return $this->orgUnitRepository->getAncestors($id);
+    }
+
     protected function handle(array $data): mixed
     {
         throw new \BadMethodCallException(static::class.' does not support write operations via execute().');

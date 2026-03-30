@@ -303,4 +303,80 @@ class OrganizationUnitController extends AuthorizedController
 
         return response()->json(['message' => 'Organization unit moved successfully']);
     }
+
+    #[OA\Get(
+        path: '/api/org-units/{id}/descendants',
+        summary: 'Get descendants of an organization unit',
+        description: 'Returns all direct and indirect children of the given unit in nested-set order.',
+        tags: ['Organization Units'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'List of descendant organization units',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/OrganizationUnitObject')),
+                    ],
+                )),
+            new OA\Response(response: 401, description: 'Unauthenticated',
+                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
+            new OA\Response(response: 403, description: 'Forbidden',
+                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
+            new OA\Response(response: 404, description: 'Not found',
+                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
+        ],
+    )]
+    public function descendants(int $id): JsonResponse
+    {
+        $unit = $this->findService->find($id);
+        if (! $unit) {
+            abort(404);
+        }
+        $this->authorize('view', $unit);
+        $items = $this->findService->getDescendants($id);
+
+        return response()->json([
+            'data' => OrganizationUnitResource::collection(collect($items)),
+        ]);
+    }
+
+    #[OA\Get(
+        path: '/api/org-units/{id}/ancestors',
+        summary: 'Get ancestors of an organization unit',
+        description: 'Returns the parent chain (root → direct parent) of the given unit.',
+        tags: ['Organization Units'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'List of ancestor organization units',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/OrganizationUnitObject')),
+                    ],
+                )),
+            new OA\Response(response: 401, description: 'Unauthenticated',
+                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
+            new OA\Response(response: 403, description: 'Forbidden',
+                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
+            new OA\Response(response: 404, description: 'Not found',
+                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
+        ],
+    )]
+    public function ancestors(int $id): JsonResponse
+    {
+        $unit = $this->findService->find($id);
+        if (! $unit) {
+            abort(404);
+        }
+        $this->authorize('view', $unit);
+        $items = $this->findService->getAncestors($id);
+
+        return response()->json([
+            'data' => OrganizationUnitResource::collection(collect($items)),
+        ]);
+    }
 }

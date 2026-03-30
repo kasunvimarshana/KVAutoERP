@@ -1031,4 +1031,180 @@ class OrganizationUnitModuleTest extends TestCase
             'Entity metadata must not be modified when metadata is omitted from the update payload.'
         );
     }
+
+    // ── OrganizationUnit entity — updateDetails ───────────────────────────────
+
+    public function test_org_unit_entity_update_details_updates_all_fields(): void
+    {
+        $unit = $this->createTestUnit(1, 1);
+        $name = new \Modules\Core\Domain\ValueObjects\Name('Updated');
+        $code = new \Modules\Core\Domain\ValueObjects\Code('UPD');
+        $meta = new \Modules\Core\Domain\ValueObjects\Metadata(['k' => 'v']);
+
+        $unit->updateDetails($name, $code, 'New desc', $meta);
+
+        $this->assertSame('Updated', $unit->getName()->value());
+        $this->assertSame('UPD', $unit->getCode()->value());
+        $this->assertSame('New desc', $unit->getDescription());
+        $this->assertSame(['k' => 'v'], $unit->getMetadata()->toArray());
+    }
+
+    public function test_org_unit_entity_update_details_clears_metadata_when_explicitly_null(): void
+    {
+        $unit = $this->createTestUnit(1, 1);
+        $meta = new \Modules\Core\Domain\ValueObjects\Metadata(['existing' => true]);
+        $unit->updateDetails($unit->getName(), $unit->getCode(), null, $meta);
+
+        // Now explicitly pass null — metadata should be reset to empty.
+        $unit->updateDetails($unit->getName(), $unit->getCode(), null, null);
+
+        $this->assertSame(
+            [],
+            $unit->getMetadata()->toArray(),
+            'updateDetails must reset metadata to an empty Metadata when explicitly passed null.'
+        );
+    }
+
+    public function test_org_unit_entity_update_details_clears_code_when_null(): void
+    {
+        $unit = $this->createTestUnit(1, 1);
+        $unit->updateDetails(
+            $unit->getName(),
+            new \Modules\Core\Domain\ValueObjects\Code('ORIG'),
+            null,
+            null
+        );
+        $this->assertNotNull($unit->getCode());
+
+        $unit->updateDetails($unit->getName(), null, null, null);
+        $this->assertNull($unit->getCode());
+    }
+
+    // ── OrganizationUnitResource — null-safe code ─────────────────────────────
+
+    public function test_org_unit_resource_handles_null_code(): void
+    {
+        $unit     = $this->createTestUnit(1, 1);
+        $resource = new \Modules\OrganizationUnit\Infrastructure\Http\Resources\OrganizationUnitResource($unit);
+        $arr      = $resource->toArray(null);
+
+        $this->assertArrayHasKey('code', $arr);
+        $this->assertNull($arr['code'],
+            'OrganizationUnitResource must return null for code when the entity has no code set.');
+    }
+
+    // ── FindOrganizationUnitServiceInterface — getDescendants / getAncestors ──
+
+    public function test_find_org_unit_service_interface_declares_get_descendants(): void
+    {
+        $rc = new \ReflectionClass(\Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitServiceInterface::class);
+
+        $this->assertTrue(
+            $rc->hasMethod('getDescendants'),
+            'FindOrganizationUnitServiceInterface must declare getDescendants(int $id): array.'
+        );
+    }
+
+    public function test_find_org_unit_service_interface_declares_get_ancestors(): void
+    {
+        $rc = new \ReflectionClass(\Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitServiceInterface::class);
+
+        $this->assertTrue(
+            $rc->hasMethod('getAncestors'),
+            'FindOrganizationUnitServiceInterface must declare getAncestors(int $id): array.'
+        );
+    }
+
+    public function test_find_org_unit_service_get_descendants_delegates_to_repository(): void
+    {
+        $repo = $this->createMock(\Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface::class);
+        $unit = $this->createTestUnit(2, 1);
+        $repo->expects($this->once())
+            ->method('getDescendants')
+            ->with(1)
+            ->willReturn([$unit]);
+
+        $service = new FindOrganizationUnitService($repo);
+
+        $result = $service->getDescendants(1);
+
+        $this->assertCount(1, $result);
+        $this->assertSame($unit, $result[0]);
+    }
+
+    public function test_find_org_unit_service_get_ancestors_delegates_to_repository(): void
+    {
+        $repo = $this->createMock(\Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface::class);
+        $unit = $this->createTestUnit(5, 1);
+        $repo->expects($this->once())
+            ->method('getAncestors')
+            ->with(10)
+            ->willReturn([$unit]);
+
+        $service = new FindOrganizationUnitService($repo);
+
+        $result = $service->getAncestors(10);
+
+        $this->assertCount(1, $result);
+        $this->assertSame($unit, $result[0]);
+    }
+
+    // ── OrganizationUnitController — descendants / ancestors actions ──────────
+
+    public function test_org_unit_controller_has_descendants_method(): void
+    {
+        $rc = new \ReflectionClass(OrganizationUnitController::class);
+
+        $this->assertTrue(
+            $rc->hasMethod('descendants'),
+            'OrganizationUnitController must declare a descendants() action.'
+        );
+    }
+
+    public function test_org_unit_controller_has_ancestors_method(): void
+    {
+        $rc = new \ReflectionClass(OrganizationUnitController::class);
+
+        $this->assertTrue(
+            $rc->hasMethod('ancestors'),
+            'OrganizationUnitController must declare an ancestors() action.'
+        );
+    }
+
+    // ── Routes — static routes precede wildcard ───────────────────────────────
+
+    public function test_routes_tree_declared_before_api_resource(): void
+    {
+        $routesFile = __DIR__.'/../../app/Modules/OrganizationUnit/routes/api.php';
+        $content    = file_get_contents($routesFile);
+
+        $treePos        = strpos($content, "'tree'");
+        $apiResourcePos = strpos($content, 'apiResource');
+
+        $this->assertNotFalse($treePos,        'Routes file must define the tree route.');
+        $this->assertNotFalse($apiResourcePos, 'Routes file must define an apiResource route.');
+        $this->assertLessThan(
+            $apiResourcePos,
+            $treePos,
+            'The tree route must be declared BEFORE apiResource to prevent the {unit} wildcard swallowing it.'
+        );
+    }
+
+    public function test_routes_file_has_descendants_route(): void
+    {
+        $routesFile = __DIR__.'/../../app/Modules/OrganizationUnit/routes/api.php';
+        $content    = file_get_contents($routesFile);
+
+        $this->assertStringContainsString('descendants', $content,
+            'Routes must include a descendants endpoint.');
+    }
+
+    public function test_routes_file_has_ancestors_route(): void
+    {
+        $routesFile = __DIR__.'/../../app/Modules/OrganizationUnit/routes/api.php';
+        $content    = file_get_contents($routesFile);
+
+        $this->assertStringContainsString('ancestors', $content,
+            'Routes must include an ancestors endpoint.');
+    }
 }
