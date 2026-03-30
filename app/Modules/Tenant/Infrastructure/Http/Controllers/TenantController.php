@@ -6,7 +6,7 @@ namespace Modules\Tenant\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Modules\Core\Infrastructure\Http\Controllers\BaseController;
+use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Tenant\Application\Contracts\CreateTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\DeleteTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\FindTenantServiceInterface;
@@ -24,18 +24,16 @@ use Modules\Tenant\Infrastructure\Http\Resources\TenantConfigResource;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantResource;
 use OpenApi\Attributes as OA;
 
-class TenantController extends BaseController
+class TenantController extends AuthorizedController
 {
     public function __construct(
-        CreateTenantServiceInterface $createService,
+        protected CreateTenantServiceInterface $createService,
         protected UpdateTenantServiceInterface $updateService,
         protected DeleteTenantServiceInterface $deleteService,
         protected UpdateTenantConfigServiceInterface $configService,
         protected FindTenantServiceInterface $findTenantService,
         protected UploadTenantAttachmentServiceInterface $uploadAttachmentService
-    ) {
-        parent::__construct($createService, TenantResource::class, TenantData::class);
-    }
+    ) {}
 
     #[OA\Get(
         path: '/api/tenants',
@@ -78,7 +76,7 @@ class TenantController extends BaseController
         $sort    = $request->input('sort');
         $include = $request->input('include');
 
-        $tenants = $this->service->list($filters, $perPage, $page, $sort, $include);
+        $tenants = $this->findTenantService->list($filters, $perPage, $page, $sort, $include);
 
         return new TenantCollection($tenants);
     }
@@ -133,7 +131,7 @@ class TenantController extends BaseController
     {
         $this->authorize('create', Tenant::class);
         $dto    = TenantData::fromArray($request->validated());
-        $tenant = $this->service->execute($dto->toArray());
+        $tenant = $this->createService->execute($dto->toArray());
 
         if ($request->hasFile('logo')) {
             $this->uploadAttachmentService->execute([
@@ -141,7 +139,7 @@ class TenantController extends BaseController
                 'file'      => $request->file('logo'),
                 'type'      => 'logo',
             ]);
-            $tenant = $this->service->find($tenant->getId())
+            $tenant = $this->findTenantService->find($tenant->getId())
                 ?? throw new \RuntimeException('Tenant disappeared after logo upload.');
         }
 
@@ -169,7 +167,7 @@ class TenantController extends BaseController
     )]
     public function show(int $id): TenantResource
     {
-        $tenant = $this->service->find($id);
+        $tenant = $this->findTenantService->find($id);
         if (! $tenant) {
             abort(404);
         }
@@ -212,7 +210,7 @@ class TenantController extends BaseController
     )]
     public function update(UpdateTenantRequest $request, int $id): TenantResource
     {
-        $tenant = $this->service->find($id);
+        $tenant = $this->findTenantService->find($id);
         if (! $tenant) {
             abort(404);
         }
@@ -228,7 +226,7 @@ class TenantController extends BaseController
                 'file'      => $request->file('logo'),
                 'type'      => 'logo',
             ]);
-            $updated = $this->service->find($id)
+            $updated = $this->findTenantService->find($id)
                 ?? throw new \RuntimeException('Tenant disappeared after logo upload.');
         }
 
@@ -266,7 +264,7 @@ class TenantController extends BaseController
     )]
     public function updateConfig(UpdateTenantConfigRequest $request, int $id): TenantConfigResource
     {
-        $tenant = $this->service->find($id);
+        $tenant = $this->findTenantService->find($id);
         if (! $tenant) {
             abort(404);
         }
@@ -300,7 +298,7 @@ class TenantController extends BaseController
     )]
     public function destroy(int $id): JsonResponse
     {
-        $tenant = $this->service->find($id);
+        $tenant = $this->findTenantService->find($id);
         if (! $tenant) {
             abort(404);
         }
@@ -335,8 +333,5 @@ class TenantController extends BaseController
         return new TenantConfigResource($tenant);
     }
 
-    protected function getModelClass(): string
-    {
-        return Tenant::class;
-    }
+
 }

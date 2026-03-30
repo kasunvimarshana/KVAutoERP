@@ -6,7 +6,10 @@ namespace Tests\Unit;
 
 // Brand
 use Modules\Brand\Application\Contracts\FindBrandLogosServiceInterface;
+use Modules\Brand\Application\Contracts\FindBrandServiceInterface;
 use Modules\Brand\Application\Services\FindBrandLogosService;
+use Modules\Brand\Application\Services\FindBrandService;
+use Modules\Brand\Infrastructure\Http\Controllers\BrandController;
 use Modules\Brand\Infrastructure\Http\Controllers\BrandLogoController;
 use Modules\Brand\Infrastructure\Http\Requests\UpdateBrandRequest;
 use Modules\Brand\Infrastructure\Providers\BrandServiceProvider;
@@ -38,8 +41,16 @@ use Modules\Tenant\Infrastructure\Http\Requests\UpdateTenantRequest;
 use Modules\Tenant\Infrastructure\Providers\TenantServiceProvider;
 
 // User
+use Modules\User\Application\Contracts\FindPermissionServiceInterface;
+use Modules\User\Application\Contracts\FindRoleServiceInterface;
 use Modules\User\Application\Contracts\FindUserAttachmentsServiceInterface;
+use Modules\User\Application\Contracts\FindUserServiceInterface;
+use Modules\User\Application\Services\FindPermissionService;
+use Modules\User\Application\Services\FindRoleService;
 use Modules\User\Application\Services\FindUserAttachmentsService;
+use Modules\User\Application\Services\FindUserService;
+use Modules\User\Infrastructure\Http\Controllers\PermissionController;
+use Modules\User\Infrastructure\Http\Controllers\RoleController;
 use Modules\User\Infrastructure\Http\Controllers\UserAttachmentController;
 use Modules\User\Infrastructure\Http\Controllers\UserController;
 use Modules\User\Infrastructure\Http\Requests\AssignRoleRequest;
