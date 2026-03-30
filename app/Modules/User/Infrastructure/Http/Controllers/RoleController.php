@@ -9,9 +9,9 @@ use Illuminate\Http\Request;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\User\Application\Contracts\CreateRoleServiceInterface;
 use Modules\User\Application\Contracts\DeleteRoleServiceInterface;
+use Modules\User\Application\Contracts\FindRoleServiceInterface;
 use Modules\User\Application\Contracts\SyncRolePermissionsServiceInterface;
 use Modules\User\Domain\Entities\Role;
-use Modules\User\Domain\RepositoryInterfaces\RoleRepositoryInterface;
 use Modules\User\Infrastructure\Http\Requests\StoreRoleRequest;
 use Modules\User\Infrastructure\Http\Requests\SyncRolePermissionsRequest;
 use Modules\User\Infrastructure\Http\Resources\RoleResource;
@@ -20,10 +20,10 @@ use OpenApi\Attributes as OA;
 class RoleController extends AuthorizedController
 {
     public function __construct(
+        protected FindRoleServiceInterface $findService,
         protected CreateRoleServiceInterface $createService,
         protected DeleteRoleServiceInterface $deleteService,
-        protected SyncRolePermissionsServiceInterface $syncPermissionsService,
-        protected RoleRepositoryInterface $roleRepository
+        protected SyncRolePermissionsServiceInterface $syncPermissionsService
     ) {}
 
     #[OA\Get(

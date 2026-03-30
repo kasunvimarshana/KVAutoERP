@@ -6,10 +6,11 @@ namespace Modules\User\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Modules\Core\Infrastructure\Http\Controllers\BaseController;
+use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\User\Application\Contracts\AssignRoleServiceInterface;
 use Modules\User\Application\Contracts\CreateUserServiceInterface;
 use Modules\User\Application\Contracts\DeleteUserServiceInterface;
+use Modules\User\Application\Contracts\FindUserServiceInterface;
 use Modules\User\Application\Contracts\UpdatePreferencesServiceInterface;
 use Modules\User\Application\Contracts\UpdateUserServiceInterface;
 use Modules\User\Application\DTOs\UserData;
@@ -23,17 +24,16 @@ use Modules\User\Infrastructure\Http\Resources\UserCollection;
 use Modules\User\Infrastructure\Http\Resources\UserResource;
 use OpenApi\Attributes as OA;
 
-class UserController extends BaseController
+class UserController extends AuthorizedController
 {
     public function __construct(
-        CreateUserServiceInterface $createService,
+        protected FindUserServiceInterface $findService,
+        protected CreateUserServiceInterface $createService,
         protected UpdateUserServiceInterface $updateService,
         protected DeleteUserServiceInterface $deleteService,
         protected AssignRoleServiceInterface $assignRoleService,
         protected UpdatePreferencesServiceInterface $updatePreferencesService
-    ) {
-        parent::__construct($createService, UserResource::class, UserData::class);
-    }
+    ) {}
 
     #[OA\Get(
         path: '/api/users',
@@ -77,7 +77,7 @@ class UserController extends BaseController
         $sort = $request->input('sort');
         $include = $request->input('include');
 
-        $users = $this->service->list($filters, $perPage, $page, $sort, $include);
+        $users = $this->findService->list($filters, $perPage, $page, $sort, $include);
 
         return new UserCollection($users);
     }
@@ -119,7 +119,7 @@ class UserController extends BaseController
     {
         $this->authorize('create', User::class);
         $dto = UserData::fromArray($request->validated());
-        $user = $this->service->execute($dto->toArray());
+        $user = $this->createService->execute($dto->toArray());
 
         return (new UserResource($user))->response()->setStatusCode(201);
     }
@@ -145,7 +145,7 @@ class UserController extends BaseController
     )]
     public function show(int $id): UserResource
     {
-        $user = $this->service->find($id);
+        $user = $this->findService->find($id);
         if (! $user) {
             abort(404);
         }
@@ -189,7 +189,7 @@ class UserController extends BaseController
     )]
     public function update(UpdateUserRequest $request, int $id): UserResource
     {
-        $user = $this->service->find($id);
+        $user = $this->findService->find($id);
         if (! $user) {
             abort(404);
         }
@@ -223,7 +223,7 @@ class UserController extends BaseController
     )]
     public function destroy(int $id): JsonResponse
     {
-        $user = $this->service->find($id);
+        $user = $this->findService->find($id);
         if (! $user) {
             abort(404);
         }
@@ -265,7 +265,7 @@ class UserController extends BaseController
     )]
     public function assignRole(AssignRoleRequest $request, int $id): JsonResponse
     {
-        $user = $this->service->find($id);
+        $user = $this->findService->find($id);
         if (! $user) {
             abort(404);
         }
@@ -301,7 +301,7 @@ class UserController extends BaseController
     )]
     public function updatePreferences(UpdatePreferencesRequest $request, int $id): UserResource
     {
-        $user = $this->service->find($id);
+        $user = $this->findService->find($id);
         if (! $user) {
             abort(404);
         }
@@ -313,8 +313,5 @@ class UserController extends BaseController
         return new UserResource($updated);
     }
 
-    protected function getModelClass(): string
-    {
-        return User::class;
-    }
+
 }
