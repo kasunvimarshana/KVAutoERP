@@ -10,12 +10,14 @@ use Modules\Brand\Application\Contracts\CreateBrandServiceInterface;
 use Modules\Brand\Application\Contracts\DeleteBrandLogoServiceInterface;
 use Modules\Brand\Application\Contracts\DeleteBrandServiceInterface;
 use Modules\Brand\Application\Contracts\FindBrandLogosServiceInterface;
+use Modules\Brand\Application\Contracts\FindBrandServiceInterface;
 use Modules\Brand\Application\Contracts\UpdateBrandServiceInterface;
 use Modules\Brand\Application\Contracts\UploadBrandLogoServiceInterface;
 use Modules\Brand\Application\Services\CreateBrandService;
 use Modules\Brand\Application\Services\DeleteBrandLogoService;
 use Modules\Brand\Application\Services\DeleteBrandService;
 use Modules\Brand\Application\Services\FindBrandLogosService;
+use Modules\Brand\Application\Services\FindBrandService;
 use Modules\Brand\Application\Services\UpdateBrandService;
 use Modules\Brand\Application\Services\UploadBrandLogoService;
 use Modules\Brand\Domain\RepositoryInterfaces\BrandLogoRepositoryInterface;
@@ -40,6 +42,10 @@ class BrandServiceProvider extends ServiceProvider
 
         $this->app->bind(CreateBrandServiceInterface::class, function ($app) {
             return new CreateBrandService($app->make(BrandRepositoryInterface::class));
+        });
+
+        $this->app->bind(FindBrandServiceInterface::class, function ($app) {
+            return new FindBrandService($app->make(BrandRepositoryInterface::class));
         });
 
         $this->app->bind(UpdateBrandServiceInterface::class, function ($app) {
