@@ -16,6 +16,7 @@ use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitAttachmen
 use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\MoveOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\ReplaceOrganizationUnitAttachmentServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Services\BulkUploadOrganizationUnitAttachmentsService;
@@ -26,6 +27,7 @@ use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitAttachment
 use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\MoveOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\ReplaceOrganizationUnitAttachmentService;
+use Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\UploadOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitAttachmentRepositoryInterface;
@@ -95,6 +97,11 @@ class OrganizationUnitServiceProvider extends ServiceProvider
             return new ReplaceOrganizationUnitAttachmentService(
                 $app->make(OrganizationUnitAttachmentRepositoryInterface::class),
                 $app->make(AttachmentStorageStrategyInterface::class)
+            );
+        });
+        $this->app->bind(UpdateOrganizationUnitAttachmentServiceInterface::class, function ($app) {
+            return new UpdateOrganizationUnitAttachmentService(
+                $app->make(OrganizationUnitAttachmentRepositoryInterface::class)
             );
         });
     }

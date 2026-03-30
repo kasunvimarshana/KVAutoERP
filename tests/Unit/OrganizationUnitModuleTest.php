@@ -13,15 +13,18 @@ use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitAttachmen
 use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\MoveOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\ReplaceOrganizationUnitAttachmentServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\DTOs\OrganizationUnitAttachmentData;
+use Modules\OrganizationUnit\Application\DTOs\UpdateOrganizationUnitAttachmentData;
 use Modules\OrganizationUnit\Application\DTOs\UpdateOrganizationUnitData;
 use Modules\OrganizationUnit\Application\Services\BulkUploadOrganizationUnitAttachmentsService;
 use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitAttachmentsService;
 use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\ReplaceOrganizationUnitAttachmentService;
+use Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\UploadOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
@@ -32,6 +35,7 @@ use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitAttachm
 use Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
 use Modules\OrganizationUnit\Infrastructure\Http\Controllers\OrganizationUnitAttachmentController;
 use Modules\OrganizationUnit\Infrastructure\Http\Controllers\OrganizationUnitController;
+use Modules\OrganizationUnit\Infrastructure\Http\Requests\UpdateOrganizationUnitAttachmentRequest;
 use Modules\OrganizationUnit\Infrastructure\Http\Requests\UploadOrganizationUnitAttachmentRequest;
 use Modules\OrganizationUnit\Infrastructure\Http\Resources\OrganizationUnitAttachmentResource;
 use Modules\OrganizationUnit\Infrastructure\Providers\OrganizationUnitServiceProvider;
@@ -1538,5 +1542,279 @@ class OrganizationUnitModuleTest extends TestCase
 
         $this->assertStringContainsString('replace', $content,
             'Routes must include a replace endpoint for attachments.');
+    }
+
+    // ── OrganizationUnitAttachment entity — updateDetails() ──────────────────
+
+    public function test_org_unit_attachment_entity_has_update_details_method(): void
+    {
+        $rc = new \ReflectionClass(OrganizationUnitAttachment::class);
+
+        $this->assertTrue(
+            $rc->hasMethod('updateDetails'),
+            'OrganizationUnitAttachment must declare updateDetails(type, metadata).'
+        );
+    }
+
+    public function test_org_unit_attachment_entity_update_details_changes_type_and_metadata(): void
+    {
+        $attachment = $this->createTestAttachment(1, 1, 1);
+
+        $attachment->updateDetails('invoice', ['ref' => '123']);
+
+        $this->assertSame('invoice', $attachment->getType());
+        $this->assertSame(['ref' => '123'], $attachment->getMetadata());
+    }
+
+    public function test_org_unit_attachment_entity_update_details_clears_type_and_metadata(): void
+    {
+        $attachment = $this->createTestAttachment(1, 1, 1);
+        $attachment->updateDetails('old-type', ['key' => 'val']);
+
+        $attachment->updateDetails(null, null);
+
+        $this->assertNull($attachment->getType());
+        $this->assertNull($attachment->getMetadata());
+    }
+
+    // ── UpdateOrganizationUnitAttachmentData DTO ──────────────────────────────
+
+    public function test_update_org_unit_attachment_data_dto_class_exists(): void
+    {
+        $this->assertTrue(class_exists(UpdateOrganizationUnitAttachmentData::class));
+    }
+
+    public function test_update_org_unit_attachment_data_dto_is_provided_returns_true_for_present_fields(): void
+    {
+        $dto = UpdateOrganizationUnitAttachmentData::fromArray(['type' => 'invoice']);
+
+        $this->assertTrue($dto->isProvided('type'));
+        $this->assertFalse($dto->isProvided('metadata'));
+    }
+
+    public function test_update_org_unit_attachment_data_dto_to_array_only_returns_provided_keys(): void
+    {
+        $dto = UpdateOrganizationUnitAttachmentData::fromArray(['metadata' => ['a' => 1]]);
+
+        $arr = $dto->toArray();
+        $this->assertArrayHasKey('metadata', $arr);
+        $this->assertArrayNotHasKey('type', $arr);
+    }
+
+    public function test_update_org_unit_attachment_data_dto_accepts_null_values(): void
+    {
+        $dto = UpdateOrganizationUnitAttachmentData::fromArray(['type' => null, 'metadata' => null]);
+
+        $this->assertTrue($dto->isProvided('type'));
+        $this->assertTrue($dto->isProvided('metadata'));
+        $this->assertNull($dto->type);
+        $this->assertNull($dto->metadata);
+    }
+
+    public function test_update_org_unit_attachment_data_dto_does_not_have_file_fields(): void
+    {
+        $rc = new \ReflectionClass(UpdateOrganizationUnitAttachmentData::class);
+
+        $this->assertFalse($rc->hasProperty('file_path'),  'UpdateOrganizationUnitAttachmentData must not have file_path.');
+        $this->assertFalse($rc->hasProperty('mime_type'),  'UpdateOrganizationUnitAttachmentData must not have mime_type.');
+        $this->assertFalse($rc->hasProperty('size'),       'UpdateOrganizationUnitAttachmentData must not have size.');
+    }
+
+    // ── UpdateOrganizationUnitAttachmentRequest ───────────────────────────────
+
+    public function test_update_org_unit_attachment_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(UpdateOrganizationUnitAttachmentRequest::class));
+    }
+
+    public function test_update_org_unit_attachment_request_has_type_and_metadata_rules(): void
+    {
+        $request = new UpdateOrganizationUnitAttachmentRequest;
+        $rules   = $request->rules();
+
+        $this->assertArrayHasKey('type', $rules);
+        $this->assertArrayHasKey('metadata', $rules);
+    }
+
+    public function test_update_org_unit_attachment_request_type_rule_is_nullable(): void
+    {
+        $request = new UpdateOrganizationUnitAttachmentRequest;
+        $rules   = $request->rules();
+
+        $this->assertStringContainsString('nullable', $rules['type'],
+            'type rule must allow null.');
+    }
+
+    public function test_update_org_unit_attachment_request_has_with_validator_method(): void
+    {
+        $rc = new \ReflectionClass(UpdateOrganizationUnitAttachmentRequest::class);
+
+        $this->assertTrue(
+            $rc->hasMethod('withValidator'),
+            'UpdateOrganizationUnitAttachmentRequest must have a withValidator() method.'
+        );
+    }
+
+    // ── UpdateOrganizationUnitAttachmentServiceInterface ─────────────────────
+
+    public function test_update_org_unit_attachment_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(UpdateOrganizationUnitAttachmentServiceInterface::class));
+    }
+
+    public function test_update_org_unit_attachment_service_interface_extends_write_service(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(
+                UpdateOrganizationUnitAttachmentServiceInterface::class,
+                \Modules\Core\Application\Contracts\WriteServiceInterface::class
+            ),
+            'UpdateOrganizationUnitAttachmentServiceInterface must extend WriteServiceInterface.'
+        );
+    }
+
+    // ── UpdateOrganizationUnitAttachmentService ───────────────────────────────
+
+    public function test_update_org_unit_attachment_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(UpdateOrganizationUnitAttachmentService::class));
+    }
+
+    public function test_update_org_unit_attachment_service_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(
+                UpdateOrganizationUnitAttachmentService::class,
+                UpdateOrganizationUnitAttachmentServiceInterface::class
+            ),
+            'UpdateOrganizationUnitAttachmentService must implement UpdateOrganizationUnitAttachmentServiceInterface.'
+        );
+    }
+
+    public function test_update_org_unit_attachment_service_uses_dto(): void
+    {
+        $rc     = new \ReflectionClass(UpdateOrganizationUnitAttachmentService::class);
+        $source = file_get_contents($rc->getFileName());
+
+        $this->assertStringContainsString(
+            'UpdateOrganizationUnitAttachmentData',
+            $source,
+            'UpdateOrganizationUnitAttachmentService must use UpdateOrganizationUnitAttachmentData DTO.'
+        );
+    }
+
+    public function test_update_org_unit_attachment_service_throws_when_not_found(): void
+    {
+        $this->expectException(AttachmentNotFoundException::class);
+
+        $attachRepo = $this->createMock(OrganizationUnitAttachmentRepositoryInterface::class);
+        $attachRepo->method('find')->willReturn(null);
+
+        $service = new UpdateOrganizationUnitAttachmentService($attachRepo);
+        $method  = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+        $method->invoke($service, ['attachment_id' => 99]);
+    }
+
+    public function test_update_org_unit_attachment_service_updates_type_preserves_metadata(): void
+    {
+        $existing = $this->createTestAttachment(10, 1, 2);
+        $existing->updateDetails('old', ['a' => 1]);
+
+        $saved = null;
+        $attachRepo = $this->createMock(OrganizationUnitAttachmentRepositoryInterface::class);
+        $attachRepo->method('find')->with(10)->willReturn($existing);
+        $attachRepo->expects($this->once())
+            ->method('save')
+            ->willReturnCallback(function (OrganizationUnitAttachment $a) use (&$saved): OrganizationUnitAttachment {
+                $saved = $a;
+
+                return $a;
+            });
+
+        $service = new UpdateOrganizationUnitAttachmentService($attachRepo);
+        $method  = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+        $method->invoke($service, ['attachment_id' => 10, 'type' => 'new-type']);
+
+        $this->assertSame('new-type', $saved->getType());
+        $this->assertSame(['a' => 1], $saved->getMetadata(), 'Metadata must be preserved when not provided.');
+    }
+
+    public function test_update_org_unit_attachment_service_updates_metadata_preserves_type(): void
+    {
+        $existing = $this->createTestAttachment(11, 1, 2);
+        $existing->updateDetails('keep-type', ['old' => true]);
+
+        $saved = null;
+        $attachRepo = $this->createMock(OrganizationUnitAttachmentRepositoryInterface::class);
+        $attachRepo->method('find')->with(11)->willReturn($existing);
+        $attachRepo->expects($this->once())
+            ->method('save')
+            ->willReturnCallback(function (OrganizationUnitAttachment $a) use (&$saved): OrganizationUnitAttachment {
+                $saved = $a;
+
+                return $a;
+            });
+
+        $service = new UpdateOrganizationUnitAttachmentService($attachRepo);
+        $method  = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+        $method->invoke($service, ['attachment_id' => 11, 'metadata' => ['new' => true]]);
+
+        $this->assertSame('keep-type', $saved->getType(), 'Type must be preserved when not provided.');
+        $this->assertSame(['new' => true], $saved->getMetadata());
+    }
+
+    // ── OrganizationUnitAttachmentController — update action ─────────────────
+
+    public function test_org_unit_attachment_controller_has_update_method(): void
+    {
+        $rc = new \ReflectionClass(OrganizationUnitAttachmentController::class);
+
+        $this->assertTrue(
+            $rc->hasMethod('update'),
+            'OrganizationUnitAttachmentController must declare an update() action.'
+        );
+    }
+
+    public function test_org_unit_attachment_controller_injects_update_attachment_service(): void
+    {
+        $rc         = new \ReflectionClass(OrganizationUnitAttachmentController::class);
+        $params     = $rc->getConstructor()->getParameters();
+        $paramTypes = array_map(fn ($p) => $p->getType()?->getName(), $params);
+
+        $this->assertContains(
+            UpdateOrganizationUnitAttachmentServiceInterface::class,
+            $paramTypes,
+            'OrganizationUnitAttachmentController must inject UpdateOrganizationUnitAttachmentServiceInterface.'
+        );
+    }
+
+    // ── ServiceProvider — registers UpdateOrganizationUnitAttachmentService ──
+
+    public function test_org_unit_service_provider_registers_update_attachment_service(): void
+    {
+        $rc       = new \ReflectionClass(OrganizationUnitServiceProvider::class);
+        $method   = $rc->getMethod('register');
+        $filename = $rc->getFileName();
+        $start    = $method->getStartLine();
+        $end      = $method->getEndLine();
+        $lines    = array_slice(file($filename), $start - 1, $end - $start + 1);
+        $body     = implode('', $lines);
+
+        $this->assertStringContainsString('UpdateOrganizationUnitAttachmentServiceInterface', $body,
+            'ServiceProvider must bind UpdateOrganizationUnitAttachmentServiceInterface.');
+    }
+
+    // ── Routes — PATCH update route ───────────────────────────────────────────
+
+    public function test_routes_file_has_patch_update_attachment_route(): void
+    {
+        $routesFile = __DIR__.'/../../app/Modules/OrganizationUnit/routes/api.php';
+        $content    = file_get_contents($routesFile);
+
+        $this->assertStringContainsString("Route::patch('org-units/{unit}/attachments/{attachment}'", $content,
+            'Routes must include a PATCH update endpoint for attachments.');
     }
 }
