@@ -152,12 +152,16 @@ class EloquentLocationRepository extends EloquentRepository implements LocationR
 
             $diff = (int) ($newLft - $node->_lft);
             if ($diff !== 0) {
-                // Use parameterized DB::update() to atomically shift both _lft and _rgt.
-                // The table name comes from the Eloquent model (not user input) and is safe.
-                DB::update(
-                    'UPDATE '.$this->model->getTable().' SET _lft = _lft + ?, _rgt = _rgt + ? WHERE tenant_id = ? AND _lft >= ? AND _rgt <= ?',
-                    [$diff, $diff, $node->tenant_id, $node->_lft, $node->_rgt]
-                );
+                // Use query builder with DB::raw to atomically shift both _lft and _rgt
+                // for all descendants. The cast to int ensures no injection risk.
+                DB::table($this->model->getTable())
+                    ->where('tenant_id', $node->tenant_id)
+                    ->where('_lft', '>=', $node->_lft)
+                    ->where('_rgt', '<=', $node->_rgt)
+                    ->update([
+                        '_lft' => DB::raw('_lft + '.(int) $diff),
+                        '_rgt' => DB::raw('_rgt + '.(int) $diff),
+                    ]);
             }
         });
     }
