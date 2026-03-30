@@ -18,15 +18,15 @@ class UpdateTenantRequest extends FormRequest
         $tenantId = $this->route('tenant');
 
         return [
-            'name'                        => 'required|string|max:255',
+            'name'                        => 'sometimes|required|string|max:255',
             'domain'                      => 'nullable|string|unique:tenants,domain,'.$tenantId,
-            'database_config'             => 'required|array',
-            'database_config.driver'      => 'required|string|in:mysql,pgsql,sqlite',
-            'database_config.host'        => 'required|string',
-            'database_config.port'        => 'required|integer',
-            'database_config.database'    => 'required|string',
-            'database_config.username'    => 'required|string',
-            'database_config.password'    => 'required|string',
+            'database_config'             => 'sometimes|required|array',
+            'database_config.driver'      => 'sometimes|required|string|in:mysql,pgsql,sqlite',
+            'database_config.host'        => 'sometimes|required|string',
+            'database_config.port'        => 'sometimes|required|integer',
+            'database_config.database'    => 'sometimes|required|string',
+            'database_config.username'    => 'sometimes|required|string',
+            'database_config.password'    => 'sometimes|required|string',
             'mail_config'                 => 'nullable|array',
             'cache_config'                => 'nullable|array',
             'queue_config'                => 'nullable|array',

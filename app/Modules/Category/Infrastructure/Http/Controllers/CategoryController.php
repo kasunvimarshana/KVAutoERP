@@ -8,10 +8,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Category\Application\Contracts\CreateCategoryServiceInterface;
 use Modules\Category\Application\Contracts\DeleteCategoryServiceInterface;
+use Modules\Category\Application\Contracts\FindCategoryServiceInterface;
 use Modules\Category\Application\Contracts\UpdateCategoryServiceInterface;
 use Modules\Category\Application\DTOs\CategoryData;
 use Modules\Category\Domain\Entities\Category;
-use Modules\Category\Domain\RepositoryInterfaces\CategoryRepositoryInterface;
 use Modules\Category\Infrastructure\Http\Requests\StoreCategoryRequest;
 use Modules\Category\Infrastructure\Http\Requests\UpdateCategoryRequest;
 use Modules\Category\Infrastructure\Http\Resources\CategoryCollection;
@@ -25,7 +25,7 @@ class CategoryController extends BaseController
         CreateCategoryServiceInterface $createService,
         protected UpdateCategoryServiceInterface $updateService,
         protected DeleteCategoryServiceInterface $deleteService,
-        protected CategoryRepositoryInterface $categoryRepository
+        protected FindCategoryServiceInterface $findCategoryService
     ) {
         parent::__construct($createService, CategoryResource::class, CategoryData::class);
     }
@@ -254,7 +254,7 @@ class CategoryController extends BaseController
     {
         $this->authorize('viewAny', Category::class);
         $tenantId = $request->integer('tenant_id', 1);
-        $tree = $this->categoryRepository->getTree($tenantId, $id);
+        $tree = $this->findCategoryService->getTree($tenantId, $id);
 
         return response()->json(['data' => CategoryResource::collection($tree)]);
     }
@@ -282,7 +282,7 @@ class CategoryController extends BaseController
     {
         $this->authorize('viewAny', Category::class);
         $tenantId = $request->integer('tenant_id', 1);
-        $roots = $this->categoryRepository->findRoots($tenantId);
+        $roots = $this->findCategoryService->findRoots($tenantId);
 
         return response()->json(['data' => CategoryResource::collection($roots)]);
     }

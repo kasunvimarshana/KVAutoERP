@@ -27,6 +27,7 @@ use Modules\User\Application\Services\DeletePermissionService;
 use Modules\User\Application\Services\DeleteRoleService;
 use Modules\User\Application\Services\DeleteUserAttachmentService;
 use Modules\User\Application\Services\DeleteUserService;
+use Modules\User\Application\Services\FindUserAttachmentsService;
 use Modules\User\Application\Services\SyncRolePermissionsService;
 use Modules\User\Application\Services\UpdatePreferencesService;
 use Modules\User\Application\Services\UpdateUserService;
@@ -93,6 +94,12 @@ class UserServiceProvider extends ServiceProvider
             return new DeleteUserAttachmentService(
                 $app->make(UserAttachmentRepositoryInterface::class),
                 $app->make(FileStorageServiceInterface::class)
+            );
+        });
+
+        $this->app->bind(FindUserAttachmentsServiceInterface::class, function ($app) {
+            return new FindUserAttachmentsService(
+                $app->make(UserAttachmentRepositoryInterface::class)
             );
         });
 

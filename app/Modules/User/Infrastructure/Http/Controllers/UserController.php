@@ -15,6 +15,7 @@ use Modules\User\Application\Contracts\UpdateUserServiceInterface;
 use Modules\User\Application\DTOs\UserData;
 use Modules\User\Application\DTOs\UserPreferencesData;
 use Modules\User\Domain\Entities\User;
+use Modules\User\Infrastructure\Http\Requests\AssignRoleRequest;
 use Modules\User\Infrastructure\Http\Requests\StoreUserRequest;
 use Modules\User\Infrastructure\Http\Requests\UpdatePreferencesRequest;
 use Modules\User\Infrastructure\Http\Requests\UpdateUserRequest;
@@ -262,14 +263,14 @@ class UserController extends BaseController
                 content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
         ],
     )]
-    public function assignRole(Request $request, int $id): JsonResponse
+    public function assignRole(AssignRoleRequest $request, int $id): JsonResponse
     {
         $user = $this->service->find($id);
         if (! $user) {
             abort(404);
         }
         $this->authorize('assignRole', $user);
-        $validated = $request->validate(['role_id' => 'required|integer|exists:roles,id']);
+        $validated = $request->validated();
         $this->assignRoleService->execute(['user_id' => $id, 'role_id' => $validated['role_id']]);
 
         return response()->json(['message' => 'Role assigned successfully']);
