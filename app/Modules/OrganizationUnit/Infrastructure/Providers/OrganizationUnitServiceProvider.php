@@ -13,6 +13,7 @@ use Modules\OrganizationUnit\Application\Contracts\CreateOrganizationUnitService
 use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitAttachmentsServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\MoveOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
@@ -21,6 +22,7 @@ use Modules\OrganizationUnit\Application\Services\CreateOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitAttachmentsService;
+use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\MoveOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\UpdateOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\UploadOrganizationUnitAttachmentService;
@@ -49,6 +51,9 @@ class OrganizationUnitServiceProvider extends ServiceProvider
 
         $this->app->bind(CreateOrganizationUnitServiceInterface::class, function ($app) {
             return new CreateOrganizationUnitService($app->make(OrganizationUnitRepositoryInterface::class));
+        });
+        $this->app->bind(FindOrganizationUnitServiceInterface::class, function ($app) {
+            return new FindOrganizationUnitService($app->make(OrganizationUnitRepositoryInterface::class));
         });
         $this->app->bind(UpdateOrganizationUnitServiceInterface::class, function ($app) {
             return new UpdateOrganizationUnitService($app->make(OrganizationUnitRepositoryInterface::class));

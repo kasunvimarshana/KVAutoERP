@@ -10,12 +10,14 @@ use Modules\OrganizationUnit\Application\Contracts\CreateOrganizationUnitService
 use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\DeleteOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitAttachmentsServiceInterface;
+use Modules\OrganizationUnit\Application\Contracts\FindOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\MoveOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\OrganizationUnit\Application\Contracts\UploadOrganizationUnitAttachmentServiceInterface;
 use Modules\OrganizationUnit\Application\Services\BulkUploadOrganizationUnitAttachmentsService;
 use Modules\OrganizationUnit\Application\Services\DeleteOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitAttachmentsService;
+use Modules\OrganizationUnit\Application\Services\FindOrganizationUnitService;
 use Modules\OrganizationUnit\Application\Services\UploadOrganizationUnitAttachmentService;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnit;
 use Modules\OrganizationUnit\Domain\Entities\OrganizationUnitAttachment;
@@ -469,6 +471,188 @@ class OrganizationUnitModuleTest extends TestCase
         $this->assertTrue(class_exists(OrganizationUnitController::class));
     }
 
+    public function test_org_unit_controller_injects_find_service_not_repository_directly(): void
+    {
+        $rc = new \ReflectionClass(OrganizationUnitController::class);
+
+        $paramTypes = [];
+        foreach ($rc->getConstructor()->getParameters() as $param) {
+            $paramTypes[] = $param->getType() ? $param->getType()->getName() : null;
+        }
+
+        $this->assertContains(FindOrganizationUnitServiceInterface::class, $paramTypes,
+            'OrganizationUnitController must inject FindOrganizationUnitServiceInterface.');
+
+        $this->assertNotContains(\Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface::class, $paramTypes,
+            'OrganizationUnitController must NOT directly inject OrganizationUnitRepositoryInterface.');
+    }
+
+    public function test_org_unit_controller_injects_create_service(): void
+    {
+        $rc = new \ReflectionClass(OrganizationUnitController::class);
+
+        $paramTypes = [];
+        foreach ($rc->getConstructor()->getParameters() as $param) {
+            $paramTypes[] = $param->getType() ? $param->getType()->getName() : null;
+        }
+
+        $this->assertContains(CreateOrganizationUnitServiceInterface::class, $paramTypes,
+            'OrganizationUnitController must inject CreateOrganizationUnitServiceInterface.');
+    }
+
+    public function test_org_unit_controller_injects_update_service(): void
+    {
+        $rc = new \ReflectionClass(OrganizationUnitController::class);
+
+        $paramTypes = [];
+        foreach ($rc->getConstructor()->getParameters() as $param) {
+            $paramTypes[] = $param->getType() ? $param->getType()->getName() : null;
+        }
+
+        $this->assertContains(UpdateOrganizationUnitServiceInterface::class, $paramTypes,
+            'OrganizationUnitController must inject UpdateOrganizationUnitServiceInterface.');
+    }
+
+    public function test_org_unit_controller_injects_delete_service(): void
+    {
+        $rc = new \ReflectionClass(OrganizationUnitController::class);
+
+        $paramTypes = [];
+        foreach ($rc->getConstructor()->getParameters() as $param) {
+            $paramTypes[] = $param->getType() ? $param->getType()->getName() : null;
+        }
+
+        $this->assertContains(DeleteOrganizationUnitServiceInterface::class, $paramTypes,
+            'OrganizationUnitController must inject DeleteOrganizationUnitServiceInterface.');
+    }
+
+    public function test_org_unit_controller_injects_move_service(): void
+    {
+        $rc = new \ReflectionClass(OrganizationUnitController::class);
+
+        $paramTypes = [];
+        foreach ($rc->getConstructor()->getParameters() as $param) {
+            $paramTypes[] = $param->getType() ? $param->getType()->getName() : null;
+        }
+
+        $this->assertContains(MoveOrganizationUnitServiceInterface::class, $paramTypes,
+            'OrganizationUnitController must inject MoveOrganizationUnitServiceInterface.');
+    }
+
+    // ── FindOrganizationUnitServiceInterface ──────────────────────────────────
+
+    public function test_find_org_unit_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(FindOrganizationUnitServiceInterface::class));
+    }
+
+    public function test_find_org_unit_service_interface_declares_required_methods(): void
+    {
+        $rc = new \ReflectionClass(FindOrganizationUnitServiceInterface::class);
+
+        $this->assertTrue($rc->hasMethod('find'));
+        $this->assertTrue($rc->hasMethod('list'));
+        $this->assertTrue($rc->hasMethod('getTree'));
+    }
+
+    // ── FindOrganizationUnitService ───────────────────────────────────────────
+
+    public function test_find_org_unit_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(FindOrganizationUnitService::class));
+    }
+
+    public function test_find_org_unit_service_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(FindOrganizationUnitService::class, FindOrganizationUnitServiceInterface::class),
+            'FindOrganizationUnitService must implement FindOrganizationUnitServiceInterface.'
+        );
+    }
+
+    public function test_find_org_unit_service_find_delegates_to_repository(): void
+    {
+        $unit = $this->createTestUnit(3, 1);
+
+        $repo = $this->createMock(OrganizationUnitRepositoryInterface::class);
+        $repo->expects($this->once())
+            ->method('find')
+            ->with(3)
+            ->willReturn($unit);
+
+        $service = new FindOrganizationUnitService($repo);
+        $result  = $service->find(3);
+
+        $this->assertSame($unit, $result);
+    }
+
+    public function test_find_org_unit_service_find_returns_null_when_missing(): void
+    {
+        $repo = $this->createMock(OrganizationUnitRepositoryInterface::class);
+        $repo->method('find')->willReturn(null);
+
+        $service = new FindOrganizationUnitService($repo);
+        $this->assertNull($service->find(9999));
+    }
+
+    public function test_find_org_unit_service_get_tree_delegates_to_repository(): void
+    {
+        $tree = [['id' => 1, 'name' => 'Root', 'children' => []]];
+
+        $repo = $this->createMock(OrganizationUnitRepositoryInterface::class);
+        $repo->expects($this->once())
+            ->method('getTree')
+            ->with(1, null)
+            ->willReturn($tree);
+
+        $service = new FindOrganizationUnitService($repo);
+        $result  = $service->getTree(1, null);
+
+        $this->assertSame($tree, $result);
+    }
+
+    public function test_find_org_unit_service_get_tree_with_root_id(): void
+    {
+        $tree = [['id' => 5, 'name' => 'Sub', 'children' => []]];
+
+        $repo = $this->createMock(OrganizationUnitRepositoryInterface::class);
+        $repo->expects($this->once())
+            ->method('getTree')
+            ->with(2, 5)
+            ->willReturn($tree);
+
+        $service = new FindOrganizationUnitService($repo);
+        $result  = $service->getTree(2, 5);
+
+        $this->assertSame($tree, $result);
+    }
+
+    public function test_find_org_unit_service_handle_throws_bad_method_call_exception(): void
+    {
+        $this->expectException(\BadMethodCallException::class);
+
+        $repo    = $this->createMock(OrganizationUnitRepositoryInterface::class);
+        $service = new FindOrganizationUnitService($repo);
+
+        $method = new \ReflectionMethod($service, 'handle');
+        $method->setAccessible(true);
+        $method->invoke($service, []);
+    }
+
+    public function test_find_org_unit_service_does_not_depend_on_attachment_repository(): void
+    {
+        $rc = new \ReflectionClass(FindOrganizationUnitService::class);
+
+        foreach ($rc->getConstructor()->getParameters() as $param) {
+            $type = $param->getType() ? $param->getType()->getName() : null;
+            $this->assertNotSame(
+                \Modules\OrganizationUnit\Domain\RepositoryInterfaces\OrganizationUnitAttachmentRepositoryInterface::class,
+                $type,
+                'FindOrganizationUnitService must not depend on OrganizationUnitAttachmentRepositoryInterface.'
+            );
+        }
+    }
+
     // ── UploadOrganizationUnitAttachmentRequest ───────────────────────────────
 
     public function test_upload_org_unit_attachment_request_class_exists(): void
@@ -566,6 +750,20 @@ class OrganizationUnitModuleTest extends TestCase
 
         $this->assertStringContainsString('BulkUploadOrganizationUnitAttachmentsServiceInterface', $body,
             'ServiceProvider must bind BulkUploadOrganizationUnitAttachmentsServiceInterface.');
+    }
+
+    public function test_org_unit_service_provider_registers_find_org_unit_service(): void
+    {
+        $rc       = new \ReflectionClass(OrganizationUnitServiceProvider::class);
+        $method   = $rc->getMethod('register');
+        $filename = $rc->getFileName();
+        $start    = $method->getStartLine();
+        $end      = $method->getEndLine();
+        $lines    = array_slice(file($filename), $start - 1, $end - $start + 1);
+        $body     = implode('', $lines);
+
+        $this->assertStringContainsString('FindOrganizationUnitServiceInterface', $body,
+            'ServiceProvider must bind FindOrganizationUnitServiceInterface.');
     }
 
     // ── Routes ────────────────────────────────────────────────────────────────
