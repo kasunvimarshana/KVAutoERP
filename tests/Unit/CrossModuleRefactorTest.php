@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+// Auth
+use Modules\Auth\Infrastructure\Http\Controllers\AuthController;
+use Modules\Auth\Infrastructure\Providers\AuthModuleServiceProvider;
+
 // Brand
 use Modules\Brand\Application\Contracts\FindBrandLogosServiceInterface;
 use Modules\Brand\Application\Contracts\FindBrandServiceInterface;
@@ -439,6 +443,41 @@ class CrossModuleRefactorTest extends TestCase
             AssignRoleRequest::class,
             $firstParamType,
             'assignRole() must accept AssignRoleRequest, not the generic Request'
+        );
+    }
+
+    // ── Auth: DIP fix — AuthController uses FindUserServiceInterface ──────────
+
+    public function test_auth_controller_injects_find_user_service_interface(): void
+    {
+        $rc = new \ReflectionClass(AuthController::class);
+        $types = array_map(fn ($p) => (string) $p->getType(), $rc->getConstructor()->getParameters());
+        $this->assertContains(
+            FindUserServiceInterface::class,
+            $types,
+            'AuthController must inject FindUserServiceInterface (not the raw repository) for the me() endpoint.'
+        );
+    }
+
+    public function test_auth_controller_does_not_inject_user_repository_interface(): void
+    {
+        $rc = new \ReflectionClass(AuthController::class);
+        $types = array_map(fn ($p) => (string) $p->getType(), $rc->getConstructor()->getParameters());
+        $this->assertNotContains(
+            'Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface',
+            $types,
+            'AuthController must not inject UserRepositoryInterface directly (DIP violation).'
+        );
+    }
+
+    public function test_auth_module_service_provider_does_not_bind_user_repository_for_controller(): void
+    {
+        $rc = new \ReflectionClass(AuthModuleServiceProvider::class);
+        $src = file_get_contents($rc->getFileName());
+        $this->assertStringNotContainsString(
+            'Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface',
+            $src,
+            'AuthModuleServiceProvider must not reference UserRepositoryInterface from User domain.'
         );
     }
 }
