@@ -19,7 +19,7 @@ class WarehouseZoneResource extends JsonResource
             'code'           => $this->getCode()?->value(),
             'description'    => $this->getDescription(),
             'capacity'       => $this->getCapacity(),
-            'metadata'       => $this->getMetadata()->toArray(),
+            'metadata'       => $this->getMetadata()?->toArray() ?? [],
             'is_active'      => $this->isActive(),
             'parent_zone_id' => $this->getParentZoneId(),
             'children'       => WarehouseZoneResource::collection($this->getChildren()),
