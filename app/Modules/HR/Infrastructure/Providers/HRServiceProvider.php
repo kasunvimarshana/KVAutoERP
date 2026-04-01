@@ -10,6 +10,7 @@ use Modules\HR\Application\Biometric\BiometricAttendanceServiceInterface;
 use Modules\HR\Application\Biometric\BiometricDeviceRegistryInterface;
 use Modules\HR\Application\Biometric\BiometricEnrollmentServiceInterface;
 use Modules\HR\Application\Contracts\ApproveLeaveRequestServiceInterface;
+use Modules\HR\Application\Contracts\CancelLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\CreateAttendanceServiceInterface;
 use Modules\HR\Application\Contracts\CreateDepartmentServiceInterface;
 use Modules\HR\Application\Contracts\CreateEmployeeServiceInterface;
@@ -33,6 +34,7 @@ use Modules\HR\Application\Contracts\UpdateEmployeeServiceInterface;
 use Modules\HR\Application\Contracts\UpdateLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\UpdatePositionServiceInterface;
 use Modules\HR\Application\Services\ApproveLeaveRequestService;
+use Modules\HR\Application\Services\CancelLeaveRequestService;
 use Modules\HR\Application\Services\CreateAttendanceService;
 use Modules\HR\Application\Services\CreateDepartmentService;
 use Modules\HR\Application\Services\CreateEmployeeService;
@@ -159,6 +161,9 @@ class HRServiceProvider extends ServiceProvider
         });
         $this->app->bind(RejectLeaveRequestServiceInterface::class, function ($app) {
             return new RejectLeaveRequestService($app->make(LeaveRequestRepositoryInterface::class));
+        });
+        $this->app->bind(CancelLeaveRequestServiceInterface::class, function ($app) {
+            return new CancelLeaveRequestService($app->make(LeaveRequestRepositoryInterface::class));
         });
 
         // Attendance Services
