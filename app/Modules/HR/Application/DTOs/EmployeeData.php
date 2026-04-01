@@ -48,6 +48,8 @@ class EmployeeData extends BaseDto
 
     public bool $is_active = true;
 
+    public ?int $user_id = null;
+
     public function rules(): array
     {
         return [
@@ -71,6 +73,7 @@ class EmployeeData extends BaseDto
             'org_unit_id'     => 'nullable|integer',
             'metadata'        => 'nullable|array',
             'is_active'       => 'boolean',
+            'user_id'         => 'nullable|integer',
         ];
     }
 }

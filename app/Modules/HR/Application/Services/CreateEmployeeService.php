@@ -48,6 +48,7 @@ class CreateEmployeeService extends BaseService implements CreateEmployeeService
             orgUnitId:      $dto->org_unit_id,
             metadata:       $dto->metadata !== null ? new Metadata($dto->metadata) : null,
             isActive:       $dto->is_active,
+            userId:         $dto->user_id,
         );
 
         $saved = $this->employeeRepository->save($employee);

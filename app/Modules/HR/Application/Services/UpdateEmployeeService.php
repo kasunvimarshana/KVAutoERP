@@ -109,11 +109,15 @@ class UpdateEmployeeService extends BaseService implements UpdateEmployeeService
             ? (bool) $dto->is_active
             : $employee->isActive();
 
+        $userId = $dto->isProvided('user_id')
+            ? $dto->user_id
+            : $employee->getUserId();
+
         $employee->updateDetails(
             $firstName, $lastName, $email, $phone, $dateOfBirth, $gender, $address,
             $employeeNumber, $hireDate, $employmentType, $status,
             $departmentId, $positionId, $managerId, $salary, $currency, $orgUnitId,
-            $metadata, $isActive
+            $metadata, $isActive, $userId
         );
 
         $saved = $this->employeeRepository->save($employee);

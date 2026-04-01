@@ -19,7 +19,7 @@ class EmployeeModel extends Model
         'date_of_birth', 'gender', 'address', 'employee_number',
         'hire_date', 'employment_type', 'status', 'department_id',
         'position_id', 'manager_id', 'salary', 'currency',
-        'org_unit_id', 'metadata', 'is_active',
+        'org_unit_id', 'metadata', 'is_active', 'user_id',
     ];
 
     protected $casts = [
@@ -28,6 +28,7 @@ class EmployeeModel extends Model
         'position_id'   => 'integer',
         'manager_id'    => 'integer',
         'org_unit_id'   => 'integer',
+        'user_id'       => 'integer',
         'salary'        => 'float',
         'is_active'     => 'boolean',
         'metadata'      => 'array',

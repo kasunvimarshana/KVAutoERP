@@ -58,6 +58,8 @@ class Employee
 
     private \DateTimeInterface $updatedAt;
 
+    private ?int $userId = null;
+
     public function __construct(
         int $tenantId,
         Name $firstName,
@@ -81,7 +83,8 @@ class Employee
         bool $isActive = true,
         ?int $id = null,
         ?\DateTimeInterface $createdAt = null,
-        ?\DateTimeInterface $updatedAt = null
+        ?\DateTimeInterface $updatedAt = null,
+        ?int $userId = null
     ) {
         $this->id             = $id;
         $this->tenantId       = $tenantId;
@@ -106,6 +109,7 @@ class Employee
         $this->isActive       = $isActive;
         $this->createdAt      = $createdAt ?? new \DateTimeImmutable;
         $this->updatedAt      = $updatedAt ?? new \DateTimeImmutable;
+        $this->userId         = $userId;
     }
 
     public function getId(): ?int
@@ -242,7 +246,8 @@ class Employee
         string $currency,
         ?int $orgUnitId,
         ?Metadata $metadata,
-        bool $isActive
+        bool $isActive,
+        ?int $userId = null
     ): void {
         $this->firstName      = $firstName;
         $this->lastName       = $lastName;
@@ -263,7 +268,19 @@ class Employee
         $this->orgUnitId      = $orgUnitId;
         $this->metadata       = $metadata ?? new Metadata([]);
         $this->isActive       = $isActive;
+        $this->userId         = $userId;
         $this->updatedAt      = new \DateTimeImmutable;
+    }
+
+    public function getUserId(): ?int
+    {
+        return $this->userId;
+    }
+
+    public function linkToUser(?int $userId): void
+    {
+        $this->userId    = $userId;
+        $this->updatedAt = new \DateTimeImmutable;
     }
 
     public function terminate(): void

@@ -32,6 +32,7 @@ class EmployeeResource extends JsonResource
             'org_unit_id'     => $this->getOrgUnitId(),
             'metadata'        => $this->getMetadata()->toArray(),
             'is_active'       => $this->isActive(),
+            'user_id'         => $this->getUserId(),
             'created_at'      => $this->getCreatedAt()->format('c'),
             'updated_at'      => $this->getUpdatedAt()->format('c'),
         ];

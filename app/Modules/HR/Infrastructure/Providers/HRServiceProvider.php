@@ -7,49 +7,62 @@ namespace Modules\HR\Infrastructure\Providers;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\HR\Application\Contracts\ApproveLeaveRequestServiceInterface;
+use Modules\HR\Application\Contracts\CreateAttendanceServiceInterface;
 use Modules\HR\Application\Contracts\CreateDepartmentServiceInterface;
 use Modules\HR\Application\Contracts\CreateEmployeeServiceInterface;
 use Modules\HR\Application\Contracts\CreateLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\CreatePositionServiceInterface;
+use Modules\HR\Application\Contracts\DeleteAttendanceServiceInterface;
 use Modules\HR\Application\Contracts\DeleteDepartmentServiceInterface;
 use Modules\HR\Application\Contracts\DeleteEmployeeServiceInterface;
 use Modules\HR\Application\Contracts\DeleteLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\DeletePositionServiceInterface;
+use Modules\HR\Application\Contracts\FindAttendanceServiceInterface;
 use Modules\HR\Application\Contracts\FindDepartmentServiceInterface;
 use Modules\HR\Application\Contracts\FindEmployeeServiceInterface;
 use Modules\HR\Application\Contracts\FindLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\FindPositionServiceInterface;
+use Modules\HR\Application\Contracts\LinkEmployeeToUserServiceInterface;
 use Modules\HR\Application\Contracts\RejectLeaveRequestServiceInterface;
+use Modules\HR\Application\Contracts\UpdateAttendanceServiceInterface;
 use Modules\HR\Application\Contracts\UpdateDepartmentServiceInterface;
 use Modules\HR\Application\Contracts\UpdateEmployeeServiceInterface;
 use Modules\HR\Application\Contracts\UpdateLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\UpdatePositionServiceInterface;
 use Modules\HR\Application\Services\ApproveLeaveRequestService;
+use Modules\HR\Application\Services\CreateAttendanceService;
 use Modules\HR\Application\Services\CreateDepartmentService;
 use Modules\HR\Application\Services\CreateEmployeeService;
 use Modules\HR\Application\Services\CreateLeaveRequestService;
 use Modules\HR\Application\Services\CreatePositionService;
+use Modules\HR\Application\Services\DeleteAttendanceService;
 use Modules\HR\Application\Services\DeleteDepartmentService;
 use Modules\HR\Application\Services\DeleteEmployeeService;
 use Modules\HR\Application\Services\DeleteLeaveRequestService;
 use Modules\HR\Application\Services\DeletePositionService;
+use Modules\HR\Application\Services\FindAttendanceService;
 use Modules\HR\Application\Services\FindDepartmentService;
 use Modules\HR\Application\Services\FindEmployeeService;
 use Modules\HR\Application\Services\FindLeaveRequestService;
 use Modules\HR\Application\Services\FindPositionService;
+use Modules\HR\Application\Services\LinkEmployeeToUserService;
 use Modules\HR\Application\Services\RejectLeaveRequestService;
+use Modules\HR\Application\Services\UpdateAttendanceService;
 use Modules\HR\Application\Services\UpdateDepartmentService;
 use Modules\HR\Application\Services\UpdateEmployeeService;
 use Modules\HR\Application\Services\UpdateLeaveRequestService;
 use Modules\HR\Application\Services\UpdatePositionService;
 use Modules\HR\Domain\RepositoryInterfaces\DepartmentRepositoryInterface;
+use Modules\HR\Domain\RepositoryInterfaces\AttendanceRepositoryInterface;
 use Modules\HR\Domain\RepositoryInterfaces\EmployeeRepositoryInterface;
 use Modules\HR\Domain\RepositoryInterfaces\LeaveRequestRepositoryInterface;
 use Modules\HR\Domain\RepositoryInterfaces\PositionRepositoryInterface;
+use Modules\HR\Infrastructure\Persistence\Eloquent\Models\AttendanceModel;
 use Modules\HR\Infrastructure\Persistence\Eloquent\Models\DepartmentModel;
 use Modules\HR\Infrastructure\Persistence\Eloquent\Models\EmployeeModel;
 use Modules\HR\Infrastructure\Persistence\Eloquent\Models\LeaveRequestModel;
 use Modules\HR\Infrastructure\Persistence\Eloquent\Models\PositionModel;
+use Modules\HR\Infrastructure\Persistence\Eloquent\Repositories\EloquentAttendanceRepository;
 use Modules\HR\Infrastructure\Persistence\Eloquent\Repositories\EloquentDepartmentRepository;
 use Modules\HR\Infrastructure\Persistence\Eloquent\Repositories\EloquentEmployeeRepository;
 use Modules\HR\Infrastructure\Persistence\Eloquent\Repositories\EloquentLeaveRequestRepository;
@@ -72,6 +85,9 @@ class HRServiceProvider extends ServiceProvider
         $this->app->bind(LeaveRequestRepositoryInterface::class, function ($app) {
             return new EloquentLeaveRequestRepository($app->make(LeaveRequestModel::class));
         });
+        $this->app->bind(AttendanceRepositoryInterface::class, function ($app) {
+            return new EloquentAttendanceRepository($app->make(AttendanceModel::class));
+        });
 
         // Employee Services
         $this->app->bind(FindEmployeeServiceInterface::class, function ($app) {
@@ -85,6 +101,9 @@ class HRServiceProvider extends ServiceProvider
         });
         $this->app->bind(DeleteEmployeeServiceInterface::class, function ($app) {
             return new DeleteEmployeeService($app->make(EmployeeRepositoryInterface::class));
+        });
+        $this->app->bind(LinkEmployeeToUserServiceInterface::class, function ($app) {
+            return new LinkEmployeeToUserService($app->make(EmployeeRepositoryInterface::class));
         });
 
         // Department Services
@@ -133,6 +152,20 @@ class HRServiceProvider extends ServiceProvider
         });
         $this->app->bind(RejectLeaveRequestServiceInterface::class, function ($app) {
             return new RejectLeaveRequestService($app->make(LeaveRequestRepositoryInterface::class));
+        });
+
+        // Attendance Services
+        $this->app->bind(FindAttendanceServiceInterface::class, function ($app) {
+            return new FindAttendanceService($app->make(AttendanceRepositoryInterface::class));
+        });
+        $this->app->bind(CreateAttendanceServiceInterface::class, function ($app) {
+            return new CreateAttendanceService($app->make(AttendanceRepositoryInterface::class));
+        });
+        $this->app->bind(UpdateAttendanceServiceInterface::class, function ($app) {
+            return new UpdateAttendanceService($app->make(AttendanceRepositoryInterface::class));
+        });
+        $this->app->bind(DeleteAttendanceServiceInterface::class, function ($app) {
+            return new DeleteAttendanceService($app->make(AttendanceRepositoryInterface::class));
         });
     }
 
