@@ -17,6 +17,7 @@ use Modules\Core\Domain\ValueObjects\Metadata;
 use Modules\Core\Domain\ValueObjects\Name;
 use Modules\Core\Domain\ValueObjects\PhoneNumber;
 use Modules\HR\Application\Contracts\ApproveLeaveRequestServiceInterface;
+use Modules\HR\Application\Contracts\CancelLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\CreateDepartmentServiceInterface;
 use Modules\HR\Application\Contracts\CreateEmployeeServiceInterface;
 use Modules\HR\Application\Contracts\CreateLeaveRequestServiceInterface;
@@ -43,6 +44,7 @@ use Modules\HR\Application\DTOs\UpdateEmployeeData;
 use Modules\HR\Application\DTOs\UpdateLeaveRequestData;
 use Modules\HR\Application\DTOs\UpdatePositionData;
 use Modules\HR\Application\Services\ApproveLeaveRequestService;
+use Modules\HR\Application\Services\CancelLeaveRequestService;
 use Modules\HR\Application\Services\CreateDepartmentService;
 use Modules\HR\Application\Services\CreateEmployeeService;
 use Modules\HR\Application\Services\CreateLeaveRequestService;
@@ -71,6 +73,7 @@ use Modules\HR\Domain\Events\EmployeeCreated;
 use Modules\HR\Domain\Events\EmployeeDeleted;
 use Modules\HR\Domain\Events\EmployeeUpdated;
 use Modules\HR\Domain\Events\LeaveRequestApproved;
+use Modules\HR\Domain\Events\LeaveRequestCancelled;
 use Modules\HR\Domain\Events\LeaveRequestCreated;
 use Modules\HR\Domain\Events\LeaveRequestDeleted;
 use Modules\HR\Domain\Events\PositionCreated;
@@ -3351,6 +3354,119 @@ class HRModuleTest extends TestCase
         $this->assertStringContainsString('BiometricAttendanceService', $source);
         $this->assertStringContainsString('BiometricEnrollmentService', $source);
         $this->assertStringContainsString('FingerprintDeviceAdapter',   $source);
+    }
+
+    // ── Cancel Leave Request ──────────────────────────────────────────────────
+
+    public function test_cancel_leave_request_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(CancelLeaveRequestServiceInterface::class));
+    }
+
+    public function test_cancel_leave_request_service_interface_extends_write_service_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(CancelLeaveRequestServiceInterface::class, \Modules\Core\Application\Contracts\WriteServiceInterface::class));
+    }
+
+    public function test_cancel_leave_request_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(CancelLeaveRequestService::class));
+    }
+
+    public function test_cancel_leave_request_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(CancelLeaveRequestService::class, CancelLeaveRequestServiceInterface::class));
+    }
+
+    public function test_use_case_cancel_leave_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\CancelLeaveRequest::class));
+    }
+
+    public function test_use_case_cancel_leave_request_has_execute_method(): void
+    {
+        $this->assertTrue(method_exists(\Modules\HR\Application\UseCases\CancelLeaveRequest::class, 'execute'));
+    }
+
+    public function test_leave_request_cancelled_event_class_exists(): void
+    {
+        $this->assertTrue(class_exists(LeaveRequestCancelled::class));
+    }
+
+    public function test_leave_request_cancelled_event_extends_base_event(): void
+    {
+        $this->assertTrue(is_subclass_of(LeaveRequestCancelled::class, BaseEvent::class));
+    }
+
+    public function test_leave_request_cancelled_event_holds_leave_request(): void
+    {
+        $lr    = $this->createTestLeaveRequest();
+        $event = new LeaveRequestCancelled($lr);
+        $this->assertSame($lr, $event->leaveRequest);
+    }
+
+    public function test_leave_request_controller_has_cancel_method(): void
+    {
+        $this->assertTrue(method_exists(LeaveRequestController::class, 'cancel'));
+    }
+
+    public function test_routes_file_has_cancel_leave_request_route(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
+        $this->assertStringContainsString("leave-requests/{id}/cancel", $source);
+    }
+
+    public function test_hr_service_provider_references_cancel_leave_request_service(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/Infrastructure/Providers/HRServiceProvider.php');
+        $this->assertStringContainsString('CancelLeaveRequestServiceInterface', $source);
+        $this->assertStringContainsString('CancelLeaveRequestService', $source);
+    }
+
+    // ── Employee Self Service Enhancements ────────────────────────────────────
+
+    public function test_employee_self_service_controller_has_submit_leave_request_method(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Infrastructure\Http\Controllers\EmployeeSelfServiceController::class, 'submitLeaveRequest')
+        );
+    }
+
+    public function test_employee_self_service_controller_has_cancel_leave_request_method(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Infrastructure\Http\Controllers\EmployeeSelfServiceController::class, 'cancelLeaveRequest')
+        );
+    }
+
+    public function test_employee_self_service_controller_has_attendance_method(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Infrastructure\Http\Controllers\EmployeeSelfServiceController::class, 'attendance')
+        );
+    }
+
+    public function test_self_service_leave_request_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\SelfServiceLeaveRequestRequest::class));
+    }
+
+    public function test_routes_file_has_self_service_submit_leave_request_route(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
+        $this->assertStringContainsString('submitLeaveRequest', $source);
+    }
+
+    public function test_routes_file_has_self_service_attendance_route(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
+        $this->assertStringContainsString("'attendance'", $source);
+    }
+
+    public function test_routes_file_has_self_service_cancel_leave_request_route(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
+        $this->assertStringContainsString('cancelLeaveRequest', $source);
     }
 }
 

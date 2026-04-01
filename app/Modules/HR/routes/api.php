@@ -24,6 +24,7 @@ Route::middleware(['auth:api', 'resolve.tenant'])->prefix('hr')->group(function 
     Route::get('leave-requests/by-employee/{employeeId}', [LeaveRequestController::class, 'byEmployee']);
     Route::post('leave-requests/{id}/approve', [LeaveRequestController::class, 'approve']);
     Route::post('leave-requests/{id}/reject',  [LeaveRequestController::class, 'reject']);
+    Route::post('leave-requests/{id}/cancel',  [LeaveRequestController::class, 'cancel']);
     Route::apiResource('leave-requests', LeaveRequestController::class);
 
     Route::get('attendance/employee/{employeeId}', [AttendanceController::class, 'byEmployee']);
@@ -38,5 +39,8 @@ Route::middleware(['auth:api', 'resolve.tenant'])->prefix('hr')->group(function 
     Route::prefix('me')->group(function () {
         Route::get('profile',        [EmployeeSelfServiceController::class, 'profile']);
         Route::get('leave-requests', [EmployeeSelfServiceController::class, 'leaveRequests']);
+        Route::post('leave-requests', [EmployeeSelfServiceController::class, 'submitLeaveRequest']);
+        Route::post('leave-requests/{id}/cancel', [EmployeeSelfServiceController::class, 'cancelLeaveRequest']);
+        Route::get('attendance',     [EmployeeSelfServiceController::class, 'attendance']);
     });
 });

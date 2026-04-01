@@ -11,6 +11,7 @@ use Modules\HR\Application\Contracts\ApproveLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\CreateLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\DeleteLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\FindLeaveRequestServiceInterface;
+use Modules\HR\Application\Contracts\CancelLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\RejectLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\UpdateLeaveRequestServiceInterface;
 use Modules\HR\Application\DTOs\LeaveRequestData;
@@ -31,6 +32,7 @@ class LeaveRequestController extends AuthorizedController
         protected DeleteLeaveRequestServiceInterface $deleteService,
         protected ApproveLeaveRequestServiceInterface $approveService,
         protected RejectLeaveRequestServiceInterface $rejectService,
+        protected CancelLeaveRequestServiceInterface $cancelService,
     ) {}
 
     #[OA\Get(
@@ -249,5 +251,28 @@ class LeaveRequestController extends AuthorizedController
         $items = $this->findService->getByEmployee($employeeId);
 
         return response()->json(['data' => LeaveRequestResource::collection(collect($items))]);
+    }
+
+    #[OA\Post(
+        path: '/api/hr/leave-requests/{id}/cancel',
+        summary: 'Cancel leave request',
+        tags: ['HR - Leave Requests'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Leave request cancelled'),
+            new OA\Response(response: 404, description: 'Not found'),
+        ],
+    )]
+    public function cancel(int $id): JsonResponse
+    {
+        $leaveRequest = $this->findService->find($id);
+        if (! $leaveRequest) {
+            abort(404);
+        }
+        $this->authorize('update', $leaveRequest);
+        $this->cancelService->execute(['id' => $id]);
+
+        return response()->json(['message' => 'Leave request cancelled successfully']);
     }
 }
