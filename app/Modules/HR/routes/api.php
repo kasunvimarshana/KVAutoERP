@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\HR\Infrastructure\Http\Controllers\AttendanceController;
+use Modules\HR\Infrastructure\Http\Controllers\BiometricAttendanceController;
 use Modules\HR\Infrastructure\Http\Controllers\DepartmentController;
 use Modules\HR\Infrastructure\Http\Controllers\EmployeeController;
 use Modules\HR\Infrastructure\Http\Controllers\EmployeeSelfServiceController;
@@ -27,6 +28,12 @@ Route::middleware(['auth:api', 'resolve.tenant'])->prefix('hr')->group(function 
 
     Route::get('attendance/employee/{employeeId}', [AttendanceController::class, 'byEmployee']);
     Route::apiResource('attendance', AttendanceController::class);
+
+    // Biometric device routes – static paths before apiResource wildcards
+    Route::get('biometric/devices',              [BiometricAttendanceController::class, 'devices']);
+    Route::post('biometric/check-in',            [BiometricAttendanceController::class, 'checkIn']);
+    Route::post('biometric/check-out',           [BiometricAttendanceController::class, 'checkOut']);
+    Route::post('employees/{id}/biometric/enroll', [BiometricAttendanceController::class, 'enroll']);
 
     Route::prefix('me')->group(function () {
         Route::get('profile',        [EmployeeSelfServiceController::class, 'profile']);

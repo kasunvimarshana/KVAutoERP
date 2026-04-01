@@ -3050,5 +3050,307 @@ class HRModuleTest extends TestCase
     {
         $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\LinkEmployeeToUserRequest::class));
     }
+
+    // ── Biometric device abstraction layer ────────────────────────────────────
+
+    public function test_biometric_device_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Domain\Biometric\BiometricDeviceInterface::class));
+    }
+
+    public function test_biometric_device_interface_declares_required_methods(): void
+    {
+        $methods = get_class_methods(\Modules\HR\Domain\Biometric\BiometricDeviceInterface::class);
+        $this->assertContains('getType',     $methods);
+        $this->assertContains('getDeviceId', $methods);
+        $this->assertContains('scan',        $methods);
+        $this->assertContains('identify',    $methods);
+        $this->assertContains('enroll',      $methods);
+        $this->assertContains('isAvailable', $methods);
+    }
+
+    public function test_biometric_scan_result_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Biometric\BiometricScanResult::class));
+    }
+
+    public function test_biometric_scan_result_success_factory(): void
+    {
+        $result = \Modules\HR\Domain\Biometric\BiometricScanResult::success(
+            deviceType: 'fingerprint',
+            deviceId:   'fp-001',
+            template:   'dGVzdA==',
+            confidence: 0.98,
+            employeeId: 42,
+        );
+
+        $this->assertTrue($result->isSuccess());
+        $this->assertSame('fingerprint', $result->getDeviceType());
+        $this->assertSame('fp-001',      $result->getDeviceId());
+        $this->assertSame('dGVzdA==',    $result->getTemplate());
+        $this->assertSame(0.98,          $result->getConfidence());
+        $this->assertSame(42,            $result->getEmployeeId());
+    }
+
+    public function test_biometric_scan_result_failure_factory(): void
+    {
+        $result = \Modules\HR\Domain\Biometric\BiometricScanResult::failure(
+            deviceType: 'fingerprint',
+            deviceId:   'fp-001',
+        );
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertSame('', $result->getTemplate());
+        $this->assertSame(0.0, $result->getConfidence());
+        $this->assertNull($result->getEmployeeId());
+    }
+
+    public function test_biometric_device_type_constants_exist(): void
+    {
+        $this->assertSame('fingerprint', \Modules\HR\Domain\Biometric\BiometricDeviceType::FINGERPRINT);
+        $this->assertSame('face',        \Modules\HR\Domain\Biometric\BiometricDeviceType::FACE);
+        $this->assertSame('iris',        \Modules\HR\Domain\Biometric\BiometricDeviceType::IRIS);
+        $this->assertSame('rfid',        \Modules\HR\Domain\Biometric\BiometricDeviceType::RFID);
+        $this->assertSame('palm_vein',   \Modules\HR\Domain\Biometric\BiometricDeviceType::PALM_VEIN);
+    }
+
+    public function test_biometric_device_exception_extends_runtime_exception(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(\Modules\HR\Domain\Biometric\BiometricDeviceException::class, \RuntimeException::class)
+        );
+    }
+
+    public function test_biometric_device_registry_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Biometric\BiometricDeviceRegistryInterface::class));
+    }
+
+    public function test_biometric_attendance_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Biometric\BiometricAttendanceServiceInterface::class));
+    }
+
+    public function test_biometric_enrollment_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Biometric\BiometricEnrollmentServiceInterface::class));
+    }
+
+    public function test_biometric_device_registry_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_a(
+                \Modules\HR\Infrastructure\Biometric\BiometricDeviceRegistry::class,
+                \Modules\HR\Application\Biometric\BiometricDeviceRegistryInterface::class,
+                true
+            )
+        );
+    }
+
+    public function test_fingerprint_device_adapter_implements_biometric_device_interface(): void
+    {
+        $this->assertTrue(
+            is_a(
+                \Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter::class,
+                \Modules\HR\Domain\Biometric\BiometricDeviceInterface::class,
+                true
+            )
+        );
+    }
+
+    public function test_fingerprint_device_adapter_returns_correct_type(): void
+    {
+        $device = new \Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter('fp-test');
+        $this->assertSame('fingerprint', $device->getType());
+        $this->assertSame('fp-test', $device->getDeviceId());
+    }
+
+    public function test_fingerprint_device_adapter_is_available(): void
+    {
+        $device = new \Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter('fp-test', true);
+        $this->assertTrue($device->isAvailable());
+    }
+
+    public function test_fingerprint_device_adapter_not_available_when_stub_off(): void
+    {
+        $device = new \Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter('fp-test', false);
+        $this->assertFalse($device->isAvailable());
+    }
+
+    public function test_fingerprint_device_adapter_scan_returns_scan_result(): void
+    {
+        $device = new \Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter('fp-test', true);
+        $result = $device->scan();
+        $this->assertInstanceOf(\Modules\HR\Domain\Biometric\BiometricScanResult::class, $result);
+        $this->assertTrue($result->isSuccess());
+    }
+
+    public function test_fingerprint_device_adapter_scan_fails_when_unavailable(): void
+    {
+        $device = new \Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter('fp-test', false);
+        $result = $device->scan();
+        $this->assertFalse($result->isSuccess());
+    }
+
+    public function test_fingerprint_device_adapter_enroll_and_identify(): void
+    {
+        $device = new \Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter('fp-test');
+        $device->enroll(7, 'template-abc');
+        $this->assertSame(7, $device->identify('template-abc'));
+    }
+
+    public function test_fingerprint_device_adapter_identify_returns_null_for_unknown_template(): void
+    {
+        $device = new \Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter('fp-test');
+        $this->assertNull($device->identify('unknown-template'));
+    }
+
+    public function test_null_biometric_device_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_a(
+                \Modules\HR\Infrastructure\Biometric\NullBiometricDevice::class,
+                \Modules\HR\Domain\Biometric\BiometricDeviceInterface::class,
+                true
+            )
+        );
+    }
+
+    public function test_null_biometric_device_is_not_available(): void
+    {
+        $device = new \Modules\HR\Infrastructure\Biometric\NullBiometricDevice;
+        $this->assertFalse($device->isAvailable());
+    }
+
+    public function test_null_biometric_device_identify_returns_null(): void
+    {
+        $device = new \Modules\HR\Infrastructure\Biometric\NullBiometricDevice;
+        $this->assertNull($device->identify('any-template'));
+    }
+
+    public function test_null_biometric_device_enroll_returns_true(): void
+    {
+        $device = new \Modules\HR\Infrastructure\Biometric\NullBiometricDevice;
+        $this->assertTrue($device->enroll(1, 'template'));
+    }
+
+    public function test_biometric_device_registry_register_and_get(): void
+    {
+        $registry = new \Modules\HR\Infrastructure\Biometric\BiometricDeviceRegistry;
+        $device   = new \Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter('fp-001');
+        $registry->register($device);
+
+        $this->assertTrue($registry->has('fp-001'));
+        $this->assertSame($device, $registry->get('fp-001'));
+    }
+
+    public function test_biometric_device_registry_throws_for_unknown_device(): void
+    {
+        $registry = new \Modules\HR\Infrastructure\Biometric\BiometricDeviceRegistry;
+        $this->expectException(\Modules\HR\Domain\Biometric\BiometricDeviceException::class);
+        $registry->get('nonexistent');
+    }
+
+    public function test_biometric_device_registry_all_returns_registered_devices(): void
+    {
+        $registry = new \Modules\HR\Infrastructure\Biometric\BiometricDeviceRegistry;
+        $d1 = new \Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter('fp-001');
+        $d2 = new \Modules\HR\Infrastructure\Biometric\NullBiometricDevice('null-001');
+        $registry->register($d1);
+        $registry->register($d2);
+
+        $all = $registry->all();
+        $this->assertCount(2, $all);
+        $this->assertArrayHasKey('fp-001',   $all);
+        $this->assertArrayHasKey('null-001', $all);
+    }
+
+    public function test_biometric_enrollment_service_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_a(
+                \Modules\HR\Infrastructure\Biometric\BiometricEnrollmentService::class,
+                \Modules\HR\Application\Biometric\BiometricEnrollmentServiceInterface::class,
+                true
+            )
+        );
+    }
+
+    public function test_biometric_enrollment_service_enroll_delegates_to_device(): void
+    {
+        $device = new \Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter('fp-test');
+        $registry = new \Modules\HR\Infrastructure\Biometric\BiometricDeviceRegistry;
+        $registry->register($device);
+
+        $service = new \Modules\HR\Infrastructure\Biometric\BiometricEnrollmentService($registry);
+        $result  = $service->enroll(99, 'fp-test', 'my-template');
+
+        $this->assertTrue($result);
+        $this->assertSame(99, $device->identify('my-template'));
+    }
+
+    public function test_biometric_attendance_service_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_a(
+                \Modules\HR\Infrastructure\Biometric\BiometricAttendanceService::class,
+                \Modules\HR\Application\Biometric\BiometricAttendanceServiceInterface::class,
+                true
+            )
+        );
+    }
+
+    public function test_biometric_attendance_controller_class_exists(): void
+    {
+        $this->assertTrue(
+            class_exists(\Modules\HR\Infrastructure\Http\Controllers\BiometricAttendanceController::class)
+        );
+    }
+
+    public function test_biometric_attendance_controller_has_required_methods(): void
+    {
+        $class = \Modules\HR\Infrastructure\Http\Controllers\BiometricAttendanceController::class;
+        $this->assertTrue(method_exists($class, 'checkIn'));
+        $this->assertTrue(method_exists($class, 'checkOut'));
+        $this->assertTrue(method_exists($class, 'enroll'));
+        $this->assertTrue(method_exists($class, 'devices'));
+    }
+
+    public function test_biometric_check_in_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\BiometricCheckInRequest::class));
+    }
+
+    public function test_biometric_enroll_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\BiometricEnrollRequest::class));
+    }
+
+    public function test_routes_file_has_biometric_routes(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
+        $this->assertStringContainsString('biometric', $source);
+        $this->assertStringContainsString('BiometricAttendanceController', $source);
+        $this->assertStringContainsString('check-in',  $source);
+        $this->assertStringContainsString('check-out', $source);
+        $this->assertStringContainsString('enroll',    $source);
+    }
+
+    public function test_hr_service_provider_references_biometric_interfaces(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/Infrastructure/Providers/HRServiceProvider.php');
+        $this->assertStringContainsString('BiometricDeviceRegistryInterface', $source);
+        $this->assertStringContainsString('BiometricAttendanceServiceInterface', $source);
+        $this->assertStringContainsString('BiometricEnrollmentServiceInterface', $source);
+    }
+
+    public function test_hr_service_provider_references_biometric_implementations(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/Infrastructure/Providers/HRServiceProvider.php');
+        $this->assertStringContainsString('BiometricDeviceRegistry', $source);
+        $this->assertStringContainsString('BiometricAttendanceService', $source);
+        $this->assertStringContainsString('BiometricEnrollmentService', $source);
+        $this->assertStringContainsString('FingerprintDeviceAdapter',   $source);
+    }
 }
 

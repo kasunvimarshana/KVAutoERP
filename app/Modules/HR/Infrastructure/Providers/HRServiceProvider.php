@@ -6,6 +6,9 @@ namespace Modules\HR\Infrastructure\Providers;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\HR\Application\Biometric\BiometricAttendanceServiceInterface;
+use Modules\HR\Application\Biometric\BiometricDeviceRegistryInterface;
+use Modules\HR\Application\Biometric\BiometricEnrollmentServiceInterface;
 use Modules\HR\Application\Contracts\ApproveLeaveRequestServiceInterface;
 use Modules\HR\Application\Contracts\CreateAttendanceServiceInterface;
 use Modules\HR\Application\Contracts\CreateDepartmentServiceInterface;
@@ -57,6 +60,10 @@ use Modules\HR\Domain\RepositoryInterfaces\AttendanceRepositoryInterface;
 use Modules\HR\Domain\RepositoryInterfaces\EmployeeRepositoryInterface;
 use Modules\HR\Domain\RepositoryInterfaces\LeaveRequestRepositoryInterface;
 use Modules\HR\Domain\RepositoryInterfaces\PositionRepositoryInterface;
+use Modules\HR\Infrastructure\Biometric\BiometricAttendanceService;
+use Modules\HR\Infrastructure\Biometric\BiometricDeviceRegistry;
+use Modules\HR\Infrastructure\Biometric\BiometricEnrollmentService;
+use Modules\HR\Infrastructure\Biometric\FingerprintDeviceAdapter;
 use Modules\HR\Infrastructure\Persistence\Eloquent\Models\AttendanceModel;
 use Modules\HR\Infrastructure\Persistence\Eloquent\Models\DepartmentModel;
 use Modules\HR\Infrastructure\Persistence\Eloquent\Models\EmployeeModel;
@@ -167,6 +174,26 @@ class HRServiceProvider extends ServiceProvider
         $this->app->bind(DeleteAttendanceServiceInterface::class, function ($app) {
             return new DeleteAttendanceService($app->make(AttendanceRepositoryInterface::class));
         });
+
+        // Biometric Device Registry (singleton so all services share the same registry)
+        $this->app->singleton(BiometricDeviceRegistryInterface::class, function () {
+            return new BiometricDeviceRegistry;
+        });
+
+        // Biometric Attendance Service
+        $this->app->bind(BiometricAttendanceServiceInterface::class, function ($app) {
+            return new BiometricAttendanceService(
+                $app->make(BiometricDeviceRegistryInterface::class),
+                $app->make(AttendanceRepositoryInterface::class),
+            );
+        });
+
+        // Biometric Enrollment Service
+        $this->app->bind(BiometricEnrollmentServiceInterface::class, function ($app) {
+            return new BiometricEnrollmentService(
+                $app->make(BiometricDeviceRegistryInterface::class),
+            );
+        });
     }
 
     public function boot(): void
@@ -178,5 +205,12 @@ class HRServiceProvider extends ServiceProvider
              });
 
         $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
+
+        // Register the default fingerprint device so it is available out of the box.
+        // Production deployments should override this in their own service provider
+        // or config file, pointing to real hardware device IDs.
+        /** @var BiometricDeviceRegistry $registry */
+        $registry = $this->app->make(BiometricDeviceRegistryInterface::class);
+        $registry->register(new FingerprintDeviceAdapter('default-fingerprint'));
     }
 }
