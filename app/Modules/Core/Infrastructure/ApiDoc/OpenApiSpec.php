@@ -87,6 +87,7 @@ DESC,
 #[OA\Tag(name: 'HR - Leave Requests', description: 'Leave request management – submit, approve, reject, cancel with full audit trail')]
 #[OA\Tag(name: 'HR - Attendance',    description: 'Attendance tracking – check-in/check-out records with status and hours worked')]
 #[OA\Tag(name: 'HR - Self Service',  description: 'Employee self-service – authenticated employee can view own profile and leave requests')]
+#[OA\Tag(name: 'HR - Biometric',     description: 'Biometric device integration – fingerprint / face / iris scanner check-in, check-out and employee enrollment')]
 
 // ── Reusable Error Schemas ────────────────────────────────────────────────────
 #[OA\Schema(

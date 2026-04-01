@@ -147,6 +147,7 @@ class SwaggerApiDocTest extends TestCase
             'HR - Leave Requests',
             'HR - Attendance',
             'HR - Self Service',
+            'HR - Biometric',
         ];
 
         foreach ($expectedTags as $tag) {
@@ -464,6 +465,19 @@ class SwaggerApiDocTest extends TestCase
         $this->assertControllerMethodsHaveOaAnnotations(\Modules\HR\Infrastructure\Http\Controllers\EmployeeSelfServiceController::class, [
             'profile',
             'leaveRequests',
+        ]);
+    }
+
+    /**
+     * Verify HR BiometricAttendanceController methods are annotated with OA operations.
+     */
+    public function test_hr_biometric_attendance_controller_methods_have_oa_annotations(): void
+    {
+        $this->assertControllerMethodsHaveOaAnnotations(\Modules\HR\Infrastructure\Http\Controllers\BiometricAttendanceController::class, [
+            'checkIn',
+            'checkOut',
+            'enroll',
+            'devices',
         ]);
     }
 
