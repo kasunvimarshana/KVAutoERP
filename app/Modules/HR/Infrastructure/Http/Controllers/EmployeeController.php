@@ -10,10 +10,12 @@ use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\HR\Application\Contracts\CreateEmployeeServiceInterface;
 use Modules\HR\Application\Contracts\DeleteEmployeeServiceInterface;
 use Modules\HR\Application\Contracts\FindEmployeeServiceInterface;
+use Modules\HR\Application\Contracts\LinkEmployeeToUserServiceInterface;
 use Modules\HR\Application\Contracts\UpdateEmployeeServiceInterface;
 use Modules\HR\Application\DTOs\EmployeeData;
 use Modules\HR\Application\DTOs\UpdateEmployeeData;
 use Modules\HR\Domain\Entities\Employee;
+use Modules\HR\Infrastructure\Http\Requests\LinkEmployeeToUserRequest;
 use Modules\HR\Infrastructure\Http\Requests\StoreEmployeeRequest;
 use Modules\HR\Infrastructure\Http\Requests\UpdateEmployeeRequest;
 use Modules\HR\Infrastructure\Http\Resources\EmployeeCollection;
@@ -27,6 +29,7 @@ class EmployeeController extends AuthorizedController
         protected CreateEmployeeServiceInterface $createService,
         protected UpdateEmployeeServiceInterface $updateService,
         protected DeleteEmployeeServiceInterface $deleteService,
+        protected LinkEmployeeToUserServiceInterface $linkUserService,
     ) {}
 
     #[OA\Get(
@@ -192,5 +195,17 @@ class EmployeeController extends AuthorizedController
         $items = $this->findService->getByDepartment($departmentId);
 
         return response()->json(['data' => EmployeeResource::collection(collect($items))]);
+    }
+
+    public function linkUser(LinkEmployeeToUserRequest $request, int $id): JsonResponse
+    {
+        $employee = $this->findService->find($id);
+        if (! $employee) {
+            abort(404);
+        }
+        $this->authorize('update', $employee);
+        $updated = $this->linkUserService->execute(['id' => $id, 'user_id' => $request->validated()['user_id']]);
+
+        return (new EmployeeResource($updated))->response();
     }
 }

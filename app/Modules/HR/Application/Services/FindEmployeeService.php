@@ -6,6 +6,7 @@ namespace Modules\HR\Application\Services;
 
 use Modules\Core\Application\Services\BaseService;
 use Modules\HR\Application\Contracts\FindEmployeeServiceInterface;
+use Modules\HR\Domain\Entities\Employee;
 use Modules\HR\Domain\RepositoryInterfaces\EmployeeRepositoryInterface;
 
 class FindEmployeeService extends BaseService implements FindEmployeeServiceInterface
@@ -29,6 +30,11 @@ class FindEmployeeService extends BaseService implements FindEmployeeServiceInte
     public function getByManager(int $managerId): array
     {
         return $this->employeeRepository->getByManager($managerId);
+    }
+
+    public function findByUserId(int $userId): ?Employee
+    {
+        return $this->employeeRepository->findByUserId($userId);
     }
 
     protected function handle(array $data): mixed

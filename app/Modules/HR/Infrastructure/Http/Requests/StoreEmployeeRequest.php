@@ -36,6 +36,7 @@ class StoreEmployeeRequest extends FormRequest
             'org_unit_id'     => 'nullable|integer',
             'metadata'        => 'nullable|array',
             'is_active'       => 'boolean',
+            'user_id'         => 'nullable|integer',
         ];
     }
 }

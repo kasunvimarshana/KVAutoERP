@@ -12,6 +12,11 @@ interface EmployeeRepositoryInterface extends RepositoryInterface
     public function save(Employee $employee): Employee;
 
     /**
+     * Find an employee by their linked user ID.
+     */
+    public function findByUserId(int $userId): ?Employee;
+
+    /**
      * Return all employees belonging to a given department.
      *
      * @return array<int, Employee>

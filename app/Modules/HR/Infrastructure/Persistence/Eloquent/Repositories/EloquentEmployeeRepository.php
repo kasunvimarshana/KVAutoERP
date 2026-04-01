@@ -49,6 +49,7 @@ class EloquentEmployeeRepository extends EloquentRepository implements EmployeeR
                 'org_unit_id'     => $employee->getOrgUnitId(),
                 'metadata'        => $employee->getMetadata()->toArray(),
                 'is_active'       => $employee->isActive(),
+                'user_id'         => $employee->getUserId(),
             ];
 
             if ($employee->getId()) {
@@ -81,6 +82,13 @@ class EloquentEmployeeRepository extends EloquentRepository implements EmployeeR
             ->all();
     }
 
+    public function findByUserId(int $userId): ?Employee
+    {
+        $model = $this->model->where('user_id', $userId)->first();
+
+        return $model ? $this->mapModelToDomainEntity($model) : null;
+    }
+
     private function mapModelToDomainEntity(EmployeeModel $model): Employee
     {
         return new Employee(
@@ -107,6 +115,7 @@ class EloquentEmployeeRepository extends EloquentRepository implements EmployeeR
             id:             $model->id,
             createdAt:      $model->created_at,
             updatedAt:      $model->updated_at,
+            userId:         $model->user_id,
         );
     }
 }

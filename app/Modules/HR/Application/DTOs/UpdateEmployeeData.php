@@ -61,6 +61,8 @@ class UpdateEmployeeData extends BaseDto
 
     public ?bool $is_active = null;
 
+    public ?int $user_id = null;
+
     /**
      * Track which known property names were present in the source array before
      * delegating to the parent fill logic.
@@ -71,7 +73,7 @@ class UpdateEmployeeData extends BaseDto
             'id', 'first_name', 'last_name', 'email', 'phone', 'date_of_birth',
             'gender', 'address', 'employee_number', 'hire_date', 'employment_type',
             'status', 'department_id', 'position_id', 'manager_id', 'salary',
-            'currency', 'org_unit_id', 'metadata', 'is_active',
+            'currency', 'org_unit_id', 'metadata', 'is_active', 'user_id',
         ];
         $this->providedKeys = array_values(array_intersect(array_keys($data), $known));
 
@@ -118,6 +120,7 @@ class UpdateEmployeeData extends BaseDto
             'org_unit_id'     => 'nullable|integer',
             'metadata'        => 'nullable|array',
             'is_active'       => 'boolean',
+            'user_id'         => 'nullable|integer',
         ];
     }
 }

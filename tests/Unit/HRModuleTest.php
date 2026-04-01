@@ -2432,4 +2432,623 @@ class HRModuleTest extends TestCase
         $this->assertStringContainsString('status', $source);
         $this->assertStringContainsString('approved_by', $source);
     }
+
+    // ── Employee userId feature ────────────────────────────────────────────────
+
+    public function test_employee_entity_has_user_id_field(): void
+    {
+        $employee = $this->createTestEmployee();
+        $this->assertNull($employee->getUserId());
+    }
+
+    public function test_employee_entity_stores_user_id_via_constructor(): void
+    {
+        $employee = new \Modules\HR\Domain\Entities\Employee(
+            tenantId:       1,
+            firstName:      new Name('Jane'),
+            lastName:       new Name('Smith'),
+            email:          new Email('jane@example.com'),
+            employeeNumber: new Code('EMP-002'),
+            hireDate:       new \DateTimeImmutable('2023-01-01'),
+            employmentType: 'full_time',
+            userId:         42,
+        );
+        $this->assertSame(42, $employee->getUserId());
+    }
+
+    public function test_employee_link_to_user_sets_user_id(): void
+    {
+        $employee = $this->createTestEmployee();
+        $employee->linkToUser(99);
+        $this->assertSame(99, $employee->getUserId());
+    }
+
+    public function test_employee_link_to_user_updates_updated_at(): void
+    {
+        $employee  = $this->createTestEmployee();
+        $employee->linkToUser(5);
+        $this->assertNotNull($employee->getUpdatedAt());
+    }
+
+    public function test_employee_update_details_accepts_user_id(): void
+    {
+        $employee = $this->createTestEmployee();
+        $employee->updateDetails(
+            new Name('John'), new Name('Doe'),
+            new Email('john@example.com'), null,
+            null, null, null,
+            new Code('EMP-001'), new \DateTimeImmutable('2023-01-01'),
+            'full_time', 'active',
+            null, null, null, null, 'USD', null, null, true, 77
+        );
+        $this->assertSame(77, $employee->getUserId());
+    }
+
+    public function test_employee_data_dto_has_user_id_field(): void
+    {
+        $dto = \Modules\HR\Application\DTOs\EmployeeData::fromArray([
+            'tenant_id'       => 1,
+            'first_name'      => 'John',
+            'last_name'       => 'Doe',
+            'email'           => 'john@example.com',
+            'employee_number' => 'EMP-001',
+            'hire_date'       => '2023-01-01',
+            'employment_type' => 'full_time',
+            'currency'        => 'USD',
+            'user_id'         => 55,
+        ]);
+        $this->assertSame(55, $dto->user_id);
+    }
+
+    public function test_update_employee_data_dto_tracks_user_id(): void
+    {
+        $dto = \Modules\HR\Application\DTOs\UpdateEmployeeData::fromArray(['id' => 1, 'user_id' => 77]);
+        $this->assertTrue($dto->isProvided('user_id'));
+        $this->assertSame(77, $dto->user_id);
+    }
+
+    public function test_employee_resource_includes_user_id(): void
+    {
+        $employee = $this->createTestEmployee();
+        $employee->linkToUser(10);
+        $resource = new \Modules\HR\Infrastructure\Http\Resources\EmployeeResource($employee);
+        $array    = $resource->toArray(new \Illuminate\Http\Request());
+        $this->assertArrayHasKey('user_id', $array);
+        $this->assertSame(10, $array['user_id']);
+    }
+
+    // ── EmployeeLinkedToUser event ─────────────────────────────────────────────
+
+    public function test_employee_linked_to_user_event_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Events\EmployeeLinkedToUser::class));
+    }
+
+    public function test_employee_linked_to_user_event_extends_base_event(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Domain\Events\EmployeeLinkedToUser::class, \Modules\Core\Domain\Events\BaseEvent::class));
+    }
+
+    public function test_employee_linked_to_user_event_stores_employee(): void
+    {
+        $employee = $this->createTestEmployee();
+        $event    = new \Modules\HR\Domain\Events\EmployeeLinkedToUser($employee);
+        $this->assertSame($employee, $event->employee);
+    }
+
+    // ── LinkEmployeeToUserService ──────────────────────────────────────────────
+
+    public function test_link_employee_to_user_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\LinkEmployeeToUserServiceInterface::class));
+    }
+
+    public function test_link_employee_to_user_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\Services\LinkEmployeeToUserService::class));
+    }
+
+    public function test_link_employee_to_user_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(
+            \Modules\HR\Application\Services\LinkEmployeeToUserService::class,
+            \Modules\HR\Application\Contracts\LinkEmployeeToUserServiceInterface::class
+        ));
+    }
+
+    // ── FindEmployeeService findByUserId ───────────────────────────────────────
+
+    public function test_find_employee_service_interface_has_find_by_user_id(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Application\Contracts\FindEmployeeServiceInterface::class, 'findByUserId')
+        );
+    }
+
+    public function test_find_employee_service_has_find_by_user_id(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Application\Services\FindEmployeeService::class, 'findByUserId')
+        );
+    }
+
+    public function test_employee_repository_interface_has_find_by_user_id(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Domain\RepositoryInterfaces\EmployeeRepositoryInterface::class, 'findByUserId')
+        );
+    }
+
+    // ── EmployeeSelfServiceController ─────────────────────────────────────────
+
+    public function test_employee_self_service_controller_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Controllers\EmployeeSelfServiceController::class));
+    }
+
+    public function test_employee_self_service_controller_has_profile_method(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Infrastructure\Http\Controllers\EmployeeSelfServiceController::class, 'profile')
+        );
+    }
+
+    public function test_employee_self_service_controller_has_leave_requests_method(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Infrastructure\Http\Controllers\EmployeeSelfServiceController::class, 'leaveRequests')
+        );
+    }
+
+    // ── Attendance Domain ─────────────────────────────────────────────────────
+
+    public function test_attendance_entity_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Entities\Attendance::class));
+    }
+
+    public function test_attendance_entity_can_be_constructed(): void
+    {
+        $attendance = new \Modules\HR\Domain\Entities\Attendance(
+            tenantId:    1,
+            employeeId:  5,
+            date:        '2024-01-15',
+            checkInTime: new \DateTimeImmutable('2024-01-15 09:00:00'),
+            status:      'present',
+        );
+        $this->assertSame(1, $attendance->getTenantId());
+        $this->assertSame(5, $attendance->getEmployeeId());
+        $this->assertSame('2024-01-15', $attendance->getDate());
+        $this->assertSame('present', $attendance->getStatus());
+        $this->assertNull($attendance->getCheckOutTime());
+    }
+
+    public function test_attendance_entity_check_out(): void
+    {
+        $attendance = new \Modules\HR\Domain\Entities\Attendance(
+            tenantId:    1,
+            employeeId:  5,
+            date:        '2024-01-15',
+            checkInTime: new \DateTimeImmutable('2024-01-15 09:00:00'),
+            status:      'present',
+        );
+        $attendance->checkOut(new \DateTimeImmutable('2024-01-15 17:00:00'), 8.0);
+        $this->assertNotNull($attendance->getCheckOutTime());
+        $this->assertSame(8.0, $attendance->getHoursWorked());
+    }
+
+    public function test_attendance_entity_update_details(): void
+    {
+        $attendance = new \Modules\HR\Domain\Entities\Attendance(
+            tenantId:    1,
+            employeeId:  5,
+            date:        '2024-01-15',
+            checkInTime: new \DateTimeImmutable('2024-01-15 09:00:00'),
+            status:      'present',
+        );
+        $attendance->updateDetails('2024-01-16', new \DateTimeImmutable('2024-01-16 08:30:00'), 'late', 'Arrived late', 7.5);
+        $this->assertSame('2024-01-16', $attendance->getDate());
+        $this->assertSame('late', $attendance->getStatus());
+        $this->assertSame('Arrived late', $attendance->getNotes());
+        $this->assertSame(7.5, $attendance->getHoursWorked());
+    }
+
+    public function test_attendance_not_found_exception_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Exceptions\AttendanceNotFoundException::class));
+    }
+
+    public function test_attendance_not_found_exception_extends_not_found_exception(): void
+    {
+        $this->assertTrue(is_subclass_of(
+            \Modules\HR\Domain\Exceptions\AttendanceNotFoundException::class,
+            \Modules\Core\Domain\Exceptions\NotFoundException::class
+        ));
+    }
+
+    public function test_attendance_not_found_exception_message_contains_id(): void
+    {
+        $e = new \Modules\HR\Domain\Exceptions\AttendanceNotFoundException(7);
+        $this->assertStringContainsString('7', $e->getMessage());
+        $this->assertStringContainsString('Attendance', $e->getMessage());
+    }
+
+    public function test_attendance_repository_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Domain\RepositoryInterfaces\AttendanceRepositoryInterface::class));
+    }
+
+    public function test_attendance_repository_interface_has_get_by_employee(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Domain\RepositoryInterfaces\AttendanceRepositoryInterface::class, 'getByEmployee')
+        );
+    }
+
+    public function test_attendance_repository_interface_has_save(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Domain\RepositoryInterfaces\AttendanceRepositoryInterface::class, 'save')
+        );
+    }
+
+    // ── Attendance Events ──────────────────────────────────────────────────────
+
+    public function test_attendance_created_event_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Events\AttendanceCreated::class));
+    }
+
+    public function test_attendance_updated_event_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Events\AttendanceUpdated::class));
+    }
+
+    public function test_attendance_deleted_event_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Events\AttendanceDeleted::class));
+    }
+
+    public function test_attendance_events_extend_base_event(): void
+    {
+        $attendance = new \Modules\HR\Domain\Entities\Attendance(
+            tenantId: 1, employeeId: 5, date: '2024-01-15',
+            checkInTime: new \DateTimeImmutable('2024-01-15 09:00:00'), status: 'present',
+        );
+        $created = new \Modules\HR\Domain\Events\AttendanceCreated($attendance);
+        $updated = new \Modules\HR\Domain\Events\AttendanceUpdated($attendance);
+        $this->assertInstanceOf(\Modules\Core\Domain\Events\BaseEvent::class, $created);
+        $this->assertInstanceOf(\Modules\Core\Domain\Events\BaseEvent::class, $updated);
+    }
+
+    // ── Attendance Services ────────────────────────────────────────────────────
+
+    public function test_find_attendance_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\FindAttendanceServiceInterface::class));
+    }
+
+    public function test_create_attendance_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\CreateAttendanceServiceInterface::class));
+    }
+
+    public function test_update_attendance_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\UpdateAttendanceServiceInterface::class));
+    }
+
+    public function test_delete_attendance_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\DeleteAttendanceServiceInterface::class));
+    }
+
+    public function test_find_attendance_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\Services\FindAttendanceService::class));
+    }
+
+    public function test_create_attendance_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\Services\CreateAttendanceService::class));
+    }
+
+    public function test_update_attendance_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\Services\UpdateAttendanceService::class));
+    }
+
+    public function test_delete_attendance_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\Services\DeleteAttendanceService::class));
+    }
+
+    // ── Attendance DTOs ────────────────────────────────────────────────────────
+
+    public function test_attendance_data_dto_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\DTOs\AttendanceData::class));
+    }
+
+    public function test_update_attendance_data_dto_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\DTOs\UpdateAttendanceData::class));
+    }
+
+    public function test_attendance_data_dto_is_provided_tracks_fields(): void
+    {
+        $dto = \Modules\HR\Application\DTOs\UpdateAttendanceData::fromArray(['id' => 1, 'status' => 'late']);
+        $this->assertTrue($dto->isProvided('status'));
+        $this->assertFalse($dto->isProvided('notes'));
+    }
+
+    // ── Attendance Infrastructure ──────────────────────────────────────────────
+
+    public function test_attendance_model_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Persistence\Eloquent\Models\AttendanceModel::class));
+    }
+
+    public function test_attendance_model_has_correct_table(): void
+    {
+        $model = new \Modules\HR\Infrastructure\Persistence\Eloquent\Models\AttendanceModel();
+        $this->assertSame('hr_attendance', $model->getTable());
+    }
+
+    public function test_eloquent_attendance_repository_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Persistence\Eloquent\Repositories\EloquentAttendanceRepository::class));
+    }
+
+    public function test_attendance_controller_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Controllers\AttendanceController::class));
+    }
+
+    public function test_attendance_controller_has_by_employee_method(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Infrastructure\Http\Controllers\AttendanceController::class, 'byEmployee')
+        );
+    }
+
+    public function test_attendance_resource_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Resources\AttendanceResource::class));
+    }
+
+    public function test_attendance_collection_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Resources\AttendanceCollection::class));
+    }
+
+    public function test_store_attendance_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\StoreAttendanceRequest::class));
+    }
+
+    public function test_update_attendance_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\UpdateAttendanceRequest::class));
+    }
+
+    // ── Attendance Migration ───────────────────────────────────────────────────
+
+    public function test_hr_attendance_migration_file_exists(): void
+    {
+        $files = glob(__DIR__ . '/../../app/Modules/HR/database/migrations/*create_hr_attendance_table*');
+        $this->assertNotEmpty($files);
+    }
+
+    public function test_hr_attendance_migration_creates_expected_columns(): void
+    {
+        $files  = glob(__DIR__ . '/../../app/Modules/HR/database/migrations/*create_hr_attendance_table*');
+        $source = file_get_contents($files[0]);
+        $this->assertStringContainsString('employee_id', $source);
+        $this->assertStringContainsString('check_in_time', $source);
+        $this->assertStringContainsString('check_out_time', $source);
+        $this->assertStringContainsString('status', $source);
+        $this->assertStringContainsString('softDeletes', $source);
+    }
+
+    // ── user_id Migration ──────────────────────────────────────────────────────
+
+    public function test_hr_user_id_migration_file_exists(): void
+    {
+        $files = glob(__DIR__ . '/../../app/Modules/HR/database/migrations/*add_user_id_to_hr_employees*');
+        $this->assertNotEmpty($files);
+    }
+
+    // ── Application UseCases ───────────────────────────────────────────────────
+
+    public function test_use_case_create_employee_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\CreateEmployee::class));
+    }
+
+    public function test_use_case_get_employee_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\GetEmployee::class));
+    }
+
+    public function test_use_case_list_employees_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\ListEmployees::class));
+    }
+
+    public function test_use_case_update_employee_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\UpdateEmployee::class));
+    }
+
+    public function test_use_case_delete_employee_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\DeleteEmployee::class));
+    }
+
+    public function test_use_case_create_department_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\CreateDepartment::class));
+    }
+
+    public function test_use_case_get_department_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\GetDepartment::class));
+    }
+
+    public function test_use_case_list_departments_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\ListDepartments::class));
+    }
+
+    public function test_use_case_update_department_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\UpdateDepartment::class));
+    }
+
+    public function test_use_case_delete_department_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\DeleteDepartment::class));
+    }
+
+    public function test_use_case_create_position_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\CreatePosition::class));
+    }
+
+    public function test_use_case_get_position_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\GetPosition::class));
+    }
+
+    public function test_use_case_list_positions_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\ListPositions::class));
+    }
+
+    public function test_use_case_update_position_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\UpdatePosition::class));
+    }
+
+    public function test_use_case_delete_position_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\DeletePosition::class));
+    }
+
+    public function test_use_case_create_leave_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\CreateLeaveRequest::class));
+    }
+
+    public function test_use_case_get_leave_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\GetLeaveRequest::class));
+    }
+
+    public function test_use_case_list_leave_requests_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\ListLeaveRequests::class));
+    }
+
+    public function test_use_case_update_leave_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\UpdateLeaveRequest::class));
+    }
+
+    public function test_use_case_delete_leave_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\DeleteLeaveRequest::class));
+    }
+
+    public function test_use_case_approve_leave_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\ApproveLeaveRequest::class));
+    }
+
+    public function test_use_case_reject_leave_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\RejectLeaveRequest::class));
+    }
+
+    public function test_use_case_create_attendance_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\CreateAttendance::class));
+    }
+
+    public function test_use_case_get_attendance_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\GetAttendance::class));
+    }
+
+    public function test_use_case_list_attendance_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\ListAttendance::class));
+    }
+
+    public function test_use_case_update_attendance_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\UpdateAttendance::class));
+    }
+
+    public function test_use_case_delete_attendance_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\DeleteAttendance::class));
+    }
+
+    // ── HRServiceProvider Attendance bindings ──────────────────────────────────
+
+    public function test_hr_service_provider_references_attendance_repository(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/Infrastructure/Providers/HRServiceProvider.php');
+        $this->assertStringContainsString('AttendanceRepositoryInterface', $source);
+        $this->assertStringContainsString('EloquentAttendanceRepository', $source);
+    }
+
+    public function test_hr_service_provider_references_attendance_services(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/Infrastructure/Providers/HRServiceProvider.php');
+        $this->assertStringContainsString('FindAttendanceServiceInterface', $source);
+        $this->assertStringContainsString('CreateAttendanceServiceInterface', $source);
+        $this->assertStringContainsString('UpdateAttendanceServiceInterface', $source);
+        $this->assertStringContainsString('DeleteAttendanceServiceInterface', $source);
+    }
+
+    // ── Routes ────────────────────────────────────────────────────────────────
+
+    public function test_routes_file_has_attendance_routes(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
+        $this->assertStringContainsString('attendance', $source);
+        $this->assertStringContainsString('AttendanceController', $source);
+    }
+
+    public function test_routes_file_has_link_user_route(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
+        $this->assertStringContainsString('link-user', $source);
+        $this->assertStringContainsString('linkUser', $source);
+    }
+
+    public function test_routes_file_has_self_service_routes(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
+        $this->assertStringContainsString('EmployeeSelfServiceController', $source);
+        $this->assertStringContainsString("'me'", $source);
+    }
+
+    // ── EmployeeController linkUser method ─────────────────────────────────────
+
+    public function test_employee_controller_has_link_user_method(): void
+    {
+        $this->assertTrue(
+            method_exists(\Modules\HR\Infrastructure\Http\Controllers\EmployeeController::class, 'linkUser')
+        );
+    }
+
+    public function test_link_employee_to_user_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\LinkEmployeeToUserRequest::class));
+    }
 }
+
