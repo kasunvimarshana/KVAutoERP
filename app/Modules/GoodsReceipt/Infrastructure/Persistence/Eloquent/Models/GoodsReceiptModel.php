@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Modules\GoodsReceipt\Infrastructure\Persistence\Eloquent\Models;
 
 use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 
 class GoodsReceiptModel extends BaseModel
 {
+    use HasAudit;
+
     protected $table = 'goods_receipts';
 
     protected $fillable = [

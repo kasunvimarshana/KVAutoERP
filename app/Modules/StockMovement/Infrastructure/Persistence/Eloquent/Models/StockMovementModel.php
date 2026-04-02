@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Modules\StockMovement\Infrastructure\Persistence\Eloquent\Models;
 
 use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 
 class StockMovementModel extends BaseModel
 {
+    use HasAudit;
+
     protected $table = 'stock_movements';
 
     protected $fillable = [
