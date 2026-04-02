@@ -21,6 +21,7 @@ use Modules\Brand\Infrastructure\Providers\BrandServiceProvider;
 use Modules\Pricing\Infrastructure\Providers\PricingServiceProvider;
 use Modules\Taxation\Infrastructure\Providers\TaxationServiceProvider;
 use Modules\Category\Infrastructure\Providers\CategoryServiceProvider;
+use Modules\Transaction\Infrastructure\Providers\TransactionServiceProvider;
 use Modules\Core\Infrastructure\Providers\CoreServiceProvider;
 use Modules\OrganizationUnit\Infrastructure\Providers\OrganizationUnitServiceProvider;
 use Modules\Product\Infrastructure\Providers\ProductServiceProvider;
@@ -56,4 +57,5 @@ return [
     HRServiceProvider::class,
     PricingServiceProvider::class,
     TaxationServiceProvider::class,
+    TransactionServiceProvider::class,
 ];
