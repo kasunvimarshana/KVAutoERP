@@ -29,7 +29,7 @@ class ProductUomSettingModel extends BaseModel
         'base_uom_id'     => 'integer',
         'purchase_uom_id' => 'integer',
         'sales_uom_id'    => 'integer',
-        'inventory_uom_id'=> 'integer',
+        'inventory_uom_id' => 'integer',
         'purchase_factor' => 'float',
         'sales_factor'    => 'float',
         'inventory_factor'=> 'float',

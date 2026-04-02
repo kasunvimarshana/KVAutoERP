@@ -24,7 +24,7 @@ class UnitOfMeasureModel extends BaseModel
 
     protected $casts = [
         'tenant_id'      => 'integer',
-        'uom_category_id'=> 'integer',
+        'uom_category_id' => 'integer',
         'is_base_unit'   => 'boolean',
         'factor'         => 'float',
         'is_active'      => 'boolean',

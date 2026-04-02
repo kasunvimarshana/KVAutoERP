@@ -20,8 +20,8 @@ class UomConversionModel extends BaseModel
 
     protected $casts = [
         'tenant_id'  => 'integer',
-        'from_uom_id'=> 'integer',
-        'to_uom_id'  => 'integer',
+        'from_uom_id' => 'integer',
+        'to_uom_id'   => 'integer',
         'factor'     => 'float',
         'is_active'  => 'boolean',
     ];

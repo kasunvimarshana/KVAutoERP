@@ -39,7 +39,7 @@ class ProductUomSettingData extends BaseDto
             'inventoryUomId' => 'nullable|integer|exists:units_of_measure,id',
             'purchaseFactor' => 'numeric|min:0',
             'salesFactor'    => 'numeric|min:0',
-            'inventoryFactor'=> 'numeric|min:0',
+            'inventoryFactor' => 'numeric|min:0',
             'isActive'       => 'boolean',
         ];
     }
