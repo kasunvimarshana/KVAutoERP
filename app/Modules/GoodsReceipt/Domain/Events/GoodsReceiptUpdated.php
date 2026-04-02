@@ -10,7 +10,7 @@ class GoodsReceiptUpdated extends BaseEvent
 {
     public function __construct(
         public readonly int $goodsReceiptId,
-        public readonly int $tenantId,
+        int $tenantId,
     ) {
         parent::__construct($tenantId);
     }

@@ -10,7 +10,7 @@ class SalesOrderCancelled extends BaseEvent
 {
     public function __construct(
         public readonly int $salesOrderId,
-        public readonly int $tenantId,
+        int $tenantId,
     ) {
         parent::__construct($tenantId);
     }

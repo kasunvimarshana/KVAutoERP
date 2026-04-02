@@ -10,7 +10,7 @@ class DispatchDelivered extends BaseEvent
 {
     public function __construct(
         public readonly int $dispatchId,
-        public readonly int $tenantId,
+        int $tenantId,
     ) {
         parent::__construct($tenantId);
     }

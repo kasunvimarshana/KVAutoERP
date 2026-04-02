@@ -148,7 +148,7 @@ class Dispatch
         ?string $carrier,
         ?string $trackingNumber,
         ?string $notes,
-        ?array $metadata,
+        ?array $metadataArray,
         ?float $totalWeight,
     ): void {
         if ($customerReference !== null) { $this->customerReference = $customerReference; }
@@ -156,7 +156,7 @@ class Dispatch
         if ($carrier !== null) { $this->carrier = $carrier; }
         if ($trackingNumber !== null) { $this->trackingNumber = $trackingNumber; }
         if ($notes !== null) { $this->notes = $notes; }
-        if ($metadata !== null) { $this->metadata = new Metadata($metadata); }
+        if ($metadataArray !== null) { $this->metadata = new Metadata($metadataArray); }
         if ($totalWeight !== null) { $this->totalWeight = $totalWeight; }
         $this->updatedAt = new \DateTimeImmutable;
     }
