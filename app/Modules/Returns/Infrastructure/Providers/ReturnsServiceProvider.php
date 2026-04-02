@@ -13,9 +13,11 @@ use Modules\Returns\Application\Contracts\CreateStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\CreateStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\DeleteStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\DeleteStockReturnServiceInterface;
+use Modules\Returns\Application\Contracts\FailQualityCheckServiceInterface;
 use Modules\Returns\Application\Contracts\FindStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\FindStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\IssueCreditMemoServiceInterface;
+use Modules\Returns\Application\Contracts\PassQualityCheckServiceInterface;
 use Modules\Returns\Application\Contracts\ProcessReturnInventoryAdjustmentServiceInterface;
 use Modules\Returns\Application\Contracts\RejectStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\UpdateStockReturnLineServiceInterface;
@@ -27,9 +29,11 @@ use Modules\Returns\Application\Services\CreateStockReturnLineService;
 use Modules\Returns\Application\Services\CreateStockReturnService;
 use Modules\Returns\Application\Services\DeleteStockReturnLineService;
 use Modules\Returns\Application\Services\DeleteStockReturnService;
+use Modules\Returns\Application\Services\FailQualityCheckService;
 use Modules\Returns\Application\Services\FindStockReturnLineService;
 use Modules\Returns\Application\Services\FindStockReturnService;
 use Modules\Returns\Application\Services\IssueCreditMemoService;
+use Modules\Returns\Application\Services\PassQualityCheckService;
 use Modules\Returns\Application\Services\ProcessReturnInventoryAdjustmentService;
 use Modules\Returns\Application\Services\RejectStockReturnService;
 use Modules\Returns\Application\Services\UpdateStockReturnLineService;
@@ -142,6 +146,11 @@ class ReturnsServiceProvider extends ServiceProvider
         $this->app->bind(DeleteStockReturnLineServiceInterface::class, fn ($app) =>
             new DeleteStockReturnLineService($app->make(StockReturnLineRepositoryInterface::class)));
 
+        $this->app->bind(PassQualityCheckServiceInterface::class, fn ($app) =>
+            new PassQualityCheckService($app->make(StockReturnLineRepositoryInterface::class)));
+
+        $this->app->bind(FailQualityCheckServiceInterface::class, fn ($app) =>
+            new FailQualityCheckService($app->make(StockReturnLineRepositoryInterface::class)));
         // --- Repositories: CreditMemo ---
         $this->app->bind(CreditMemoRepositoryInterface::class, fn ($app) =>
             new EloquentCreditMemoRepository($app->make(CreditMemoModel::class)));
