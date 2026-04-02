@@ -6,6 +6,9 @@ use Modules\Account\Infrastructure\Providers\AccountServiceProvider;
 use Modules\Customer\Infrastructure\Providers\CustomerServiceProvider;
 use Modules\Location\Infrastructure\Providers\LocationServiceProvider;
 use Modules\Inventory\Infrastructure\Providers\InventoryServiceProvider;
+use Modules\StockMovement\Infrastructure\Providers\StockMovementServiceProvider;
+use Modules\Returns\Infrastructure\Providers\ReturnsServiceProvider;
+use Modules\GS1\Infrastructure\Providers\GS1ServiceProvider;
 use Modules\UoM\Infrastructure\Providers\UomServiceProvider;
 use Modules\Warehouse\Infrastructure\Providers\WarehouseServiceProvider;
 use Modules\Supplier\Infrastructure\Providers\SupplierServiceProvider;
@@ -37,5 +40,8 @@ return [
     WarehouseServiceProvider::class,
     UomServiceProvider::class,
     InventoryServiceProvider::class,
+    StockMovementServiceProvider::class,
+    ReturnsServiceProvider::class,
+    GS1ServiceProvider::class,
     HRServiceProvider::class,
 ];
