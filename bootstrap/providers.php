@@ -5,6 +5,7 @@ use Modules\Auth\Infrastructure\Providers\AuthModuleServiceProvider;
 use Modules\Account\Infrastructure\Providers\AccountServiceProvider;
 use Modules\Customer\Infrastructure\Providers\CustomerServiceProvider;
 use Modules\Location\Infrastructure\Providers\LocationServiceProvider;
+use Modules\UoM\Infrastructure\Providers\UomServiceProvider;
 use Modules\Warehouse\Infrastructure\Providers\WarehouseServiceProvider;
 use Modules\Supplier\Infrastructure\Providers\SupplierServiceProvider;
 use Modules\HR\Infrastructure\Providers\HRServiceProvider;
@@ -33,5 +34,6 @@ return [
     CustomerServiceProvider::class,
     LocationServiceProvider::class,
     WarehouseServiceProvider::class,
+    UomServiceProvider::class,
     HRServiceProvider::class,
 ];
