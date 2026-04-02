@@ -6,6 +6,7 @@ namespace Modules\Inventory\Infrastructure\Providers;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Inventory\Application\Contracts\AdjustInventoryServiceInterface;
 use Modules\Inventory\Application\Contracts\CreateInventoryBatchServiceInterface;
 use Modules\Inventory\Application\Contracts\CreateInventoryCycleCountLineServiceInterface;
 use Modules\Inventory\Application\Contracts\CreateInventoryCycleCountServiceInterface;
@@ -30,6 +31,9 @@ use Modules\Inventory\Application\Contracts\FindInventoryLocationServiceInterfac
 use Modules\Inventory\Application\Contracts\FindInventorySerialNumberServiceInterface;
 use Modules\Inventory\Application\Contracts\FindInventorySettingServiceInterface;
 use Modules\Inventory\Application\Contracts\FindInventoryValuationLayerServiceInterface;
+use Modules\Inventory\Application\Contracts\ReconcileInventoryServiceInterface;
+use Modules\Inventory\Application\Contracts\ReleaseStockServiceInterface;
+use Modules\Inventory\Application\Contracts\ReserveStockServiceInterface;
 use Modules\Inventory\Application\Contracts\UpdateInventoryBatchServiceInterface;
 use Modules\Inventory\Application\Contracts\UpdateInventoryCycleCountLineServiceInterface;
 use Modules\Inventory\Application\Contracts\UpdateInventoryCycleCountServiceInterface;
@@ -38,6 +42,7 @@ use Modules\Inventory\Application\Contracts\UpdateInventoryLocationServiceInterf
 use Modules\Inventory\Application\Contracts\UpdateInventorySerialNumberServiceInterface;
 use Modules\Inventory\Application\Contracts\UpdateInventorySettingServiceInterface;
 use Modules\Inventory\Application\Contracts\UpdateInventoryValuationLayerServiceInterface;
+use Modules\Inventory\Application\Services\AdjustInventoryService;
 use Modules\Inventory\Application\Services\CreateInventoryBatchService;
 use Modules\Inventory\Application\Services\CreateInventoryCycleCountLineService;
 use Modules\Inventory\Application\Services\CreateInventoryCycleCountService;
@@ -62,6 +67,9 @@ use Modules\Inventory\Application\Services\FindInventoryLocationService;
 use Modules\Inventory\Application\Services\FindInventorySerialNumberService;
 use Modules\Inventory\Application\Services\FindInventorySettingService;
 use Modules\Inventory\Application\Services\FindInventoryValuationLayerService;
+use Modules\Inventory\Application\Services\ReconcileInventoryService;
+use Modules\Inventory\Application\Services\ReleaseStockService;
+use Modules\Inventory\Application\Services\ReserveStockService;
 use Modules\Inventory\Application\Services\UpdateInventoryBatchService;
 use Modules\Inventory\Application\Services\UpdateInventoryCycleCountLineService;
 use Modules\Inventory\Application\Services\UpdateInventoryCycleCountService;
@@ -173,6 +181,12 @@ class InventoryServiceProvider extends ServiceProvider
             new UpdateInventoryLevelService($app->make(InventoryLevelRepositoryInterface::class)));
         $this->app->bind(DeleteInventoryLevelServiceInterface::class, fn ($app) =>
             new DeleteInventoryLevelService($app->make(InventoryLevelRepositoryInterface::class)));
+        $this->app->bind(ReserveStockServiceInterface::class, fn ($app) =>
+            new ReserveStockService($app->make(InventoryLevelRepositoryInterface::class)));
+        $this->app->bind(ReleaseStockServiceInterface::class, fn ($app) =>
+            new ReleaseStockService($app->make(InventoryLevelRepositoryInterface::class)));
+        $this->app->bind(AdjustInventoryServiceInterface::class, fn ($app) =>
+            new AdjustInventoryService($app->make(InventoryLevelRepositoryInterface::class)));
 
         // --- Services: InventoryValuationLayer ---
         $this->app->bind(CreateInventoryValuationLayerServiceInterface::class, fn ($app) =>
@@ -193,6 +207,8 @@ class InventoryServiceProvider extends ServiceProvider
             new UpdateInventoryCycleCountService($app->make(InventoryCycleCountRepositoryInterface::class)));
         $this->app->bind(DeleteInventoryCycleCountServiceInterface::class, fn ($app) =>
             new DeleteInventoryCycleCountService($app->make(InventoryCycleCountRepositoryInterface::class)));
+        $this->app->bind(ReconcileInventoryServiceInterface::class, fn ($app) =>
+            new ReconcileInventoryService($app->make(InventoryCycleCountRepositoryInterface::class)));
 
         // --- Services: InventoryCycleCountLine ---
         $this->app->bind(CreateInventoryCycleCountLineServiceInterface::class, fn ($app) =>

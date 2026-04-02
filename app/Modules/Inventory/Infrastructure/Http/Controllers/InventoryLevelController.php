@@ -7,9 +7,12 @@ namespace Modules\Inventory\Infrastructure\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
+use Modules\Inventory\Application\Contracts\AdjustInventoryServiceInterface;
 use Modules\Inventory\Application\Contracts\CreateInventoryLevelServiceInterface;
 use Modules\Inventory\Application\Contracts\DeleteInventoryLevelServiceInterface;
 use Modules\Inventory\Application\Contracts\FindInventoryLevelServiceInterface;
+use Modules\Inventory\Application\Contracts\ReleaseStockServiceInterface;
+use Modules\Inventory\Application\Contracts\ReserveStockServiceInterface;
 use Modules\Inventory\Application\Contracts\UpdateInventoryLevelServiceInterface;
 use Modules\Inventory\Application\DTOs\InventoryLevelData;
 use Modules\Inventory\Infrastructure\Http\Requests\StoreInventoryLevelRequest;
@@ -24,6 +27,9 @@ class InventoryLevelController extends AuthorizedController
         protected CreateInventoryLevelServiceInterface $createService,
         protected UpdateInventoryLevelServiceInterface $updateService,
         protected DeleteInventoryLevelServiceInterface $deleteService,
+        protected ReserveStockServiceInterface $reserveService,
+        protected ReleaseStockServiceInterface $releaseService,
+        protected AdjustInventoryServiceInterface $adjustService,
     ) {}
 
     public function index(Request $request): InventoryLevelCollection
@@ -72,5 +78,38 @@ class InventoryLevelController extends AuthorizedController
     {
         $this->deleteService->execute(['id' => $id]);
         return response()->json(['message' => 'Inventory level deleted successfully']);
+    }
+
+    public function reserve(Request $request, int $id): InventoryLevelResource
+    {
+        $level = $this->reserveService->execute([
+            'id'  => $id,
+            'qty' => (float) $request->input('qty', 0),
+        ]);
+
+        return new InventoryLevelResource($level);
+    }
+
+    public function release(Request $request, int $id): InventoryLevelResource
+    {
+        $level = $this->releaseService->execute([
+            'id'  => $id,
+            'qty' => (float) $request->input('qty', 0),
+        ]);
+
+        return new InventoryLevelResource($level);
+    }
+
+    public function adjust(Request $request, int $id): InventoryLevelResource
+    {
+        $level = $this->adjustService->execute([
+            'id'            => $id,
+            'adjustmentQty' => (float) $request->input('adjustment_qty'),
+            'reason'        => $request->input('reason', ''),
+            'adjustedBy'    => $request->integer('adjusted_by') ?: null,
+            'notes'         => $request->input('notes'),
+        ]);
+
+        return new InventoryLevelResource($level);
     }
 }

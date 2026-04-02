@@ -8,6 +8,7 @@ use Modules\StockMovement\Infrastructure\Http\Controllers\StockMovementControlle
 Route::prefix('stock-movements')->group(function () {
     Route::get('/', [StockMovementController::class, 'index']);
     Route::post('/', [StockMovementController::class, 'store']);
+    Route::post('/transfer', [StockMovementController::class, 'transfer']);
     Route::get('/{id}', [StockMovementController::class, 'show']);
     Route::put('/{id}', [StockMovementController::class, 'update']);
     Route::delete('/{id}', [StockMovementController::class, 'destroy']);

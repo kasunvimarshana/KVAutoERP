@@ -29,6 +29,9 @@ Route::prefix('inventory')->group(function () {
 
     // Levels
     Route::apiResource('levels', InventoryLevelController::class);
+    Route::post('levels/{id}/reserve', [InventoryLevelController::class, 'reserve']);
+    Route::post('levels/{id}/release', [InventoryLevelController::class, 'release']);
+    Route::post('levels/{id}/adjust', [InventoryLevelController::class, 'adjust']);
 
     // Valuation layers (read + create only; consumed by internal services)
     Route::get('valuation-layers', [InventoryValuationLayerController::class, 'index']);
@@ -37,6 +40,7 @@ Route::prefix('inventory')->group(function () {
 
     // Cycle counts
     Route::apiResource('cycle-counts', InventoryCycleCountController::class);
+    Route::post('cycle-counts/{id}/reconcile', [InventoryCycleCountController::class, 'reconcile']);
 
     // Cycle count lines
     Route::apiResource('cycle-count-lines', InventoryCycleCountLineController::class);

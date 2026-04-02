@@ -22,6 +22,7 @@ class GoodsReceipt
     private ?int $receivedBy;
     private ?int $approvedBy;
     private ?\DateTimeInterface $approvedAt;
+    private ?int $putAwayBy;
     private \DateTimeInterface $createdAt;
     private \DateTimeInterface $updatedAt;
 
@@ -39,6 +40,7 @@ class GoodsReceipt
         ?int $receivedBy = null,
         ?int $approvedBy = null,
         ?\DateTimeInterface $approvedAt = null,
+        ?int $putAwayBy = null,
         ?int $id = null,
         ?\DateTimeInterface $createdAt = null,
         ?\DateTimeInterface $updatedAt = null,
@@ -57,6 +59,7 @@ class GoodsReceipt
         $this->receivedBy      = $receivedBy;
         $this->approvedBy      = $approvedBy;
         $this->approvedAt      = $approvedAt;
+        $this->putAwayBy       = $putAwayBy;
         $this->createdAt       = $createdAt ?? new \DateTimeImmutable;
         $this->updatedAt       = $updatedAt ?? new \DateTimeImmutable;
     }
@@ -75,6 +78,7 @@ class GoodsReceipt
     public function getReceivedBy(): ?int { return $this->receivedBy; }
     public function getApprovedBy(): ?int { return $this->approvedBy; }
     public function getApprovedAt(): ?\DateTimeInterface { return $this->approvedAt; }
+    public function getPutAwayBy(): ?int { return $this->putAwayBy; }
     public function getCreatedAt(): \DateTimeInterface { return $this->createdAt; }
     public function getUpdatedAt(): \DateTimeInterface { return $this->updatedAt; }
 
@@ -105,6 +109,13 @@ class GoodsReceipt
         $this->updatedAt = new \DateTimeImmutable;
     }
 
+    public function putAway(int $putAwayBy): void
+    {
+        $this->status    = 'put_away';
+        $this->putAwayBy = $putAwayBy;
+        $this->updatedAt = new \DateTimeImmutable;
+    }
+
     public function cancel(): void
     {
         $this->status    = 'cancelled';
@@ -114,6 +125,7 @@ class GoodsReceipt
     public function isDraft(): bool { return $this->status === 'draft'; }
     public function isApproved(): bool { return $this->status === 'approved'; }
     public function isCancelled(): bool { return $this->status === 'cancelled'; }
+    public function isPutAway(): bool { return $this->status === 'put_away'; }
 
     public function updateDetails(?string $notes, ?array $metadata, ?int $warehouseId = null, ?\DateTimeInterface $receivedDate = null): void
     {

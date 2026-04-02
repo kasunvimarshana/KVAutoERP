@@ -12,6 +12,7 @@ use Modules\GoodsReceipt\Application\Contracts\CancelGoodsReceiptServiceInterfac
 use Modules\GoodsReceipt\Application\Contracts\CreateGoodsReceiptServiceInterface;
 use Modules\GoodsReceipt\Application\Contracts\DeleteGoodsReceiptServiceInterface;
 use Modules\GoodsReceipt\Application\Contracts\FindGoodsReceiptServiceInterface;
+use Modules\GoodsReceipt\Application\Contracts\PutAwayGoodsReceiptServiceInterface;
 use Modules\GoodsReceipt\Application\Contracts\ReceiveGoodsReceiptServiceInterface;
 use Modules\GoodsReceipt\Application\Contracts\UpdateGoodsReceiptServiceInterface;
 use Modules\GoodsReceipt\Application\DTOs\GoodsReceiptData;
@@ -31,6 +32,7 @@ class GoodsReceiptController extends AuthorizedController
         protected ReceiveGoodsReceiptServiceInterface $receiveService,
         protected ApproveGoodsReceiptServiceInterface $approveService,
         protected CancelGoodsReceiptServiceInterface $cancelService,
+        protected PutAwayGoodsReceiptServiceInterface $putAwayService,
     ) {}
 
     public function index(Request $request): GoodsReceiptCollection
@@ -118,6 +120,16 @@ class GoodsReceiptController extends AuthorizedController
     public function cancel(int $id): JsonResponse
     {
         $receipt = $this->cancelService->execute(['id' => $id]);
+
+        return (new GoodsReceiptResource($receipt))->response();
+    }
+
+    public function putAway(Request $request, int $id): JsonResponse
+    {
+        $receipt = $this->putAwayService->execute([
+            'id'          => $id,
+            'put_away_by' => $request->integer('put_away_by'),
+        ]);
 
         return (new GoodsReceiptResource($receipt))->response();
     }
