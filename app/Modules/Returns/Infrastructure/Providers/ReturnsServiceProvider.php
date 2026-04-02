@@ -38,10 +38,42 @@ use Modules\Returns\Application\Services\ProcessReturnInventoryAdjustmentService
 use Modules\Returns\Application\Services\RejectStockReturnService;
 use Modules\Returns\Application\Services\UpdateStockReturnLineService;
 use Modules\Returns\Application\Services\UpdateStockReturnService;
+use Modules\Returns\Application\Contracts\ApplyCreditMemoServiceInterface;
+use Modules\Returns\Application\Contracts\ApproveReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\CancelReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\CreateCreditMemoServiceInterface;
+use Modules\Returns\Application\Contracts\CreateReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\DeleteCreditMemoServiceInterface;
+use Modules\Returns\Application\Contracts\DeleteReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\ExpireReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\FindCreditMemoServiceInterface;
+use Modules\Returns\Application\Contracts\FindReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\IssueCreditMemoDocumentServiceInterface;
+use Modules\Returns\Application\Contracts\UpdateReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\VoidCreditMemoServiceInterface;
+use Modules\Returns\Application\Services\ApplyCreditMemoService;
+use Modules\Returns\Application\Services\ApproveReturnAuthorizationService;
+use Modules\Returns\Application\Services\CancelReturnAuthorizationService;
+use Modules\Returns\Application\Services\CreateCreditMemoService;
+use Modules\Returns\Application\Services\CreateReturnAuthorizationService;
+use Modules\Returns\Application\Services\DeleteCreditMemoService;
+use Modules\Returns\Application\Services\DeleteReturnAuthorizationService;
+use Modules\Returns\Application\Services\ExpireReturnAuthorizationService;
+use Modules\Returns\Application\Services\FindCreditMemoService;
+use Modules\Returns\Application\Services\FindReturnAuthorizationService;
+use Modules\Returns\Application\Services\IssueCreditMemoDocumentService;
+use Modules\Returns\Application\Services\UpdateReturnAuthorizationService;
+use Modules\Returns\Application\Services\VoidCreditMemoService;
+use Modules\Returns\Domain\RepositoryInterfaces\CreditMemoRepositoryInterface;
+use Modules\Returns\Domain\RepositoryInterfaces\ReturnAuthorizationRepositoryInterface;
 use Modules\Returns\Domain\RepositoryInterfaces\StockReturnLineRepositoryInterface;
 use Modules\Returns\Domain\RepositoryInterfaces\StockReturnRepositoryInterface;
+use Modules\Returns\Infrastructure\Persistence\Eloquent\Models\CreditMemoModel;
+use Modules\Returns\Infrastructure\Persistence\Eloquent\Models\ReturnAuthorizationModel;
 use Modules\Returns\Infrastructure\Persistence\Eloquent\Models\StockReturnLineModel;
 use Modules\Returns\Infrastructure\Persistence\Eloquent\Models\StockReturnModel;
+use Modules\Returns\Infrastructure\Persistence\Eloquent\Repositories\EloquentCreditMemoRepository;
+use Modules\Returns\Infrastructure\Persistence\Eloquent\Repositories\EloquentReturnAuthorizationRepository;
 use Modules\Returns\Infrastructure\Persistence\Eloquent\Repositories\EloquentStockReturnLineRepository;
 use Modules\Returns\Infrastructure\Persistence\Eloquent\Repositories\EloquentStockReturnRepository;
 use Modules\Inventory\Domain\RepositoryInterfaces\InventoryLevelRepositoryInterface;
@@ -119,6 +151,54 @@ class ReturnsServiceProvider extends ServiceProvider
 
         $this->app->bind(FailQualityCheckServiceInterface::class, fn ($app) =>
             new FailQualityCheckService($app->make(StockReturnLineRepositoryInterface::class)));
+        // --- Repositories: CreditMemo ---
+        $this->app->bind(CreditMemoRepositoryInterface::class, fn ($app) =>
+            new EloquentCreditMemoRepository($app->make(CreditMemoModel::class)));
+
+        // --- Services: CreditMemo ---
+        $this->app->bind(CreateCreditMemoServiceInterface::class, fn ($app) =>
+            new CreateCreditMemoService($app->make(CreditMemoRepositoryInterface::class)));
+
+        $this->app->bind(FindCreditMemoServiceInterface::class, fn ($app) =>
+            new FindCreditMemoService($app->make(CreditMemoRepositoryInterface::class)));
+
+        $this->app->bind(IssueCreditMemoDocumentServiceInterface::class, fn ($app) =>
+            new IssueCreditMemoDocumentService($app->make(CreditMemoRepositoryInterface::class)));
+
+        $this->app->bind(ApplyCreditMemoServiceInterface::class, fn ($app) =>
+            new ApplyCreditMemoService($app->make(CreditMemoRepositoryInterface::class)));
+
+        $this->app->bind(VoidCreditMemoServiceInterface::class, fn ($app) =>
+            new VoidCreditMemoService($app->make(CreditMemoRepositoryInterface::class)));
+
+        $this->app->bind(DeleteCreditMemoServiceInterface::class, fn ($app) =>
+            new DeleteCreditMemoService($app->make(CreditMemoRepositoryInterface::class)));
+
+        // --- Repositories: ReturnAuthorization ---
+        $this->app->bind(ReturnAuthorizationRepositoryInterface::class, fn ($app) =>
+            new EloquentReturnAuthorizationRepository($app->make(ReturnAuthorizationModel::class)));
+
+        // --- Services: ReturnAuthorization ---
+        $this->app->bind(CreateReturnAuthorizationServiceInterface::class, fn ($app) =>
+            new CreateReturnAuthorizationService($app->make(ReturnAuthorizationRepositoryInterface::class)));
+
+        $this->app->bind(FindReturnAuthorizationServiceInterface::class, fn ($app) =>
+            new FindReturnAuthorizationService($app->make(ReturnAuthorizationRepositoryInterface::class)));
+
+        $this->app->bind(ApproveReturnAuthorizationServiceInterface::class, fn ($app) =>
+            new ApproveReturnAuthorizationService($app->make(ReturnAuthorizationRepositoryInterface::class)));
+
+        $this->app->bind(CancelReturnAuthorizationServiceInterface::class, fn ($app) =>
+            new CancelReturnAuthorizationService($app->make(ReturnAuthorizationRepositoryInterface::class)));
+
+        $this->app->bind(ExpireReturnAuthorizationServiceInterface::class, fn ($app) =>
+            new ExpireReturnAuthorizationService($app->make(ReturnAuthorizationRepositoryInterface::class)));
+
+        $this->app->bind(DeleteReturnAuthorizationServiceInterface::class, fn ($app) =>
+            new DeleteReturnAuthorizationService($app->make(ReturnAuthorizationRepositoryInterface::class)));
+
+        $this->app->bind(UpdateReturnAuthorizationServiceInterface::class, fn ($app) =>
+            new UpdateReturnAuthorizationService($app->make(ReturnAuthorizationRepositoryInterface::class)));
     }
 
     public function boot(): void

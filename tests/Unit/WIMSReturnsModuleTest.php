@@ -99,6 +99,68 @@ use Modules\Returns\Infrastructure\Http\Resources\StockReturnLineResource;
 use Modules\Returns\Infrastructure\Http\Resources\StockReturnLineCollection;
 use Modules\Returns\Infrastructure\Providers\ReturnsServiceProvider;
 
+// ── Returns — Credit Memo ─────────────────────────────────────────────────────
+use Modules\Returns\Domain\ValueObjects\CreditMemoStatus;
+use Modules\Returns\Domain\Entities\CreditMemo;
+use Modules\Returns\Domain\Events\CreditMemoCreated;
+use Modules\Returns\Domain\Events\CreditMemoIssued;
+use Modules\Returns\Domain\Events\CreditMemoApplied;
+use Modules\Returns\Domain\Events\CreditMemoVoided;
+use Modules\Returns\Domain\Exceptions\CreditMemoNotFoundException;
+use Modules\Returns\Domain\RepositoryInterfaces\CreditMemoRepositoryInterface;
+use Modules\Returns\Application\DTOs\CreditMemoData;
+use Modules\Returns\Application\DTOs\UpdateCreditMemoData;
+use Modules\Returns\Application\Contracts\CreateCreditMemoServiceInterface;
+use Modules\Returns\Application\Contracts\FindCreditMemoServiceInterface;
+use Modules\Returns\Application\Contracts\IssueCreditMemoDocumentServiceInterface;
+use Modules\Returns\Application\Contracts\ApplyCreditMemoServiceInterface;
+use Modules\Returns\Application\Contracts\VoidCreditMemoServiceInterface;
+use Modules\Returns\Application\Contracts\DeleteCreditMemoServiceInterface;
+use Modules\Returns\Application\Services\CreateCreditMemoService;
+use Modules\Returns\Application\Services\FindCreditMemoService;
+use Modules\Returns\Application\Services\IssueCreditMemoDocumentService;
+use Modules\Returns\Application\Services\ApplyCreditMemoService;
+use Modules\Returns\Application\Services\VoidCreditMemoService;
+use Modules\Returns\Application\Services\DeleteCreditMemoService;
+use Modules\Returns\Infrastructure\Persistence\Eloquent\Models\CreditMemoModel;
+use Modules\Returns\Infrastructure\Persistence\Eloquent\Repositories\EloquentCreditMemoRepository;
+use Modules\Returns\Infrastructure\Http\Controllers\CreditMemoController;
+use Modules\Returns\Infrastructure\Http\Requests\StoreCreditMemoRequest;
+use Modules\Returns\Infrastructure\Http\Resources\CreditMemoResource;
+use Modules\Returns\Infrastructure\Http\Resources\CreditMemoCollection;
+
+// ── Returns — Return Authorization (RMA) ─────────────────────────────────────
+use Modules\Returns\Domain\ValueObjects\ReturnAuthorizationStatus;
+use Modules\Returns\Domain\Entities\ReturnAuthorization;
+use Modules\Returns\Domain\Events\ReturnAuthorizationCreated;
+use Modules\Returns\Domain\Events\ReturnAuthorizationApproved;
+use Modules\Returns\Domain\Events\ReturnAuthorizationExpired;
+use Modules\Returns\Domain\Events\ReturnAuthorizationCancelled;
+use Modules\Returns\Domain\Exceptions\ReturnAuthorizationNotFoundException;
+use Modules\Returns\Domain\RepositoryInterfaces\ReturnAuthorizationRepositoryInterface;
+use Modules\Returns\Application\DTOs\ReturnAuthorizationData;
+use Modules\Returns\Application\DTOs\UpdateReturnAuthorizationData;
+use Modules\Returns\Application\Contracts\CreateReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\FindReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\ApproveReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\CancelReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\ExpireReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\DeleteReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Contracts\UpdateReturnAuthorizationServiceInterface;
+use Modules\Returns\Application\Services\CreateReturnAuthorizationService;
+use Modules\Returns\Application\Services\FindReturnAuthorizationService;
+use Modules\Returns\Application\Services\ApproveReturnAuthorizationService;
+use Modules\Returns\Application\Services\CancelReturnAuthorizationService;
+use Modules\Returns\Application\Services\ExpireReturnAuthorizationService;
+use Modules\Returns\Application\Services\DeleteReturnAuthorizationService;
+use Modules\Returns\Application\Services\UpdateReturnAuthorizationService;
+use Modules\Returns\Infrastructure\Persistence\Eloquent\Models\ReturnAuthorizationModel;
+use Modules\Returns\Infrastructure\Persistence\Eloquent\Repositories\EloquentReturnAuthorizationRepository;
+use Modules\Returns\Infrastructure\Http\Controllers\ReturnAuthorizationController;
+use Modules\Returns\Infrastructure\Http\Requests\StoreReturnAuthorizationRequest;
+use Modules\Returns\Infrastructure\Http\Resources\ReturnAuthorizationResource;
+use Modules\Returns\Infrastructure\Http\Resources\ReturnAuthorizationCollection;
+
 // ── Core ─────────────────────────────────────────────────────────────────────
 use Modules\Core\Domain\Events\BaseEvent;
 use Modules\Core\Application\DTOs\BaseDto;
@@ -1951,5 +2013,1123 @@ class WIMSReturnsModuleTest extends TestCase
         $this->assertSame('failed', $line->getQualityCheckStatus());
         $this->assertSame('damaged', $line->getCondition());
         $this->assertSame('scrap', $line->getDisposition());
+    // CREDIT MEMO STATUS — VALUE OBJECT
+    // ========================================================================
+
+    public function test_credit_memo_status_draft_constant(): void
+    {
+        $this->assertEquals('draft', CreditMemoStatus::DRAFT);
+    }
+
+    public function test_credit_memo_status_issued_constant(): void
+    {
+        $this->assertEquals('issued', CreditMemoStatus::ISSUED);
+    }
+
+    public function test_credit_memo_status_applied_constant(): void
+    {
+        $this->assertEquals('applied', CreditMemoStatus::APPLIED);
+    }
+
+    public function test_credit_memo_status_voided_constant(): void
+    {
+        $this->assertEquals('voided', CreditMemoStatus::VOIDED);
+    }
+
+    public function test_credit_memo_status_values_contains_all(): void
+    {
+        $values = CreditMemoStatus::values();
+        $this->assertContains('draft',   $values);
+        $this->assertContains('issued',  $values);
+        $this->assertContains('applied', $values);
+        $this->assertContains('voided',  $values);
+        $this->assertCount(4, $values);
+    }
+
+    // ========================================================================
+    // CREDIT MEMO — ENTITY
+    // ========================================================================
+
+    public function test_credit_memo_entity_defaults(): void
+    {
+        $memo = new CreditMemo(
+            tenantId:        1,
+            referenceNumber: 'CM-001',
+            partyId:         10,
+            partyType:       'customer',
+        );
+
+        $this->assertEquals(1, $memo->getTenantId());
+        $this->assertEquals('CM-001', $memo->getReferenceNumber());
+        $this->assertEquals(10, $memo->getPartyId());
+        $this->assertEquals('customer', $memo->getPartyType());
+        $this->assertEquals('draft', $memo->getStatus());
+        $this->assertEquals(0.0, $memo->getAmount());
+        $this->assertEquals('USD', $memo->getCurrency());
+        $this->assertNull($memo->getId());
+        $this->assertNull($memo->getStockReturnId());
+        $this->assertNull($memo->getIssueDate());
+        $this->assertNull($memo->getAppliedDate());
+        $this->assertNull($memo->getVoidedDate());
+        $this->assertNull($memo->getNotes());
+        $this->assertTrue($memo->isDraft());
+        $this->assertFalse($memo->isIssued());
+        $this->assertFalse($memo->isApplied());
+        $this->assertFalse($memo->isVoided());
+    }
+
+    public function test_credit_memo_entity_with_all_fields(): void
+    {
+        $memo = new CreditMemo(
+            tenantId:        2,
+            referenceNumber: 'CM-002',
+            partyId:         20,
+            partyType:       'supplier',
+            stockReturnId:   55,
+            amount:          1500.00,
+            currency:        'EUR',
+            notes:           'Partial credit for damaged goods',
+            status:          'issued',
+            id:              99,
+        );
+
+        $this->assertEquals(2, $memo->getTenantId());
+        $this->assertEquals('CM-002', $memo->getReferenceNumber());
+        $this->assertEquals(20, $memo->getPartyId());
+        $this->assertEquals('supplier', $memo->getPartyType());
+        $this->assertEquals(55, $memo->getStockReturnId());
+        $this->assertEquals(1500.00, $memo->getAmount());
+        $this->assertEquals('EUR', $memo->getCurrency());
+        $this->assertEquals('issued', $memo->getStatus());
+        $this->assertEquals(99, $memo->getId());
+        $this->assertEquals('Partial credit for damaged goods', $memo->getNotes());
+        $this->assertTrue($memo->isIssued());
+    }
+
+    public function test_credit_memo_issue_transition(): void
+    {
+        $memo = new CreditMemo(
+            tenantId:        1,
+            referenceNumber: 'CM-ISSUE-001',
+            partyId:         5,
+            partyType:       'customer',
+            amount:          250.00,
+        );
+
+        $this->assertTrue($memo->isDraft());
+        $this->assertNull($memo->getIssueDate());
+
+        $memo->issue();
+
+        $this->assertTrue($memo->isIssued());
+        $this->assertEquals('issued', $memo->getStatus());
+        $this->assertNotNull($memo->getIssueDate());
+        $this->assertFalse($memo->isDraft());
+    }
+
+    public function test_credit_memo_apply_transition(): void
+    {
+        $memo = new CreditMemo(
+            tenantId:        1,
+            referenceNumber: 'CM-APPLY-001',
+            partyId:         5,
+            partyType:       'customer',
+            amount:          500.00,
+            status:          'issued',
+        );
+
+        $this->assertNull($memo->getAppliedDate());
+        $memo->apply();
+
+        $this->assertTrue($memo->isApplied());
+        $this->assertEquals('applied', $memo->getStatus());
+        $this->assertNotNull($memo->getAppliedDate());
+        $this->assertFalse($memo->isIssued());
+    }
+
+    public function test_credit_memo_void_transition(): void
+    {
+        $memo = new CreditMemo(
+            tenantId:        1,
+            referenceNumber: 'CM-VOID-001',
+            partyId:         5,
+            partyType:       'customer',
+            amount:          750.00,
+            status:          'issued',
+        );
+
+        $this->assertNull($memo->getVoidedDate());
+        $memo->void();
+
+        $this->assertTrue($memo->isVoided());
+        $this->assertEquals('voided', $memo->getStatus());
+        $this->assertNotNull($memo->getVoidedDate());
+    }
+
+    public function test_credit_memo_update_details(): void
+    {
+        $memo = new CreditMemo(
+            tenantId:        1,
+            referenceNumber: 'CM-UPDATE-001',
+            partyId:         5,
+            partyType:       'customer',
+        );
+
+        $memo->updateDetails('Updated notes', ['reason' => 'quality issue']);
+
+        $this->assertEquals('Updated notes', $memo->getNotes());
+        $this->assertEquals(['reason' => 'quality issue'], $memo->getMetadata()->toArray());
+    }
+
+    public function test_credit_memo_timestamps_set_by_default(): void
+    {
+        $memo = new CreditMemo(
+            tenantId:        1,
+            referenceNumber: 'CM-TS-001',
+            partyId:         5,
+            partyType:       'customer',
+        );
+
+        $this->assertInstanceOf(\DateTimeInterface::class, $memo->getCreatedAt());
+        $this->assertInstanceOf(\DateTimeInterface::class, $memo->getUpdatedAt());
+    }
+
+    public function test_credit_memo_linked_to_stock_return(): void
+    {
+        $memo = new CreditMemo(
+            tenantId:        1,
+            referenceNumber: 'CM-SR-001',
+            partyId:         10,
+            partyType:       'customer',
+            stockReturnId:   42,
+            amount:          300.00,
+        );
+
+        $this->assertEquals(42, $memo->getStockReturnId());
+    }
+
+    // ========================================================================
+    // CREDIT MEMO — EVENTS
+    // ========================================================================
+
+    public function test_credit_memo_created_event_extends_base_event(): void
+    {
+        $memo  = new CreditMemo(1, 'CM-EVT-001', 5, 'customer', null, 100.0);
+        $event = new CreditMemoCreated($memo);
+
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame($memo, $event->creditMemo);
+        $this->assertEquals(1, $event->tenantId);
+    }
+
+    public function test_credit_memo_issued_event_extends_base_event(): void
+    {
+        $memo  = new CreditMemo(1, 'CM-EVT-002', 5, 'customer');
+        $event = new CreditMemoIssued($memo);
+
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame($memo, $event->creditMemo);
+    }
+
+    public function test_credit_memo_applied_event_extends_base_event(): void
+    {
+        $memo  = new CreditMemo(1, 'CM-EVT-003', 5, 'customer');
+        $event = new CreditMemoApplied($memo);
+
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame($memo, $event->creditMemo);
+    }
+
+    public function test_credit_memo_voided_event_extends_base_event(): void
+    {
+        $memo  = new CreditMemo(1, 'CM-EVT-004', 5, 'customer');
+        $event = new CreditMemoVoided($memo);
+
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame($memo, $event->creditMemo);
+    }
+
+    public function test_credit_memo_created_event_broadcast_with(): void
+    {
+        $memo  = new CreditMemo(1, 'CM-BCAST-001', 5, 'customer', null, 200.0, 'USD', null, null, null, null, null, 'draft', 77);
+        $event = new CreditMemoCreated($memo);
+
+        $payload = $event->broadcastWith();
+
+        $this->assertArrayHasKey('id', $payload);
+        $this->assertArrayHasKey('tenant_id', $payload);
+        $this->assertArrayHasKey('reference_number', $payload);
+        $this->assertArrayHasKey('status', $payload);
+        $this->assertEquals(77, $payload['id']);
+        $this->assertEquals(1, $payload['tenant_id']);
+        $this->assertEquals('CM-BCAST-001', $payload['reference_number']);
+        $this->assertEquals('draft', $payload['status']);
+    }
+
+    // ========================================================================
+    // CREDIT MEMO — EXCEPTIONS
+    // ========================================================================
+
+    public function test_credit_memo_not_found_exception(): void
+    {
+        $exception = new CreditMemoNotFoundException(99);
+        $this->assertStringContainsString('99', $exception->getMessage());
+    }
+
+    // ========================================================================
+    // CREDIT MEMO — DTOs
+    // ========================================================================
+
+    public function test_credit_memo_data_extends_base_dto(): void
+    {
+        $this->assertTrue(is_subclass_of(CreditMemoData::class, BaseDto::class));
+    }
+
+    public function test_update_credit_memo_data_extends_base_dto(): void
+    {
+        $this->assertTrue(is_subclass_of(UpdateCreditMemoData::class, BaseDto::class));
+    }
+
+    // ========================================================================
+    // CREDIT MEMO — SERVICE INTERFACES
+    // ========================================================================
+
+    public function test_create_credit_memo_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_subclass_of(CreateCreditMemoServiceInterface::class, WriteServiceInterface::class));
+    }
+
+    public function test_find_credit_memo_service_interface_is_read_service(): void
+    {
+        $this->assertTrue(is_subclass_of(FindCreditMemoServiceInterface::class, ReadServiceInterface::class));
+    }
+
+    public function test_issue_credit_memo_document_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_subclass_of(IssueCreditMemoDocumentServiceInterface::class, WriteServiceInterface::class));
+    }
+
+    public function test_apply_credit_memo_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_subclass_of(ApplyCreditMemoServiceInterface::class, WriteServiceInterface::class));
+    }
+
+    public function test_void_credit_memo_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_subclass_of(VoidCreditMemoServiceInterface::class, WriteServiceInterface::class));
+    }
+
+    public function test_delete_credit_memo_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_subclass_of(DeleteCreditMemoServiceInterface::class, WriteServiceInterface::class));
+    }
+
+    // ========================================================================
+    // CREDIT MEMO — SERVICES
+    // ========================================================================
+
+    public function test_create_credit_memo_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_subclass_of(CreateCreditMemoService::class, BaseService::class));
+    }
+
+    public function test_find_credit_memo_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_subclass_of(FindCreditMemoService::class, BaseService::class));
+    }
+
+    public function test_issue_credit_memo_document_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_subclass_of(IssueCreditMemoDocumentService::class, BaseService::class));
+    }
+
+    public function test_apply_credit_memo_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_subclass_of(ApplyCreditMemoService::class, BaseService::class));
+    }
+
+    public function test_void_credit_memo_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_subclass_of(VoidCreditMemoService::class, BaseService::class));
+    }
+
+    public function test_create_credit_memo_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(CreateCreditMemoService::class, CreateCreditMemoServiceInterface::class));
+    }
+
+    public function test_issue_credit_memo_document_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(IssueCreditMemoDocumentService::class, IssueCreditMemoDocumentServiceInterface::class));
+    }
+
+    public function test_apply_credit_memo_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(ApplyCreditMemoService::class, ApplyCreditMemoServiceInterface::class));
+    }
+
+    public function test_void_credit_memo_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(VoidCreditMemoService::class, VoidCreditMemoServiceInterface::class));
+    }
+
+    // ========================================================================
+    // CREDIT MEMO — INFRASTRUCTURE
+    // ========================================================================
+
+    public function test_credit_memo_model_table(): void
+    {
+        $model = new CreditMemoModel;
+        $this->assertEquals('credit_memos', $model->getTable());
+    }
+
+    public function test_credit_memo_model_fillable_includes_tenant_id(): void
+    {
+        $model = new CreditMemoModel;
+        $this->assertContains('tenant_id', $model->getFillable());
+    }
+
+    public function test_credit_memo_model_fillable_includes_status(): void
+    {
+        $model = new CreditMemoModel;
+        $this->assertContains('status', $model->getFillable());
+    }
+
+    public function test_credit_memo_model_fillable_includes_amount(): void
+    {
+        $model = new CreditMemoModel;
+        $this->assertContains('amount', $model->getFillable());
+    }
+
+    public function test_credit_memo_model_fillable_includes_reference_number(): void
+    {
+        $model = new CreditMemoModel;
+        $this->assertContains('reference_number', $model->getFillable());
+    }
+
+    public function test_eloquent_credit_memo_repo_implements_interface(): void
+    {
+        $this->assertTrue(
+            in_array(CreditMemoRepositoryInterface::class, class_implements(EloquentCreditMemoRepository::class))
+        );
+    }
+
+    public function test_credit_memo_controller_class_exists(): void
+    {
+        $this->assertTrue(class_exists(CreditMemoController::class));
+    }
+
+    public function test_store_credit_memo_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(StoreCreditMemoRequest::class));
+    }
+
+    public function test_credit_memo_resource_class_exists(): void
+    {
+        $this->assertTrue(class_exists(CreditMemoResource::class));
+    }
+
+    public function test_credit_memo_collection_class_exists(): void
+    {
+        $this->assertTrue(class_exists(CreditMemoCollection::class));
+    }
+
+    // ========================================================================
+    // RETURN AUTHORIZATION STATUS — VALUE OBJECT
+    // ========================================================================
+
+    public function test_return_authorization_status_pending_constant(): void
+    {
+        $this->assertEquals('pending', ReturnAuthorizationStatus::PENDING);
+    }
+
+    public function test_return_authorization_status_approved_constant(): void
+    {
+        $this->assertEquals('approved', ReturnAuthorizationStatus::APPROVED);
+    }
+
+    public function test_return_authorization_status_expired_constant(): void
+    {
+        $this->assertEquals('expired', ReturnAuthorizationStatus::EXPIRED);
+    }
+
+    public function test_return_authorization_status_cancelled_constant(): void
+    {
+        $this->assertEquals('cancelled', ReturnAuthorizationStatus::CANCELLED);
+    }
+
+    public function test_return_authorization_status_values_contains_all(): void
+    {
+        $values = ReturnAuthorizationStatus::values();
+        $this->assertContains('pending',   $values);
+        $this->assertContains('approved',  $values);
+        $this->assertContains('expired',   $values);
+        $this->assertContains('cancelled', $values);
+        $this->assertCount(4, $values);
+    }
+
+    // ========================================================================
+    // RETURN AUTHORIZATION — ENTITY
+    // ========================================================================
+
+    public function test_return_authorization_entity_defaults(): void
+    {
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-001',
+            returnType: 'sales_return',
+            partyId:    10,
+            partyType:  'customer',
+        );
+
+        $this->assertEquals(1, $auth->getTenantId());
+        $this->assertEquals('RMA-001', $auth->getRmaNumber());
+        $this->assertEquals('sales_return', $auth->getReturnType());
+        $this->assertEquals(10, $auth->getPartyId());
+        $this->assertEquals('customer', $auth->getPartyType());
+        $this->assertEquals('pending', $auth->getStatus());
+        $this->assertNull($auth->getId());
+        $this->assertNull($auth->getReason());
+        $this->assertNull($auth->getAuthorizedBy());
+        $this->assertNull($auth->getAuthorizedAt());
+        $this->assertNull($auth->getExpiresAt());
+        $this->assertNull($auth->getCancelledAt());
+        $this->assertNull($auth->getStockReturnId());
+        $this->assertNull($auth->getNotes());
+        $this->assertTrue($auth->isPending());
+        $this->assertFalse($auth->isApproved());
+        $this->assertFalse($auth->isExpired());
+        $this->assertFalse($auth->isCancelled());
+    }
+
+    public function test_return_authorization_entity_with_all_fields(): void
+    {
+        $auth = new ReturnAuthorization(
+            tenantId:    2,
+            rmaNumber:   'RMA-002',
+            returnType:  'purchase_return',
+            partyId:     20,
+            partyType:   'supplier',
+            reason:      'Defective goods received',
+            status:      'approved',
+            authorizedBy: 5,
+            stockReturnId: 99,
+            notes:       'Approved by warehouse manager',
+            id:          55,
+        );
+
+        $this->assertEquals(2, $auth->getTenantId());
+        $this->assertEquals('RMA-002', $auth->getRmaNumber());
+        $this->assertEquals('purchase_return', $auth->getReturnType());
+        $this->assertEquals(20, $auth->getPartyId());
+        $this->assertEquals('supplier', $auth->getPartyType());
+        $this->assertEquals('Defective goods received', $auth->getReason());
+        $this->assertEquals('approved', $auth->getStatus());
+        $this->assertEquals(5, $auth->getAuthorizedBy());
+        $this->assertEquals(99, $auth->getStockReturnId());
+        $this->assertEquals(55, $auth->getId());
+        $this->assertTrue($auth->isApproved());
+    }
+
+    public function test_return_authorization_approve_transition(): void
+    {
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-APR-001',
+            returnType: 'sales_return',
+            partyId:    5,
+            partyType:  'customer',
+        );
+
+        $this->assertTrue($auth->isPending());
+        $this->assertNull($auth->getAuthorizedBy());
+        $this->assertNull($auth->getAuthorizedAt());
+
+        $expiry = new \DateTimeImmutable('+30 days');
+        $auth->approve(7, $expiry);
+
+        $this->assertTrue($auth->isApproved());
+        $this->assertEquals('approved', $auth->getStatus());
+        $this->assertEquals(7, $auth->getAuthorizedBy());
+        $this->assertNotNull($auth->getAuthorizedAt());
+        $this->assertSame($expiry, $auth->getExpiresAt());
+        $this->assertFalse($auth->isPending());
+    }
+
+    public function test_return_authorization_approve_without_expiry(): void
+    {
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-APR-002',
+            returnType: 'sales_return',
+            partyId:    5,
+            partyType:  'customer',
+        );
+
+        $auth->approve(3);
+
+        $this->assertTrue($auth->isApproved());
+        $this->assertNull($auth->getExpiresAt());
+        $this->assertEquals(3, $auth->getAuthorizedBy());
+    }
+
+    public function test_return_authorization_cancel_transition(): void
+    {
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-CAN-001',
+            returnType: 'sales_return',
+            partyId:    5,
+            partyType:  'customer',
+        );
+
+        $this->assertNull($auth->getCancelledAt());
+        $auth->cancel();
+
+        $this->assertTrue($auth->isCancelled());
+        $this->assertEquals('cancelled', $auth->getStatus());
+        $this->assertNotNull($auth->getCancelledAt());
+    }
+
+    public function test_return_authorization_expire_transition(): void
+    {
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-EXP-001',
+            returnType: 'purchase_return',
+            partyId:    15,
+            partyType:  'supplier',
+            status:     'approved',
+        );
+
+        $auth->expire();
+
+        $this->assertTrue($auth->isExpired());
+        $this->assertEquals('expired', $auth->getStatus());
+    }
+
+    public function test_return_authorization_link_to_return(): void
+    {
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-LINK-001',
+            returnType: 'sales_return',
+            partyId:    5,
+            partyType:  'customer',
+            status:     'approved',
+        );
+
+        $this->assertNull($auth->getStockReturnId());
+        $auth->linkToReturn(123);
+
+        $this->assertEquals(123, $auth->getStockReturnId());
+    }
+
+    public function test_return_authorization_update_details(): void
+    {
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-UPD-001',
+            returnType: 'sales_return',
+            partyId:    5,
+            partyType:  'customer',
+        );
+
+        $auth->updateDetails('Damaged packaging', 'Please inspect carefully', ['priority' => 'high']);
+
+        $this->assertEquals('Damaged packaging', $auth->getReason());
+        $this->assertEquals('Please inspect carefully', $auth->getNotes());
+        $this->assertEquals(['priority' => 'high'], $auth->getMetadata()->toArray());
+    }
+
+    public function test_return_authorization_timestamps_set_by_default(): void
+    {
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-TS-001',
+            returnType: 'sales_return',
+            partyId:    5,
+            partyType:  'customer',
+        );
+
+        $this->assertInstanceOf(\DateTimeInterface::class, $auth->getCreatedAt());
+        $this->assertInstanceOf(\DateTimeInterface::class, $auth->getUpdatedAt());
+    }
+
+    // ========================================================================
+    // RETURN AUTHORIZATION — EVENTS
+    // ========================================================================
+
+    public function test_return_authorization_created_event_extends_base_event(): void
+    {
+        $auth  = new ReturnAuthorization(1, 'RMA-EVT-001', 'sales_return', 5, 'customer');
+        $event = new ReturnAuthorizationCreated($auth);
+
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame($auth, $event->authorization);
+        $this->assertEquals(1, $event->tenantId);
+    }
+
+    public function test_return_authorization_approved_event_extends_base_event(): void
+    {
+        $auth  = new ReturnAuthorization(1, 'RMA-EVT-002', 'sales_return', 5, 'customer');
+        $event = new ReturnAuthorizationApproved($auth);
+
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame($auth, $event->authorization);
+    }
+
+    public function test_return_authorization_expired_event_extends_base_event(): void
+    {
+        $auth  = new ReturnAuthorization(1, 'RMA-EVT-003', 'purchase_return', 5, 'supplier');
+        $event = new ReturnAuthorizationExpired($auth);
+
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame($auth, $event->authorization);
+    }
+
+    public function test_return_authorization_cancelled_event_extends_base_event(): void
+    {
+        $auth  = new ReturnAuthorization(1, 'RMA-EVT-004', 'sales_return', 5, 'customer');
+        $event = new ReturnAuthorizationCancelled($auth);
+
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame($auth, $event->authorization);
+    }
+
+    public function test_return_authorization_created_event_broadcast_with(): void
+    {
+        $auth  = new ReturnAuthorization(1, 'RMA-BCAST-001', 'sales_return', 5, 'customer', null, 'pending', null, null, null, null, null, null, null, 42);
+        $event = new ReturnAuthorizationCreated($auth);
+
+        $payload = $event->broadcastWith();
+
+        $this->assertArrayHasKey('id', $payload);
+        $this->assertArrayHasKey('tenant_id', $payload);
+        $this->assertArrayHasKey('rma_number', $payload);
+        $this->assertArrayHasKey('status', $payload);
+        $this->assertEquals(42, $payload['id']);
+        $this->assertEquals(1, $payload['tenant_id']);
+        $this->assertEquals('RMA-BCAST-001', $payload['rma_number']);
+        $this->assertEquals('pending', $payload['status']);
+    }
+
+    // ========================================================================
+    // RETURN AUTHORIZATION — EXCEPTIONS
+    // ========================================================================
+
+    public function test_return_authorization_not_found_exception(): void
+    {
+        $exception = new ReturnAuthorizationNotFoundException(77);
+        $this->assertStringContainsString('77', $exception->getMessage());
+    }
+
+    // ========================================================================
+    // RETURN AUTHORIZATION — DTOs
+    // ========================================================================
+
+    public function test_return_authorization_data_extends_base_dto(): void
+    {
+        $this->assertTrue(is_subclass_of(ReturnAuthorizationData::class, BaseDto::class));
+    }
+
+    public function test_update_return_authorization_data_extends_base_dto(): void
+    {
+        $this->assertTrue(is_subclass_of(UpdateReturnAuthorizationData::class, BaseDto::class));
+    }
+
+    // ========================================================================
+    // RETURN AUTHORIZATION — SERVICE INTERFACES
+    // ========================================================================
+
+    public function test_create_return_authorization_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_subclass_of(CreateReturnAuthorizationServiceInterface::class, WriteServiceInterface::class));
+    }
+
+    public function test_find_return_authorization_service_interface_is_read_service(): void
+    {
+        $this->assertTrue(is_subclass_of(FindReturnAuthorizationServiceInterface::class, ReadServiceInterface::class));
+    }
+
+    public function test_approve_return_authorization_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_subclass_of(ApproveReturnAuthorizationServiceInterface::class, WriteServiceInterface::class));
+    }
+
+    public function test_cancel_return_authorization_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_subclass_of(CancelReturnAuthorizationServiceInterface::class, WriteServiceInterface::class));
+    }
+
+    public function test_expire_return_authorization_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_subclass_of(ExpireReturnAuthorizationServiceInterface::class, WriteServiceInterface::class));
+    }
+
+    public function test_delete_return_authorization_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_subclass_of(DeleteReturnAuthorizationServiceInterface::class, WriteServiceInterface::class));
+    }
+
+    public function test_update_return_authorization_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_subclass_of(UpdateReturnAuthorizationServiceInterface::class, WriteServiceInterface::class));
+    }
+
+    // ========================================================================
+    // RETURN AUTHORIZATION — SERVICES
+    // ========================================================================
+
+    public function test_create_return_authorization_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_subclass_of(CreateReturnAuthorizationService::class, BaseService::class));
+    }
+
+    public function test_find_return_authorization_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_subclass_of(FindReturnAuthorizationService::class, BaseService::class));
+    }
+
+    public function test_approve_return_authorization_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_subclass_of(ApproveReturnAuthorizationService::class, BaseService::class));
+    }
+
+    public function test_cancel_return_authorization_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_subclass_of(CancelReturnAuthorizationService::class, BaseService::class));
+    }
+
+    public function test_expire_return_authorization_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_subclass_of(ExpireReturnAuthorizationService::class, BaseService::class));
+    }
+
+    public function test_create_return_authorization_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(CreateReturnAuthorizationService::class, CreateReturnAuthorizationServiceInterface::class));
+    }
+
+    public function test_approve_return_authorization_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(ApproveReturnAuthorizationService::class, ApproveReturnAuthorizationServiceInterface::class));
+    }
+
+    public function test_cancel_return_authorization_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(CancelReturnAuthorizationService::class, CancelReturnAuthorizationServiceInterface::class));
+    }
+
+    public function test_expire_return_authorization_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(ExpireReturnAuthorizationService::class, ExpireReturnAuthorizationServiceInterface::class));
+    }
+
+    // ========================================================================
+    // RETURN AUTHORIZATION — INFRASTRUCTURE
+    // ========================================================================
+
+    public function test_return_authorization_model_table(): void
+    {
+        $model = new ReturnAuthorizationModel;
+        $this->assertEquals('return_authorizations', $model->getTable());
+    }
+
+    public function test_return_authorization_model_fillable_includes_tenant_id(): void
+    {
+        $model = new ReturnAuthorizationModel;
+        $this->assertContains('tenant_id', $model->getFillable());
+    }
+
+    public function test_return_authorization_model_fillable_includes_rma_number(): void
+    {
+        $model = new ReturnAuthorizationModel;
+        $this->assertContains('rma_number', $model->getFillable());
+    }
+
+    public function test_return_authorization_model_fillable_includes_status(): void
+    {
+        $model = new ReturnAuthorizationModel;
+        $this->assertContains('status', $model->getFillable());
+    }
+
+    public function test_return_authorization_model_fillable_includes_return_type(): void
+    {
+        $model = new ReturnAuthorizationModel;
+        $this->assertContains('return_type', $model->getFillable());
+    }
+
+    public function test_eloquent_return_authorization_repo_implements_interface(): void
+    {
+        $this->assertTrue(
+            in_array(ReturnAuthorizationRepositoryInterface::class, class_implements(EloquentReturnAuthorizationRepository::class))
+        );
+    }
+
+    public function test_return_authorization_controller_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ReturnAuthorizationController::class));
+    }
+
+    public function test_store_return_authorization_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(StoreReturnAuthorizationRequest::class));
+    }
+
+    public function test_return_authorization_resource_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ReturnAuthorizationResource::class));
+    }
+
+    public function test_return_authorization_collection_class_exists(): void
+    {
+        $this->assertTrue(class_exists(ReturnAuthorizationCollection::class));
+    }
+
+    // ========================================================================
+    // FULL WORKFLOW — RMA + CREDIT MEMO INTEGRATION
+    // ========================================================================
+
+    public function test_rma_to_stock_return_full_workflow(): void
+    {
+        // Step 1: Customer requests return via RMA
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-WORKFLOW-001',
+            returnType: 'sales_return',
+            partyId:    5,
+            partyType:  'customer',
+            reason:     'Product arrived damaged',
+        );
+
+        $this->assertTrue($auth->isPending());
+
+        // Step 2: Warehouse approves RMA
+        $auth->approve(3, new \DateTimeImmutable('+30 days'));
+
+        $this->assertTrue($auth->isApproved());
+        $this->assertEquals(3, $auth->getAuthorizedBy());
+
+        // Step 3: Customer ships item back; StockReturn is created
+        $return = new StockReturn(
+            tenantId:             1,
+            referenceNumber:      'RET-FROM-RMA-001',
+            returnType:           'sales_return',
+            partyId:              5,
+            partyType:            'customer',
+            returnReason:         'Product arrived damaged',
+            originalReferenceId:  101,
+            originalReferenceType: 'sales_order',
+        );
+
+        // Step 4: Link RMA to stock return
+        $auth->linkToReturn(1);
+        $this->assertEquals(1, $auth->getStockReturnId());
+
+        // Step 5: Approve and complete the return
+        $return->approve(3);
+        $this->assertEquals('approved', $return->getStatus());
+
+        $return->complete(3);
+        $this->assertEquals('completed', $return->getStatus());
+
+        // Step 6: Issue credit memo
+        $memo = new CreditMemo(
+            tenantId:        1,
+            referenceNumber: 'CM-FROM-RMA-001',
+            partyId:         5,
+            partyType:       'customer',
+            stockReturnId:   1,
+            amount:          150.00,
+            currency:        'USD',
+        );
+
+        $memo->issue();
+        $this->assertTrue($memo->isIssued());
+        $this->assertNotNull($memo->getIssueDate());
+
+        $memo->apply();
+        $this->assertTrue($memo->isApplied());
+        $this->assertNotNull($memo->getAppliedDate());
+    }
+
+    public function test_purchase_return_rma_workflow_with_vendor_credit(): void
+    {
+        // Step 1: Create RMA for purchase return
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-PO-001',
+            returnType: 'purchase_return',
+            partyId:    20,
+            partyType:  'supplier',
+            reason:     'Wrong items shipped',
+        );
+
+        $this->assertEquals('purchase_return', $auth->getReturnType());
+        $this->assertEquals('supplier', $auth->getPartyType());
+
+        // Step 2: Approve RMA
+        $auth->approve(2);
+
+        // Step 3: Create return with vendor_return disposition
+        $return = new StockReturn(
+            tenantId:    1,
+            referenceNumber: 'RET-PO-001',
+            returnType:  'purchase_return',
+            partyId:     20,
+            partyType:   'supplier',
+            restock:     false,
+        );
+
+        $line = new StockReturnLine(
+            tenantId:          1,
+            stockReturnId:     1,
+            productId:         500,
+            quantityRequested: 10.0,
+            disposition:       'vendor_return',
+            condition:         'good',
+        );
+
+        $this->assertEquals('vendor_return', $line->getDisposition());
+        $this->assertEquals('good', $line->getCondition());
+
+        // Step 4: Issue credit note from supplier
+        $memo = new CreditMemo(
+            tenantId:        1,
+            referenceNumber: 'CM-VENDOR-001',
+            partyId:         20,
+            partyType:       'supplier',
+            stockReturnId:   1,
+            amount:          800.00,
+        );
+
+        $memo->issue();
+        $memo->apply();
+
+        $this->assertTrue($memo->isApplied());
+        $this->assertEquals(800.00, $memo->getAmount());
+    }
+
+    public function test_credit_memo_void_after_dispute(): void
+    {
+        $memo = new CreditMemo(
+            tenantId:        1,
+            referenceNumber: 'CM-DISPUTE-001',
+            partyId:         5,
+            partyType:       'customer',
+            amount:          500.00,
+            status:          'issued',
+        );
+
+        $this->assertTrue($memo->isIssued());
+
+        // Credit memo is voided after dispute resolution
+        $memo->void();
+
+        $this->assertTrue($memo->isVoided());
+        $this->assertNotNull($memo->getVoidedDate());
+        $this->assertFalse($memo->isIssued());
+
+        // Issue event reflects the voided state
+        $event = new CreditMemoVoided($memo);
+        $this->assertInstanceOf(BaseEvent::class, $event);
+    }
+
+    public function test_rma_expiry_marks_as_expired(): void
+    {
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-EXP-FLOW-001',
+            returnType: 'sales_return',
+            partyId:    5,
+            partyType:  'customer',
+            status:     'approved',
+        );
+
+        $this->assertTrue($auth->isApproved());
+
+        // Simulate expiry job running
+        $auth->expire();
+
+        $this->assertTrue($auth->isExpired());
+        $this->assertFalse($auth->isApproved());
+
+        $event = new ReturnAuthorizationExpired($auth);
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertEquals('expired', $event->authorization->getStatus());
+    }
+
+    public function test_credit_memo_tenant_isolation(): void
+    {
+        $memo1 = new CreditMemo(1, 'CM-T1-001', 10, 'customer', null, 100.0);
+        $memo2 = new CreditMemo(2, 'CM-T2-001', 20, 'customer', null, 200.0);
+
+        $this->assertNotEquals($memo1->getTenantId(), $memo2->getTenantId());
+        $this->assertNotEquals($memo1->getReferenceNumber(), $memo2->getReferenceNumber());
+    }
+
+    public function test_return_authorization_tenant_isolation(): void
+    {
+        $auth1 = new ReturnAuthorization(1, 'RMA-T1-001', 'sales_return', 10, 'customer');
+        $auth2 = new ReturnAuthorization(2, 'RMA-T2-001', 'sales_return', 10, 'customer');
+
+        $this->assertNotEquals($auth1->getTenantId(), $auth2->getTenantId());
+        $this->assertEquals($auth1->getPartyId(), $auth2->getPartyId());
+    }
+
+    public function test_credit_memo_full_lifecycle_draft_to_applied(): void
+    {
+        $memo = new CreditMemo(
+            tenantId:        1,
+            referenceNumber: 'CM-LIFECYCLE-001',
+            partyId:         5,
+            partyType:       'customer',
+            amount:          350.00,
+        );
+
+        // Draft state
+        $this->assertTrue($memo->isDraft());
+        $this->assertFalse($memo->isIssued());
+
+        // Issue
+        $memo->issue();
+        $this->assertFalse($memo->isDraft());
+        $this->assertTrue($memo->isIssued());
+        $this->assertNotNull($memo->getIssueDate());
+
+        // Apply
+        $memo->apply();
+        $this->assertFalse($memo->isIssued());
+        $this->assertTrue($memo->isApplied());
+        $this->assertNotNull($memo->getAppliedDate());
+    }
+
+    public function test_return_authorization_full_lifecycle_pending_to_approved(): void
+    {
+        $auth = new ReturnAuthorization(
+            tenantId:   1,
+            rmaNumber:  'RMA-LIFECYCLE-001',
+            returnType: 'sales_return',
+            partyId:    5,
+            partyType:  'customer',
+            reason:     'Received wrong color',
+        );
+
+        // Pending state
+        $this->assertTrue($auth->isPending());
+
+        // Approve with 15-day window
+        $expiry = new \DateTimeImmutable('+15 days');
+        $auth->approve(9, $expiry);
+
+        $this->assertTrue($auth->isApproved());
+        $this->assertEquals(9, $auth->getAuthorizedBy());
+        $this->assertNotNull($auth->getAuthorizedAt());
+        $this->assertSame($expiry, $auth->getExpiresAt());
+
+        // Link to created stock return
+        $auth->linkToReturn(77);
+        $this->assertEquals(77, $auth->getStockReturnId());
     }
 }
