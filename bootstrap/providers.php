@@ -9,6 +9,8 @@ use Modules\Inventory\Infrastructure\Providers\InventoryServiceProvider;
 use Modules\StockMovement\Infrastructure\Providers\StockMovementServiceProvider;
 use Modules\Returns\Infrastructure\Providers\ReturnsServiceProvider;
 use Modules\GS1\Infrastructure\Providers\GS1ServiceProvider;
+use Modules\PurchaseOrder\Infrastructure\Providers\PurchaseOrderServiceProvider;
+use Modules\GoodsReceipt\Infrastructure\Providers\GoodsReceiptServiceProvider;
 use Modules\UoM\Infrastructure\Providers\UomServiceProvider;
 use Modules\Warehouse\Infrastructure\Providers\WarehouseServiceProvider;
 use Modules\Supplier\Infrastructure\Providers\SupplierServiceProvider;
@@ -43,5 +45,7 @@ return [
     StockMovementServiceProvider::class,
     ReturnsServiceProvider::class,
     GS1ServiceProvider::class,
+    PurchaseOrderServiceProvider::class,
+    GoodsReceiptServiceProvider::class,
     HRServiceProvider::class,
 ];
