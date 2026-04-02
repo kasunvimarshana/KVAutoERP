@@ -11,7 +11,7 @@ class UnitOfMeasureUpdated extends BaseEvent
 {
     public function __construct(public readonly UnitOfMeasure $unit)
     {
-        parent::__construct($unit->getTenantId(), $unit->getId());
+        parent::__construct($unit->getTenantId());
     }
 
     public function broadcastWith(): array

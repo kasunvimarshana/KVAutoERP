@@ -10,7 +10,7 @@ class UomCategoryDeleted extends BaseEvent
 {
     public function __construct(public readonly int $categoryId, int $tenantId)
     {
-        parent::__construct($tenantId, $categoryId);
+        parent::__construct($tenantId);
     }
 
     public function broadcastWith(): array

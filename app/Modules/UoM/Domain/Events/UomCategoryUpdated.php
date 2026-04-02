@@ -11,7 +11,7 @@ class UomCategoryUpdated extends BaseEvent
 {
     public function __construct(public readonly UomCategory $category)
     {
-        parent::__construct($category->getTenantId(), $category->getId());
+        parent::__construct($category->getTenantId());
     }
 
     public function broadcastWith(): array

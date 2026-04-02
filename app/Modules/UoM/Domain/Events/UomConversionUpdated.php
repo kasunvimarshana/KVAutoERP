@@ -11,7 +11,7 @@ class UomConversionUpdated extends BaseEvent
 {
     public function __construct(public readonly UomConversion $conversion)
     {
-        parent::__construct($conversion->getTenantId(), $conversion->getId());
+        parent::__construct($conversion->getTenantId());
     }
 
     public function broadcastWith(): array
