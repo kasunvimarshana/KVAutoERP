@@ -60,6 +60,11 @@ use Modules\GS1\Infrastructure\Persistence\Eloquent\Models\Gs1IdentifierModel;
 use Modules\GS1\Infrastructure\Persistence\Eloquent\Models\Gs1BarcodeModel;
 // Warehouse zone
 use Modules\Warehouse\Infrastructure\Persistence\Eloquent\Models\WarehouseZoneModel;
+// UoM module
+use Modules\UoM\Infrastructure\Persistence\Eloquent\Models\UomCategoryModel;
+use Modules\UoM\Infrastructure\Persistence\Eloquent\Models\UnitOfMeasureModel;
+use Modules\UoM\Infrastructure\Persistence\Eloquent\Models\UomConversionModel;
+use Modules\UoM\Infrastructure\Persistence\Eloquent\Models\ProductUomSettingModel;
 
 class AuditTraitTest extends TestCase
 {
@@ -583,6 +588,28 @@ class AuditTraitTest extends TestCase
     public function test_warehouse_zone_model_uses_has_audit_trait(): void
     {
         $this->assertArrayHasKey(HasAudit::class, class_uses_recursive(WarehouseZoneModel::class));
+    }
+
+    // ── UoM module ────────────────────────────────────────────────────────────
+
+    public function test_uom_category_model_uses_has_audit_trait(): void
+    {
+        $this->assertArrayHasKey(HasAudit::class, class_uses_recursive(UomCategoryModel::class));
+    }
+
+    public function test_unit_of_measure_model_uses_has_audit_trait(): void
+    {
+        $this->assertArrayHasKey(HasAudit::class, class_uses_recursive(UnitOfMeasureModel::class));
+    }
+
+    public function test_uom_conversion_model_uses_has_audit_trait(): void
+    {
+        $this->assertArrayHasKey(HasAudit::class, class_uses_recursive(UomConversionModel::class));
+    }
+
+    public function test_product_uom_setting_model_uses_has_audit_trait(): void
+    {
+        $this->assertArrayHasKey(HasAudit::class, class_uses_recursive(ProductUomSettingModel::class));
     }
 
     // ── HasAudit filterAuditableAttributes ────────────────────────────────────

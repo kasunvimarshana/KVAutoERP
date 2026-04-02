@@ -11,7 +11,7 @@ class ProductUomSettingUpdated extends BaseEvent
 {
     public function __construct(public readonly ProductUomSetting $setting)
     {
-        parent::__construct($setting->getTenantId(), $setting->getId());
+        parent::__construct($setting->getTenantId());
     }
 
     public function broadcastWith(): array

@@ -10,7 +10,7 @@ class ProductUomSettingDeleted extends BaseEvent
 {
     public function __construct(public readonly int $settingId, int $tenantId)
     {
-        parent::__construct($tenantId, $settingId);
+        parent::__construct($tenantId);
     }
 
     public function broadcastWith(): array

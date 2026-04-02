@@ -10,7 +10,7 @@ class UomConversionDeleted extends BaseEvent
 {
     public function __construct(public readonly int $conversionId, int $tenantId)
     {
-        parent::__construct($tenantId, $conversionId);
+        parent::__construct($tenantId);
     }
 
     public function broadcastWith(): array

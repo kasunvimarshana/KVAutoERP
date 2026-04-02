@@ -10,7 +10,7 @@ class UnitOfMeasureDeleted extends BaseEvent
 {
     public function __construct(public readonly int $unitId, int $tenantId)
     {
-        parent::__construct($tenantId, $unitId);
+        parent::__construct($tenantId);
     }
 
     public function broadcastWith(): array
