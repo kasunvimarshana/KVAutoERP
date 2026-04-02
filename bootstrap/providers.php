@@ -10,7 +10,9 @@ use Modules\StockMovement\Infrastructure\Providers\StockMovementServiceProvider;
 use Modules\Returns\Infrastructure\Providers\ReturnsServiceProvider;
 use Modules\GS1\Infrastructure\Providers\GS1ServiceProvider;
 use Modules\PurchaseOrder\Infrastructure\Providers\PurchaseOrderServiceProvider;
+use Modules\SalesOrder\Infrastructure\Providers\SalesOrderServiceProvider;
 use Modules\GoodsReceipt\Infrastructure\Providers\GoodsReceiptServiceProvider;
+use Modules\Dispatch\Infrastructure\Providers\DispatchServiceProvider;
 use Modules\UoM\Infrastructure\Providers\UomServiceProvider;
 use Modules\Warehouse\Infrastructure\Providers\WarehouseServiceProvider;
 use Modules\Supplier\Infrastructure\Providers\SupplierServiceProvider;
@@ -47,5 +49,7 @@ return [
     GS1ServiceProvider::class,
     PurchaseOrderServiceProvider::class,
     GoodsReceiptServiceProvider::class,
+    SalesOrderServiceProvider::class,
+    DispatchServiceProvider::class,
     HRServiceProvider::class,
 ];
