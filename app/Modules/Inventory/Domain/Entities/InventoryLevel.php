@@ -36,7 +36,7 @@ class InventoryLevel
         ?int $uomId = null,
         float $qtyOnHand = 0.0,
         float $qtyReserved = 0.0,
-        float $qtyAvailable = 0.0,
+        ?float $qtyAvailable = null,
         float $qtyOnOrder = 0.0,
         ?float $reorderPoint = null,
         ?float $reorderQty = null,
@@ -56,7 +56,7 @@ class InventoryLevel
         $this->uomId         = $uomId;
         $this->qtyOnHand     = $qtyOnHand;
         $this->qtyReserved   = $qtyReserved;
-        $this->qtyAvailable  = $qtyAvailable;
+        $this->qtyAvailable  = $qtyAvailable ?? ($qtyOnHand - $qtyReserved);
         $this->qtyOnOrder    = $qtyOnOrder;
         $this->reorderPoint  = $reorderPoint;
         $this->reorderQty    = $reorderQty;

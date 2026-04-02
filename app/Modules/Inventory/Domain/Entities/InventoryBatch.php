@@ -151,4 +151,13 @@ class InventoryBatch
         $this->status    = 'quarantine';
         $this->updatedAt = new \DateTimeImmutable;
     }
+
+    public function consume(float $qty): void
+    {
+        $this->remainingQty = max(0.0, $this->remainingQty - $qty);
+        if ($this->remainingQty <= 0.0) {
+            $this->status = 'depleted';
+        }
+        $this->updatedAt = new \DateTimeImmutable;
+    }
 }

@@ -5,18 +5,19 @@ declare(strict_types=1);
 namespace Modules\Inventory\Domain\Events;
 
 use Modules\Core\Domain\Events\BaseEvent;
+use Modules\Inventory\Domain\Entities\InventorySetting;
 
 class InventorySettingDeleted extends BaseEvent
 {
-    public function __construct(public readonly int $settingId, int $tenantId)
+    public function __construct(public readonly InventorySetting $setting)
     {
-        parent::__construct($tenantId, $settingId);
+        parent::__construct($setting->getTenantId(), $setting->getId());
     }
 
     public function broadcastWith(): array
     {
         return array_merge(parent::broadcastWith(), [
-            'id' => $this->settingId,
+            'id' => $this->setting->getId(),
         ]);
     }
 }

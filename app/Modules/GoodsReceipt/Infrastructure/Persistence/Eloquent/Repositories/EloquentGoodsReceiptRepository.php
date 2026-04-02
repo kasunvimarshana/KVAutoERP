@@ -89,6 +89,21 @@ class EloquentGoodsReceiptRepository extends EloquentRepository implements Goods
             ->map(fn ($m) => $this->mapModelToDomainEntity($m));
     }
 
+    public function list(array $filters = [], ?int $perPage = null, int $page = 1): mixed
+    {
+        $query = $this->model->newQuery();
+
+        foreach ($filters as $column => $value) {
+            $query->where($column, $value);
+        }
+
+        if ($perPage !== null) {
+            return $query->paginate($perPage, ['*'], 'page', $page);
+        }
+
+        return $query->get()->map(fn ($m) => $this->mapModelToDomainEntity($m));
+    }
+
     private function mapModelToDomainEntity(GoodsReceiptModel $model): GoodsReceipt
     {
         return new GoodsReceipt(

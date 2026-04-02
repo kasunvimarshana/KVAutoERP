@@ -71,4 +71,9 @@ class ValuationMethod
     {
         return $this->value;
     }
+
+    public static function values(): array
+    {
+        return self::VALID_METHODS;
+    }
 }

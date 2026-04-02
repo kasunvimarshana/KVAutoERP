@@ -8,6 +8,8 @@ use InvalidArgumentException;
 
 class StockStatus
 {
+    public const AVAILABLE  = 'available';
+    public const RESERVED   = 'reserved';
     public const ACTIVE     = 'active';
     public const QUARANTINE = 'quarantine';
     public const EXPIRED    = 'expired';
@@ -15,6 +17,8 @@ class StockStatus
     public const RECALLED   = 'recalled';
 
     public const VALID_STATUSES = [
+        self::AVAILABLE,
+        self::RESERVED,
         self::ACTIVE,
         self::QUARANTINE,
         self::EXPIRED,
@@ -40,6 +44,16 @@ class StockStatus
     public function isActive(): bool
     {
         return $this->value === self::ACTIVE;
+    }
+
+    public function isAvailable(): bool
+    {
+        return $this->value === self::AVAILABLE;
+    }
+
+    public function isReserved(): bool
+    {
+        return $this->value === self::RESERVED;
     }
 
     public function isQuarantine(): bool
@@ -70,5 +84,10 @@ class StockStatus
     public function __toString(): string
     {
         return $this->value;
+    }
+
+    public static function values(): array
+    {
+        return self::VALID_STATUSES;
     }
 }
