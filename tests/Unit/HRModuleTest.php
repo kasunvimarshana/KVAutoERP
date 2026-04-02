@@ -3468,5 +3468,616 @@ class HRModuleTest extends TestCase
         $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
         $this->assertStringContainsString('cancelLeaveRequest', $source);
     }
+
+    // ── Payroll Sub-Module ────────────────────────────────────────────────────
+
+    public function test_payroll_record_exception_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Exceptions\PayrollRecordNotFoundException::class));
+    }
+
+    public function test_payroll_record_exception_extends_not_found_exception(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Domain\Exceptions\PayrollRecordNotFoundException::class, \Modules\Core\Domain\Exceptions\NotFoundException::class));
+    }
+
+    public function test_payroll_record_entity_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Entities\PayrollRecord::class));
+    }
+
+    public function test_payroll_record_entity_can_be_constructed(): void
+    {
+        $record = new \Modules\HR\Domain\Entities\PayrollRecord(
+            tenantId: 1,
+            employeeId: 2,
+            payPeriodStart: '2026-01-01',
+            payPeriodEnd: '2026-01-31',
+            grossSalary: 5000.0,
+            netSalary: 4000.0,
+        );
+        $this->assertSame(1, $record->getTenantId());
+        $this->assertSame(2, $record->getEmployeeId());
+        $this->assertSame('draft', $record->getStatus());
+    }
+
+    public function test_payroll_record_entity_process_changes_status(): void
+    {
+        $record = new \Modules\HR\Domain\Entities\PayrollRecord(1, 2, '2026-01-01', '2026-01-31', 5000.0, 4000.0);
+        $record->process();
+        $this->assertSame('processed', $record->getStatus());
+    }
+
+    public function test_payroll_record_entity_mark_as_paid_changes_status(): void
+    {
+        $record = new \Modules\HR\Domain\Entities\PayrollRecord(1, 2, '2026-01-01', '2026-01-31', 5000.0, 4000.0);
+        $record->markAsPaid();
+        $this->assertSame('paid', $record->getStatus());
+    }
+
+    public function test_payroll_record_entity_is_draft(): void
+    {
+        $record = new \Modules\HR\Domain\Entities\PayrollRecord(1, 2, '2026-01-01', '2026-01-31', 5000.0, 4000.0);
+        $this->assertTrue($record->isDraft());
+    }
+
+    public function test_payroll_repository_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Domain\RepositoryInterfaces\PayrollRepositoryInterface::class));
+    }
+
+    public function test_find_payroll_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\FindPayrollServiceInterface::class));
+    }
+
+    public function test_create_payroll_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\CreatePayrollServiceInterface::class));
+    }
+
+    public function test_update_payroll_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\UpdatePayrollServiceInterface::class));
+    }
+
+    public function test_delete_payroll_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\DeletePayrollServiceInterface::class));
+    }
+
+    public function test_process_payroll_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\ProcessPayrollServiceInterface::class));
+    }
+
+    public function test_find_payroll_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\FindPayrollService::class, \Modules\HR\Application\Contracts\FindPayrollServiceInterface::class));
+    }
+
+    public function test_create_payroll_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\CreatePayrollService::class, \Modules\HR\Application\Contracts\CreatePayrollServiceInterface::class));
+    }
+
+    public function test_update_payroll_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\UpdatePayrollService::class, \Modules\HR\Application\Contracts\UpdatePayrollServiceInterface::class));
+    }
+
+    public function test_delete_payroll_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\DeletePayrollService::class, \Modules\HR\Application\Contracts\DeletePayrollServiceInterface::class));
+    }
+
+    public function test_process_payroll_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\ProcessPayrollService::class, \Modules\HR\Application\Contracts\ProcessPayrollServiceInterface::class));
+    }
+
+    public function test_payroll_controller_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Controllers\PayrollController::class));
+    }
+
+    public function test_payroll_controller_has_required_methods(): void
+    {
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PayrollController::class, 'index'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PayrollController::class, 'show'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PayrollController::class, 'store'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PayrollController::class, 'update'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PayrollController::class, 'destroy'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PayrollController::class, 'process'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PayrollController::class, 'byEmployee'));
+    }
+
+    public function test_payroll_record_created_event_extends_base_event(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Domain\Events\PayrollRecordCreated::class, \Modules\Core\Domain\Events\BaseEvent::class));
+    }
+
+    public function test_payroll_record_processed_event_extends_base_event(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Domain\Events\PayrollRecordProcessed::class, \Modules\Core\Domain\Events\BaseEvent::class));
+    }
+
+    public function test_routes_file_has_payroll_routes(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
+        $this->assertStringContainsString('payroll', $source);
+        $this->assertStringContainsString('PayrollController', $source);
+    }
+
+    public function test_hr_service_provider_references_payroll_services(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/Infrastructure/Providers/HRServiceProvider.php');
+        $this->assertStringContainsString('FindPayrollServiceInterface', $source);
+        $this->assertStringContainsString('CreatePayrollServiceInterface', $source);
+        $this->assertStringContainsString('ProcessPayrollServiceInterface', $source);
+    }
+
+    public function test_payroll_dto_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\DTOs\PayrollData::class));
+    }
+
+    public function test_update_payroll_data_has_provided_keys_pattern(): void
+    {
+        $dto = \Modules\HR\Application\DTOs\UpdatePayrollData::fromArray(['gross_salary' => 5000.0]);
+        $this->assertTrue($dto->isProvided('gross_salary'));
+        $this->assertFalse($dto->isProvided('net_salary'));
+    }
+
+    public function test_use_case_get_payroll_record_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\GetPayrollRecord::class));
+    }
+
+    public function test_use_case_list_payroll_records_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\ListPayrollRecords::class));
+    }
+
+    public function test_use_case_create_payroll_record_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\CreatePayrollRecord::class));
+    }
+
+    public function test_use_case_update_payroll_record_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\UpdatePayrollRecord::class));
+    }
+
+    public function test_use_case_delete_payroll_record_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\DeletePayrollRecord::class));
+    }
+
+    public function test_use_case_process_payroll_record_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\ProcessPayrollRecord::class));
+    }
+
+    public function test_store_payroll_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\StorePayrollRequest::class));
+    }
+
+    public function test_update_payroll_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\UpdatePayrollRequest::class));
+    }
+
+    public function test_payroll_resource_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Resources\PayrollResource::class));
+    }
+
+    public function test_payroll_collection_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Resources\PayrollCollection::class));
+    }
+
+    // ── PerformanceReview Sub-Module ──────────────────────────────────────────
+
+    public function test_performance_review_exception_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Exceptions\PerformanceReviewNotFoundException::class));
+    }
+
+    public function test_performance_review_entity_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Entities\PerformanceReview::class));
+    }
+
+    public function test_performance_review_entity_can_be_constructed(): void
+    {
+        $review = new \Modules\HR\Domain\Entities\PerformanceReview(
+            tenantId: 1,
+            employeeId: 2,
+            reviewerId: 3,
+            reviewPeriodStart: '2026-01-01',
+            reviewPeriodEnd: '2026-03-31',
+            rating: 4.5,
+        );
+        $this->assertSame(1, $review->getTenantId());
+        $this->assertSame(2, $review->getEmployeeId());
+        $this->assertSame(4.5, $review->getRating());
+        $this->assertSame('draft', $review->getStatus());
+    }
+
+    public function test_performance_review_entity_submit_changes_status(): void
+    {
+        $review = new \Modules\HR\Domain\Entities\PerformanceReview(1, 2, 3, '2026-01-01', '2026-03-31', 4.0);
+        $review->submit();
+        $this->assertSame('submitted', $review->getStatus());
+    }
+
+    public function test_performance_review_entity_acknowledge_changes_status(): void
+    {
+        $review = new \Modules\HR\Domain\Entities\PerformanceReview(1, 2, 3, '2026-01-01', '2026-03-31', 4.0);
+        $review->acknowledge();
+        $this->assertSame('acknowledged', $review->getStatus());
+    }
+
+    public function test_performance_review_entity_is_draft(): void
+    {
+        $review = new \Modules\HR\Domain\Entities\PerformanceReview(1, 2, 3, '2026-01-01', '2026-03-31', 4.0);
+        $this->assertTrue($review->isDraft());
+    }
+
+    public function test_performance_review_repository_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Domain\RepositoryInterfaces\PerformanceReviewRepositoryInterface::class));
+    }
+
+    public function test_find_performance_review_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\FindPerformanceReviewServiceInterface::class));
+    }
+
+    public function test_create_performance_review_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\CreatePerformanceReviewServiceInterface::class));
+    }
+
+    public function test_update_performance_review_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\UpdatePerformanceReviewServiceInterface::class));
+    }
+
+    public function test_delete_performance_review_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\DeletePerformanceReviewServiceInterface::class));
+    }
+
+    public function test_submit_performance_review_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\SubmitPerformanceReviewServiceInterface::class));
+    }
+
+    public function test_find_performance_review_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\FindPerformanceReviewService::class, \Modules\HR\Application\Contracts\FindPerformanceReviewServiceInterface::class));
+    }
+
+    public function test_create_performance_review_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\CreatePerformanceReviewService::class, \Modules\HR\Application\Contracts\CreatePerformanceReviewServiceInterface::class));
+    }
+
+    public function test_update_performance_review_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\UpdatePerformanceReviewService::class, \Modules\HR\Application\Contracts\UpdatePerformanceReviewServiceInterface::class));
+    }
+
+    public function test_delete_performance_review_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\DeletePerformanceReviewService::class, \Modules\HR\Application\Contracts\DeletePerformanceReviewServiceInterface::class));
+    }
+
+    public function test_submit_performance_review_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\SubmitPerformanceReviewService::class, \Modules\HR\Application\Contracts\SubmitPerformanceReviewServiceInterface::class));
+    }
+
+    public function test_performance_review_controller_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Controllers\PerformanceReviewController::class));
+    }
+
+    public function test_performance_review_controller_has_required_methods(): void
+    {
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PerformanceReviewController::class, 'index'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PerformanceReviewController::class, 'show'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PerformanceReviewController::class, 'store'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PerformanceReviewController::class, 'update'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PerformanceReviewController::class, 'destroy'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PerformanceReviewController::class, 'submit'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\PerformanceReviewController::class, 'byEmployee'));
+    }
+
+    public function test_performance_review_created_event_extends_base_event(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Domain\Events\PerformanceReviewCreated::class, \Modules\Core\Domain\Events\BaseEvent::class));
+    }
+
+    public function test_performance_review_submitted_event_extends_base_event(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Domain\Events\PerformanceReviewSubmitted::class, \Modules\Core\Domain\Events\BaseEvent::class));
+    }
+
+    public function test_routes_file_has_performance_review_routes(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
+        $this->assertStringContainsString('performance-reviews', $source);
+        $this->assertStringContainsString('PerformanceReviewController', $source);
+    }
+
+    public function test_hr_service_provider_references_performance_review_services(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/Infrastructure/Providers/HRServiceProvider.php');
+        $this->assertStringContainsString('FindPerformanceReviewServiceInterface', $source);
+        $this->assertStringContainsString('CreatePerformanceReviewServiceInterface', $source);
+        $this->assertStringContainsString('SubmitPerformanceReviewServiceInterface', $source);
+    }
+
+    public function test_performance_review_dto_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\DTOs\PerformanceReviewData::class));
+    }
+
+    public function test_update_performance_review_data_has_provided_keys_pattern(): void
+    {
+        $dto = \Modules\HR\Application\DTOs\UpdatePerformanceReviewData::fromArray(['rating' => 4.5]);
+        $this->assertTrue($dto->isProvided('rating'));
+        $this->assertFalse($dto->isProvided('comments'));
+    }
+
+    public function test_use_case_get_performance_review_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\GetPerformanceReview::class));
+    }
+
+    public function test_use_case_list_performance_reviews_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\ListPerformanceReviews::class));
+    }
+
+    public function test_use_case_create_performance_review_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\CreatePerformanceReview::class));
+    }
+
+    public function test_use_case_update_performance_review_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\UpdatePerformanceReview::class));
+    }
+
+    public function test_use_case_delete_performance_review_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\DeletePerformanceReview::class));
+    }
+
+    public function test_use_case_submit_performance_review_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\SubmitPerformanceReview::class));
+    }
+
+    public function test_store_performance_review_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\StorePerformanceReviewRequest::class));
+    }
+
+    public function test_update_performance_review_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\UpdatePerformanceReviewRequest::class));
+    }
+
+    public function test_performance_review_resource_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Resources\PerformanceReviewResource::class));
+    }
+
+    public function test_performance_review_collection_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Resources\PerformanceReviewCollection::class));
+    }
+
+    // ── Training Sub-Module ───────────────────────────────────────────────────
+
+    public function test_training_exception_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Exceptions\TrainingNotFoundException::class));
+    }
+
+    public function test_training_entity_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Domain\Entities\Training::class));
+    }
+
+    public function test_training_entity_can_be_constructed(): void
+    {
+        $training = new \Modules\HR\Domain\Entities\Training(
+            tenantId: 1,
+            title: 'PHP Workshop',
+            startDate: '2026-06-01',
+        );
+        $this->assertSame(1, $training->getTenantId());
+        $this->assertSame('PHP Workshop', $training->getTitle());
+        $this->assertSame('scheduled', $training->getStatus());
+        $this->assertTrue($training->isActive());
+    }
+
+    public function test_training_entity_start_changes_status(): void
+    {
+        $training = new \Modules\HR\Domain\Entities\Training(1, 'PHP Workshop', '2026-06-01');
+        $training->start();
+        $this->assertSame('in_progress', $training->getStatus());
+    }
+
+    public function test_training_entity_complete_changes_status(): void
+    {
+        $training = new \Modules\HR\Domain\Entities\Training(1, 'PHP Workshop', '2026-06-01');
+        $training->complete();
+        $this->assertSame('completed', $training->getStatus());
+    }
+
+    public function test_training_entity_cancel_changes_status(): void
+    {
+        $training = new \Modules\HR\Domain\Entities\Training(1, 'PHP Workshop', '2026-06-01');
+        $training->cancel();
+        $this->assertSame('cancelled', $training->getStatus());
+        $this->assertFalse($training->isActive());
+    }
+
+    public function test_training_entity_is_active(): void
+    {
+        $training = new \Modules\HR\Domain\Entities\Training(1, 'PHP Workshop', '2026-06-01');
+        $this->assertTrue($training->isActive());
+    }
+
+    public function test_training_repository_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Domain\RepositoryInterfaces\TrainingRepositoryInterface::class));
+    }
+
+    public function test_find_training_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\FindTrainingServiceInterface::class));
+    }
+
+    public function test_create_training_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\CreateTrainingServiceInterface::class));
+    }
+
+    public function test_update_training_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\UpdateTrainingServiceInterface::class));
+    }
+
+    public function test_delete_training_service_interface_exists(): void
+    {
+        $this->assertTrue(interface_exists(\Modules\HR\Application\Contracts\DeleteTrainingServiceInterface::class));
+    }
+
+    public function test_find_training_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\FindTrainingService::class, \Modules\HR\Application\Contracts\FindTrainingServiceInterface::class));
+    }
+
+    public function test_create_training_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\CreateTrainingService::class, \Modules\HR\Application\Contracts\CreateTrainingServiceInterface::class));
+    }
+
+    public function test_update_training_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\UpdateTrainingService::class, \Modules\HR\Application\Contracts\UpdateTrainingServiceInterface::class));
+    }
+
+    public function test_delete_training_service_implements_interface(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Application\Services\DeleteTrainingService::class, \Modules\HR\Application\Contracts\DeleteTrainingServiceInterface::class));
+    }
+
+    public function test_training_controller_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Controllers\TrainingController::class));
+    }
+
+    public function test_training_controller_has_required_methods(): void
+    {
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\TrainingController::class, 'index'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\TrainingController::class, 'show'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\TrainingController::class, 'store'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\TrainingController::class, 'update'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\TrainingController::class, 'destroy'));
+        $this->assertTrue(method_exists(\Modules\HR\Infrastructure\Http\Controllers\TrainingController::class, 'byStatus'));
+    }
+
+    public function test_training_created_event_extends_base_event(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Domain\Events\TrainingCreated::class, \Modules\Core\Domain\Events\BaseEvent::class));
+    }
+
+    public function test_training_deleted_event_extends_base_event(): void
+    {
+        $this->assertTrue(is_subclass_of(\Modules\HR\Domain\Events\TrainingDeleted::class, \Modules\Core\Domain\Events\BaseEvent::class));
+    }
+
+    public function test_routes_file_has_training_routes(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/routes/api.php');
+        $this->assertStringContainsString('training', $source);
+        $this->assertStringContainsString('TrainingController', $source);
+    }
+
+    public function test_hr_service_provider_references_training_services(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../app/Modules/HR/Infrastructure/Providers/HRServiceProvider.php');
+        $this->assertStringContainsString('FindTrainingServiceInterface', $source);
+        $this->assertStringContainsString('CreateTrainingServiceInterface', $source);
+        $this->assertStringContainsString('DeleteTrainingServiceInterface', $source);
+    }
+
+    public function test_training_dto_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\DTOs\TrainingData::class));
+    }
+
+    public function test_update_training_data_has_provided_keys_pattern(): void
+    {
+        $dto = \Modules\HR\Application\DTOs\UpdateTrainingData::fromArray(['title' => 'New Title']);
+        $this->assertTrue($dto->isProvided('title'));
+        $this->assertFalse($dto->isProvided('description'));
+    }
+
+    public function test_use_case_get_training_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\GetTraining::class));
+    }
+
+    public function test_use_case_list_trainings_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\ListTrainings::class));
+    }
+
+    public function test_use_case_create_training_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\CreateTraining::class));
+    }
+
+    public function test_use_case_update_training_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\UpdateTraining::class));
+    }
+
+    public function test_use_case_delete_training_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Application\UseCases\DeleteTraining::class));
+    }
+
+    public function test_store_training_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\StoreTrainingRequest::class));
+    }
+
+    public function test_update_training_request_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Requests\UpdateTrainingRequest::class));
+    }
+
+    public function test_training_resource_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Resources\TrainingResource::class));
+    }
+
+    public function test_training_collection_class_exists(): void
+    {
+        $this->assertTrue(class_exists(\Modules\HR\Infrastructure\Http\Resources\TrainingCollection::class));
+    }
 }
 
