@@ -2013,6 +2013,9 @@ class WIMSReturnsModuleTest extends TestCase
         $this->assertSame('failed', $line->getQualityCheckStatus());
         $this->assertSame('damaged', $line->getCondition());
         $this->assertSame('scrap', $line->getDisposition());
+    }
+
+    // ========================================================================
     // CREDIT MEMO STATUS — VALUE OBJECT
     // ========================================================================
 
