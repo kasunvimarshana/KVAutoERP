@@ -10,6 +10,7 @@ use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Inventory\Application\Contracts\CreateInventoryCycleCountServiceInterface;
 use Modules\Inventory\Application\Contracts\DeleteInventoryCycleCountServiceInterface;
 use Modules\Inventory\Application\Contracts\FindInventoryCycleCountServiceInterface;
+use Modules\Inventory\Application\Contracts\ReconcileInventoryServiceInterface;
 use Modules\Inventory\Application\Contracts\UpdateInventoryCycleCountServiceInterface;
 use Modules\Inventory\Application\DTOs\InventoryCycleCountData;
 use Modules\Inventory\Application\DTOs\UpdateInventoryCycleCountData;
@@ -25,6 +26,7 @@ class InventoryCycleCountController extends AuthorizedController
         protected CreateInventoryCycleCountServiceInterface $createService,
         protected UpdateInventoryCycleCountServiceInterface $updateService,
         protected DeleteInventoryCycleCountServiceInterface $deleteService,
+        protected ReconcileInventoryServiceInterface $reconcileService,
     ) {}
 
     public function index(Request $request): InventoryCycleCountCollection
@@ -70,5 +72,12 @@ class InventoryCycleCountController extends AuthorizedController
     {
         $this->deleteService->execute(['id' => $id]);
         return response()->json(['message' => 'Cycle count deleted successfully']);
+    }
+
+    public function reconcile(int $id): InventoryCycleCountResource
+    {
+        $count = $this->reconcileService->execute(['id' => $id]);
+
+        return new InventoryCycleCountResource($count);
     }
 }

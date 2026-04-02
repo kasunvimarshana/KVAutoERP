@@ -11,8 +11,10 @@ use Modules\StockMovement\Application\Contracts\ConfirmStockMovementServiceInter
 use Modules\StockMovement\Application\Contracts\CreateStockMovementServiceInterface;
 use Modules\StockMovement\Application\Contracts\DeleteStockMovementServiceInterface;
 use Modules\StockMovement\Application\Contracts\FindStockMovementServiceInterface;
+use Modules\StockMovement\Application\Contracts\TransferStockServiceInterface;
 use Modules\StockMovement\Application\Contracts\UpdateStockMovementServiceInterface;
 use Modules\StockMovement\Application\DTOs\StockMovementData;
+use Modules\StockMovement\Application\DTOs\TransferStockData;
 use Modules\StockMovement\Application\DTOs\UpdateStockMovementData;
 use Modules\StockMovement\Infrastructure\Http\Requests\StoreStockMovementRequest;
 use Modules\StockMovement\Infrastructure\Http\Requests\UpdateStockMovementRequest;
@@ -27,6 +29,7 @@ class StockMovementController extends AuthorizedController
         protected UpdateStockMovementServiceInterface $updateService,
         protected DeleteStockMovementServiceInterface $deleteService,
         protected ConfirmStockMovementServiceInterface $confirmService,
+        protected TransferStockServiceInterface $transferService,
     ) {}
 
     public function index(Request $request): StockMovementCollection
@@ -89,5 +92,47 @@ class StockMovementController extends AuthorizedController
     public function confirm(int $id): StockMovementResource
     {
         return new StockMovementResource($this->confirmService->execute(['id' => $id]));
+    }
+
+    public function transfer(Request $request): JsonResponse
+    {
+        $v   = $request->validate([
+            'tenant_id'        => 'required|integer',
+            'reference_number' => 'required|string|max:100',
+            'product_id'       => 'required|integer',
+            'quantity'         => 'required|numeric|min:0.001',
+            'from_location_id' => 'required|integer',
+            'to_location_id'   => 'required|integer',
+            'variation_id'     => 'nullable|integer',
+            'batch_id'         => 'nullable|integer',
+            'serial_number_id' => 'nullable|integer',
+            'uom_id'           => 'nullable|integer',
+            'unit_cost'        => 'nullable|numeric|min:0',
+            'currency'         => 'nullable|string|size:3',
+            'performed_by'     => 'nullable|integer',
+            'notes'            => 'nullable|string',
+            'metadata'         => 'nullable|array',
+        ]);
+
+        $dto      = TransferStockData::fromArray([
+            'tenantId'        => $v['tenant_id'],
+            'referenceNumber' => $v['reference_number'],
+            'productId'       => $v['product_id'],
+            'quantity'        => $v['quantity'],
+            'fromLocationId'  => $v['from_location_id'],
+            'toLocationId'    => $v['to_location_id'],
+            'variationId'     => $v['variation_id'] ?? null,
+            'batchId'         => $v['batch_id'] ?? null,
+            'serialNumberId'  => $v['serial_number_id'] ?? null,
+            'uomId'           => $v['uom_id'] ?? null,
+            'unitCost'        => $v['unit_cost'] ?? null,
+            'currency'        => $v['currency'] ?? 'USD',
+            'performedBy'     => $v['performed_by'] ?? null,
+            'notes'           => $v['notes'] ?? null,
+            'metadata'        => $v['metadata'] ?? null,
+        ]);
+        $movement = $this->transferService->execute($dto->toArray());
+
+        return (new StockMovementResource($movement))->response()->setStatusCode(201);
     }
 }

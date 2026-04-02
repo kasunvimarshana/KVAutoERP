@@ -10,11 +10,13 @@ use Modules\StockMovement\Application\Contracts\ConfirmStockMovementServiceInter
 use Modules\StockMovement\Application\Contracts\CreateStockMovementServiceInterface;
 use Modules\StockMovement\Application\Contracts\DeleteStockMovementServiceInterface;
 use Modules\StockMovement\Application\Contracts\FindStockMovementServiceInterface;
+use Modules\StockMovement\Application\Contracts\TransferStockServiceInterface;
 use Modules\StockMovement\Application\Contracts\UpdateStockMovementServiceInterface;
 use Modules\StockMovement\Application\Services\ConfirmStockMovementService;
 use Modules\StockMovement\Application\Services\CreateStockMovementService;
 use Modules\StockMovement\Application\Services\DeleteStockMovementService;
 use Modules\StockMovement\Application\Services\FindStockMovementService;
+use Modules\StockMovement\Application\Services\TransferStockService;
 use Modules\StockMovement\Application\Services\UpdateStockMovementService;
 use Modules\StockMovement\Domain\RepositoryInterfaces\StockMovementRepositoryInterface;
 use Modules\StockMovement\Infrastructure\Persistence\Eloquent\Models\StockMovementModel;
@@ -41,6 +43,9 @@ class StockMovementServiceProvider extends ServiceProvider
 
         $this->app->bind(ConfirmStockMovementServiceInterface::class, fn ($app) =>
             new ConfirmStockMovementService($app->make(StockMovementRepositoryInterface::class)));
+
+        $this->app->bind(TransferStockServiceInterface::class, fn ($app) =>
+            new TransferStockService($app->make(StockMovementRepositoryInterface::class)));
     }
 
     public function boot(): void
