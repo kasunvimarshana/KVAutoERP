@@ -8,10 +8,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Returns\Application\Contracts\ApproveStockReturnServiceInterface;
+use Modules\Returns\Application\Contracts\CancelStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\CompleteStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\CreateStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\DeleteStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\FindStockReturnServiceInterface;
+use Modules\Returns\Application\Contracts\IssueCreditMemoServiceInterface;
 use Modules\Returns\Application\Contracts\RejectStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\UpdateStockReturnServiceInterface;
 use Modules\Returns\Application\DTOs\StockReturnData;
@@ -31,6 +33,8 @@ class StockReturnController extends AuthorizedController
         protected ApproveStockReturnServiceInterface $approveService,
         protected RejectStockReturnServiceInterface $rejectService,
         protected CompleteStockReturnServiceInterface $completeService,
+        protected CancelStockReturnServiceInterface $cancelService,
+        protected IssueCreditMemoServiceInterface $issueCreditMemoService,
     ) {}
 
     public function index(Request $request): StockReturnCollection
@@ -111,6 +115,21 @@ class StockReturnController extends AuthorizedController
         $return = $this->completeService->execute([
             'id'           => $id,
             'processed_by' => $request->integer('processed_by'),
+        ]);
+        return (new StockReturnResource($return))->response();
+    }
+
+    public function cancel(int $id): JsonResponse
+    {
+        $return = $this->cancelService->execute(['id' => $id]);
+        return (new StockReturnResource($return))->response();
+    }
+
+    public function issueCreditMemo(Request $request, int $id): JsonResponse
+    {
+        $return = $this->issueCreditMemoService->execute([
+            'id'                    => $id,
+            'credit_memo_reference' => $request->string('credit_memo_reference'),
         ]);
         return (new StockReturnResource($return))->response();
     }

@@ -7,6 +7,7 @@ namespace Modules\Returns\Infrastructure\Providers;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Returns\Application\Contracts\ApproveStockReturnServiceInterface;
+use Modules\Returns\Application\Contracts\CancelStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\CompleteStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\CreateStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\CreateStockReturnServiceInterface;
@@ -14,10 +15,12 @@ use Modules\Returns\Application\Contracts\DeleteStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\DeleteStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\FindStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\FindStockReturnServiceInterface;
+use Modules\Returns\Application\Contracts\IssueCreditMemoServiceInterface;
 use Modules\Returns\Application\Contracts\RejectStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\UpdateStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\UpdateStockReturnServiceInterface;
 use Modules\Returns\Application\Services\ApproveStockReturnService;
+use Modules\Returns\Application\Services\CancelStockReturnService;
 use Modules\Returns\Application\Services\CompleteStockReturnService;
 use Modules\Returns\Application\Services\CreateStockReturnLineService;
 use Modules\Returns\Application\Services\CreateStockReturnService;
@@ -25,6 +28,7 @@ use Modules\Returns\Application\Services\DeleteStockReturnLineService;
 use Modules\Returns\Application\Services\DeleteStockReturnService;
 use Modules\Returns\Application\Services\FindStockReturnLineService;
 use Modules\Returns\Application\Services\FindStockReturnService;
+use Modules\Returns\Application\Services\IssueCreditMemoService;
 use Modules\Returns\Application\Services\RejectStockReturnService;
 use Modules\Returns\Application\Services\UpdateStockReturnLineService;
 use Modules\Returns\Application\Services\UpdateStockReturnService;
@@ -67,6 +71,12 @@ class ReturnsServiceProvider extends ServiceProvider
 
         $this->app->bind(CompleteStockReturnServiceInterface::class, fn ($app) =>
             new CompleteStockReturnService($app->make(StockReturnRepositoryInterface::class)));
+
+        $this->app->bind(CancelStockReturnServiceInterface::class, fn ($app) =>
+            new CancelStockReturnService($app->make(StockReturnRepositoryInterface::class)));
+
+        $this->app->bind(IssueCreditMemoServiceInterface::class, fn ($app) =>
+            new IssueCreditMemoService($app->make(StockReturnRepositoryInterface::class)));
 
         // --- Services: StockReturnLine ---
         $this->app->bind(CreateStockReturnLineServiceInterface::class, fn ($app) =>

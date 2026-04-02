@@ -13,6 +13,8 @@ Route::prefix('returns')->group(function () {
     Route::post('/{id}/approve', [StockReturnController::class, 'approve']);
     Route::post('/{id}/reject', [StockReturnController::class, 'reject']);
     Route::post('/{id}/complete', [StockReturnController::class, 'complete']);
+    Route::post('/{id}/cancel', [StockReturnController::class, 'cancel']);
+    Route::post('/{id}/issue-credit-memo', [StockReturnController::class, 'issueCreditMemo']);
 });
 
 Route::prefix('return-lines')->group(function () {
