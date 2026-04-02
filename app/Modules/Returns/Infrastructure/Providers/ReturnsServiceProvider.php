@@ -16,6 +16,7 @@ use Modules\Returns\Application\Contracts\DeleteStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\FindStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\FindStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\IssueCreditMemoServiceInterface;
+use Modules\Returns\Application\Contracts\ProcessReturnInventoryAdjustmentServiceInterface;
 use Modules\Returns\Application\Contracts\RejectStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\UpdateStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\UpdateStockReturnServiceInterface;
@@ -29,6 +30,7 @@ use Modules\Returns\Application\Services\DeleteStockReturnService;
 use Modules\Returns\Application\Services\FindStockReturnLineService;
 use Modules\Returns\Application\Services\FindStockReturnService;
 use Modules\Returns\Application\Services\IssueCreditMemoService;
+use Modules\Returns\Application\Services\ProcessReturnInventoryAdjustmentService;
 use Modules\Returns\Application\Services\RejectStockReturnService;
 use Modules\Returns\Application\Services\UpdateStockReturnLineService;
 use Modules\Returns\Application\Services\UpdateStockReturnService;
@@ -38,6 +40,10 @@ use Modules\Returns\Infrastructure\Persistence\Eloquent\Models\StockReturnLineMo
 use Modules\Returns\Infrastructure\Persistence\Eloquent\Models\StockReturnModel;
 use Modules\Returns\Infrastructure\Persistence\Eloquent\Repositories\EloquentStockReturnLineRepository;
 use Modules\Returns\Infrastructure\Persistence\Eloquent\Repositories\EloquentStockReturnRepository;
+use Modules\Inventory\Domain\RepositoryInterfaces\InventoryLevelRepositoryInterface;
+use Modules\Inventory\Domain\RepositoryInterfaces\InventorySettingRepositoryInterface;
+use Modules\Inventory\Domain\RepositoryInterfaces\InventoryValuationLayerRepositoryInterface;
+use Modules\StockMovement\Domain\RepositoryInterfaces\StockMovementRepositoryInterface;
 
 class ReturnsServiceProvider extends ServiceProvider
 {
@@ -70,7 +76,20 @@ class ReturnsServiceProvider extends ServiceProvider
             new RejectStockReturnService($app->make(StockReturnRepositoryInterface::class)));
 
         $this->app->bind(CompleteStockReturnServiceInterface::class, fn ($app) =>
-            new CompleteStockReturnService($app->make(StockReturnRepositoryInterface::class)));
+            new CompleteStockReturnService(
+                $app->make(StockReturnRepositoryInterface::class),
+                $app->make(ProcessReturnInventoryAdjustmentServiceInterface::class),
+            ));
+
+        $this->app->bind(ProcessReturnInventoryAdjustmentServiceInterface::class, fn ($app) =>
+            new ProcessReturnInventoryAdjustmentService(
+                $app->make(StockReturnRepositoryInterface::class),
+                $app->make(StockReturnLineRepositoryInterface::class),
+                $app->make(StockMovementRepositoryInterface::class),
+                $app->make(InventoryLevelRepositoryInterface::class),
+                $app->make(InventoryValuationLayerRepositoryInterface::class),
+                $app->make(InventorySettingRepositoryInterface::class),
+            ));
 
         $this->app->bind(CancelStockReturnServiceInterface::class, fn ($app) =>
             new CancelStockReturnService($app->make(StockReturnRepositoryInterface::class)));

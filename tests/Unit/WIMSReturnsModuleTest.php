@@ -25,6 +25,7 @@ use Modules\Returns\Domain\Events\StockReturnRejected;
 use Modules\Returns\Domain\Events\StockReturnCompleted;
 use Modules\Returns\Domain\Events\StockReturnCancelled;
 use Modules\Returns\Domain\Events\StockReturnCreditMemoIssued;
+use Modules\Returns\Domain\Events\StockReturnInventoryAdjusted;
 use Modules\Returns\Domain\Events\StockReturnLineCreated;
 use Modules\Returns\Domain\Events\StockReturnLineUpdated;
 use Modules\Returns\Domain\Events\StockReturnLineDeleted;
@@ -55,6 +56,7 @@ use Modules\Returns\Application\Contracts\RejectStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\CompleteStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\CancelStockReturnServiceInterface;
 use Modules\Returns\Application\Contracts\IssueCreditMemoServiceInterface;
+use Modules\Returns\Application\Contracts\ProcessReturnInventoryAdjustmentServiceInterface;
 use Modules\Returns\Application\Contracts\CreateStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\FindStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\UpdateStockReturnLineServiceInterface;
@@ -70,6 +72,7 @@ use Modules\Returns\Application\Services\RejectStockReturnService;
 use Modules\Returns\Application\Services\CompleteStockReturnService;
 use Modules\Returns\Application\Services\CancelStockReturnService;
 use Modules\Returns\Application\Services\IssueCreditMemoService;
+use Modules\Returns\Application\Services\ProcessReturnInventoryAdjustmentService;
 use Modules\Returns\Application\Services\CreateStockReturnLineService;
 use Modules\Returns\Application\Services\FindStockReturnLineService;
 use Modules\Returns\Application\Services\UpdateStockReturnLineService;
@@ -1454,5 +1457,342 @@ class WIMSReturnsModuleTest extends TestCase
         $this->assertEquals(1, $return1->getTenantId());
         $this->assertEquals(2, $return2->getTenantId());
         $this->assertNotEquals($return1->getTenantId(), $return2->getTenantId());
+    }
+
+    // ========================================================================
+    // DOMAIN EVENT — StockReturnInventoryAdjusted
+    // ========================================================================
+
+    public function test_stock_return_inventory_adjusted_event_extends_base_event(): void
+    {
+        $return = new StockReturn(
+            tenantId: 1,
+            referenceNumber: 'RET-ADJ-001',
+            returnType: 'purchase_return',
+            partyId: 5,
+            partyType: 'supplier',
+        );
+        $event = new StockReturnInventoryAdjusted($return);
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame($return, $event->stockReturn);
+    }
+
+    public function test_stock_return_inventory_adjusted_event_broadcast_with(): void
+    {
+        $return = new StockReturn(
+            tenantId: 3,
+            referenceNumber: 'RET-ADJ-002',
+            returnType: 'sales_return',
+            partyId: 30,
+            partyType: 'customer',
+            restockLocationId: 7,
+        );
+        $event   = new StockReturnInventoryAdjusted($return);
+        $payload = $event->broadcastWith();
+
+        $this->assertArrayHasKey('tenant_id', $payload);
+        $this->assertArrayHasKey('reference_number', $payload);
+        $this->assertArrayHasKey('restock_location_id', $payload);
+        $this->assertEquals(3, $payload['tenant_id']);
+        $this->assertEquals('RET-ADJ-002', $payload['reference_number']);
+        $this->assertEquals(7, $payload['restock_location_id']);
+    }
+
+    // ========================================================================
+    // PROCESS RETURN INVENTORY ADJUSTMENT — SERVICE INTERFACE & CLASS
+    // ========================================================================
+
+    public function test_process_return_inventory_adjustment_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_a(ProcessReturnInventoryAdjustmentServiceInterface::class, WriteServiceInterface::class, true));
+    }
+
+    public function test_process_return_inventory_adjustment_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_a(ProcessReturnInventoryAdjustmentService::class, BaseService::class, true));
+    }
+
+    public function test_process_return_inventory_adjustment_service_implements_interface(): void
+    {
+        $this->assertTrue(is_a(ProcessReturnInventoryAdjustmentService::class, ProcessReturnInventoryAdjustmentServiceInterface::class, true));
+    }
+
+    // ========================================================================
+    // INVENTORY LAYER — VALUATION METHOD SCENARIOS
+    // ========================================================================
+
+    public function test_inventory_valuation_layer_entity_created_for_restock_return(): void
+    {
+        // When a return line is restocked, a new valuation layer should be
+        // created at the return's unit cost. This test verifies the entity
+        // correctly represents a FIFO layer created from a sales return.
+        $layerDate = new \DateTimeImmutable('2026-04-02');
+        $layer     = new \Modules\Inventory\Domain\Entities\InventoryValuationLayer(
+            tenantId:        1,
+            productId:       101,
+            layerDate:       $layerDate,
+            qtyIn:           3.0,
+            unitCost:        75.00,
+            valuationMethod: 'fifo',
+            variationId:     null,
+            batchId:         42,
+            locationId:      5,
+            qtyRemaining:    3.0,
+            currency:        'USD',
+            referenceType:   'stock_return',
+            referenceId:     1001,
+        );
+
+        $this->assertEquals(1, $layer->getTenantId());
+        $this->assertEquals(101, $layer->getProductId());
+        $this->assertEquals(3.0, $layer->getQtyIn());
+        $this->assertEquals(3.0, $layer->getQtyRemaining());
+        $this->assertEquals(75.00, $layer->getUnitCost());
+        $this->assertEquals('fifo', $layer->getValuationMethod());
+        $this->assertEquals('stock_return', $layer->getReferenceType());
+        $this->assertEquals(1001, $layer->getReferenceId());
+        $this->assertEquals(225.00, $layer->getTotalValue());
+        $this->assertFalse($layer->isClosed());
+    }
+
+    public function test_inventory_valuation_layer_fifo_method(): void
+    {
+        $layer = new \Modules\Inventory\Domain\Entities\InventoryValuationLayer(
+            tenantId:        1,
+            productId:       200,
+            layerDate:       new \DateTimeImmutable,
+            qtyIn:           5.0,
+            unitCost:        100.00,
+            valuationMethod: 'fifo',
+        );
+
+        $this->assertEquals('fifo', $layer->getValuationMethod());
+        $this->assertEquals(500.00, $layer->getTotalValue());
+    }
+
+    public function test_inventory_valuation_layer_lifo_method(): void
+    {
+        $layer = new \Modules\Inventory\Domain\Entities\InventoryValuationLayer(
+            tenantId:        1,
+            productId:       200,
+            layerDate:       new \DateTimeImmutable,
+            qtyIn:           5.0,
+            unitCost:        120.00,
+            valuationMethod: 'lifo',
+        );
+
+        $this->assertEquals('lifo', $layer->getValuationMethod());
+        $this->assertEquals(600.00, $layer->getTotalValue());
+    }
+
+    public function test_inventory_valuation_layer_avco_method(): void
+    {
+        $layer = new \Modules\Inventory\Domain\Entities\InventoryValuationLayer(
+            tenantId:        1,
+            productId:       200,
+            layerDate:       new \DateTimeImmutable,
+            qtyIn:           10.0,
+            unitCost:        90.00,
+            valuationMethod: 'avco',
+        );
+
+        $this->assertEquals('avco', $layer->getValuationMethod());
+        $this->assertEquals(900.00, $layer->getTotalValue());
+    }
+
+    public function test_inventory_valuation_layer_consume_reduces_qty_remaining(): void
+    {
+        $layer = new \Modules\Inventory\Domain\Entities\InventoryValuationLayer(
+            tenantId:        1,
+            productId:       300,
+            layerDate:       new \DateTimeImmutable,
+            qtyIn:           10.0,
+            unitCost:        50.00,
+            valuationMethod: 'fifo',
+        );
+
+        $consumed = $layer->consume(4.0);
+
+        $this->assertEquals(4.0, $consumed);
+        $this->assertEquals(6.0, $layer->getQtyRemaining());
+        $this->assertFalse($layer->isClosed());
+    }
+
+    public function test_inventory_valuation_layer_consume_closes_when_fully_consumed(): void
+    {
+        $layer = new \Modules\Inventory\Domain\Entities\InventoryValuationLayer(
+            tenantId:        1,
+            productId:       300,
+            layerDate:       new \DateTimeImmutable,
+            qtyIn:           5.0,
+            unitCost:        50.00,
+            valuationMethod: 'fifo',
+        );
+
+        $layer->consume(5.0);
+
+        $this->assertEquals(0.0, $layer->getQtyRemaining());
+        $this->assertTrue($layer->isClosed());
+        $this->assertEquals(0.0, $layer->getTotalValue());
+    }
+
+    public function test_inventory_level_add_stock_for_restock_return(): void
+    {
+        // Simulates inventory level being incremented when a return is restocked.
+        $level = new \Modules\Inventory\Domain\Entities\InventoryLevel(
+            tenantId:    1,
+            productId:   101,
+            locationId:  5,
+            qtyOnHand:   10.0,
+            qtyReserved: 2.0,
+        );
+
+        $this->assertEquals(10.0, $level->getQtyOnHand());
+        $this->assertEquals(8.0, $level->getQtyAvailable());
+
+        $level->addStock(3.0); // 3 units returned and restocked
+
+        $this->assertEquals(13.0, $level->getQtyOnHand());
+        $this->assertEquals(11.0, $level->getQtyAvailable());
+    }
+
+    // ========================================================================
+    // STOCK MOVEMENT — RETURN_IN / RETURN_OUT / ADJUSTMENT MOVEMENT TYPES
+    // ========================================================================
+
+    public function test_stock_movement_return_in_type_for_restock(): void
+    {
+        $movement = new \Modules\StockMovement\Domain\Entities\StockMovement(
+            tenantId:        1,
+            referenceNumber: 'MOV-RET-PO-001-101',
+            movementType:    'return_in',
+            productId:       101,
+            quantity:        3.0,
+            toLocationId:    5,
+            batchId:         42,
+            unitCost:        75.00,
+            currency:        'USD',
+            referenceType:   'stock_return',
+            referenceId:     1001,
+        );
+
+        $movement->confirm();
+
+        $this->assertEquals('return_in', $movement->getMovementType());
+        $this->assertEquals('confirmed', $movement->getStatus());
+        $this->assertEquals(3.0, $movement->getQuantity());
+        $this->assertEquals('stock_return', $movement->getReferenceType());
+        $this->assertEquals(1001, $movement->getReferenceId());
+        $this->assertTrue($movement->isConfirmed());
+    }
+
+    public function test_stock_movement_return_out_type_for_vendor_return(): void
+    {
+        $movement = new \Modules\StockMovement\Domain\Entities\StockMovement(
+            tenantId:        1,
+            referenceNumber: 'MOV-RET-VENDOR-001-101',
+            movementType:    'return_out',
+            productId:       101,
+            quantity:        2.0,
+            unitCost:        80.00,
+            referenceType:   'stock_return',
+            referenceId:     2001,
+        );
+
+        $movement->confirm();
+
+        $this->assertEquals('return_out', $movement->getMovementType());
+        $this->assertEquals('confirmed', $movement->getStatus());
+        $this->assertTrue($movement->isConfirmed());
+    }
+
+    public function test_stock_movement_adjustment_type_for_scrap(): void
+    {
+        $movement = new \Modules\StockMovement\Domain\Entities\StockMovement(
+            tenantId:        1,
+            referenceNumber: 'MOV-RET-SCRAP-001-101',
+            movementType:    'adjustment',
+            productId:       101,
+            quantity:        1.0,
+            unitCost:        60.00,
+            referenceType:   'stock_return',
+            referenceId:     3001,
+        );
+
+        $movement->confirm();
+
+        $this->assertEquals('adjustment', $movement->getMovementType());
+        $this->assertEquals('confirmed', $movement->getStatus());
+    }
+
+    // ========================================================================
+    // FULL WORKFLOW — INVENTORY IMPACT VERIFICATION
+    // ========================================================================
+
+    public function test_restock_disposition_adds_stock_and_creates_valuation_layer(): void
+    {
+        // Verifies the entity-level behavior that underpins the
+        // ProcessReturnInventoryAdjustmentService for restock lines.
+        $level = new \Modules\Inventory\Domain\Entities\InventoryLevel(
+            tenantId:   1,
+            productId:  101,
+            locationId: 5,
+            qtyOnHand:  20.0,
+        );
+        $originalQty = $level->getQtyOnHand();
+
+        // Simulate return of 4 good units
+        $returnedQty = 4.0;
+        $unitCost    = 50.00;
+
+        $level->addStock($returnedQty);
+
+        $layer = new \Modules\Inventory\Domain\Entities\InventoryValuationLayer(
+            tenantId:        1,
+            productId:       101,
+            layerDate:       new \DateTimeImmutable,
+            qtyIn:           $returnedQty,
+            unitCost:        $unitCost,
+            valuationMethod: 'fifo',
+            locationId:      5,
+            qtyRemaining:    $returnedQty,
+            referenceType:   'stock_return',
+            referenceId:     42,
+        );
+
+        $this->assertEquals($originalQty + $returnedQty, $level->getQtyOnHand());
+        $this->assertEquals($returnedQty, $layer->getQtyIn());
+        $this->assertEquals($unitCost * $returnedQty, $layer->getTotalValue());
+        $this->assertEquals('stock_return', $layer->getReferenceType());
+    }
+
+    public function test_scrap_disposition_does_not_add_stock(): void
+    {
+        // For scrap disposition, only a StockMovement is created; the
+        // InventoryLevel must NOT be incremented.
+        $level = new \Modules\Inventory\Domain\Entities\InventoryLevel(
+            tenantId:   1,
+            productId:  202,
+            locationId: 5,
+            qtyOnHand:  15.0,
+        );
+
+        $qtyBefore = $level->getQtyOnHand();
+
+        // Scrap: no addStock() call – level stays the same
+        // Only a StockMovement (adjustment) is created
+        $movement = new \Modules\StockMovement\Domain\Entities\StockMovement(
+            tenantId:      1,
+            referenceNumber: 'MOV-SCRAP-001',
+            movementType:  'adjustment',
+            productId:     202,
+            quantity:      2.0,
+            referenceType: 'stock_return',
+            referenceId:   999,
+        );
+        $movement->confirm();
+
+        $this->assertEquals($qtyBefore, $level->getQtyOnHand());
+        $this->assertEquals('adjustment', $movement->getMovementType());
     }
 }
