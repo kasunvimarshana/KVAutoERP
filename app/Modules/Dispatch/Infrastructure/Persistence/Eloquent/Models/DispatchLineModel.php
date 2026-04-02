@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Modules\Dispatch\Infrastructure\Persistence\Eloquent\Models;
 
 use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 
 class DispatchLineModel extends BaseModel
 {
+    use HasAudit;
+
     protected $table = 'dispatch_lines';
 
     protected $fillable = [
