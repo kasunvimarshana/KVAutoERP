@@ -130,6 +130,10 @@ use Modules\Inventory\Domain\RepositoryInterfaces\InventorySerialNumberRepositor
 use Modules\Inventory\Domain\RepositoryInterfaces\InventorySettingRepositoryInterface;
 use Modules\Inventory\Domain\RepositoryInterfaces\InventoryValuationLayerRepositoryInterface;
 use Modules\Inventory\Domain\ValueObjects\CycleCountStatus;
+use Modules\Inventory\Domain\ValueObjects\CycleCountMethod;
+use Modules\Inventory\Domain\ValueObjects\AllocationAlgorithm;
+use Modules\Inventory\Domain\ValueObjects\ManagementMethod;
+use Modules\Inventory\Domain\ValueObjects\StockRotationStrategy;
 use Modules\Inventory\Domain\ValueObjects\LocationType;
 use Modules\Inventory\Domain\ValueObjects\SerialStatus;
 use Modules\Inventory\Domain\ValueObjects\StockStatus;
@@ -319,6 +323,416 @@ class InventoryModuleTest extends TestCase
     {
         $this->assertContains('draft', CycleCountStatus::values());
         $this->assertContains('completed', CycleCountStatus::values());
+    }
+
+    // ── ManagementMethod Value Object ─────────────────────────────────────────
+
+    /** @test */
+    public function test_management_method_valid_values(): void
+    {
+        $this->assertContains('perpetual', ManagementMethod::values());
+        $this->assertContains('periodic', ManagementMethod::values());
+    }
+
+    /** @test */
+    public function test_management_method_constants(): void
+    {
+        $this->assertSame('perpetual', ManagementMethod::PERPETUAL);
+        $this->assertSame('periodic',  ManagementMethod::PERIODIC);
+    }
+
+    /** @test */
+    public function test_management_method_is_perpetual(): void
+    {
+        $m = new ManagementMethod('perpetual');
+        $this->assertTrue($m->isPerpetual());
+        $this->assertFalse($m->isPeriodic());
+    }
+
+    /** @test */
+    public function test_management_method_is_periodic(): void
+    {
+        $m = new ManagementMethod('periodic');
+        $this->assertTrue($m->isPeriodic());
+        $this->assertFalse($m->isPerpetual());
+    }
+
+    /** @test */
+    public function test_management_method_value(): void
+    {
+        $m = new ManagementMethod('perpetual');
+        $this->assertSame('perpetual', $m->value());
+        $this->assertSame('perpetual', (string) $m);
+    }
+
+    /** @test */
+    public function test_management_method_equals(): void
+    {
+        $a = new ManagementMethod('perpetual');
+        $b = new ManagementMethod('perpetual');
+        $c = new ManagementMethod('periodic');
+        $this->assertTrue($a->equals($b));
+        $this->assertFalse($a->equals($c));
+    }
+
+    /** @test */
+    public function test_management_method_invalid_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new ManagementMethod('invalid_method');
+    }
+
+    /** @test */
+    public function test_management_method_assert_valid_passes_for_valid_value(): void
+    {
+        ManagementMethod::assertValid('perpetual'); // must not throw
+        $this->assertTrue(true);
+    }
+
+    /** @test */
+    public function test_management_method_assert_valid_throws_for_invalid_value(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        ManagementMethod::assertValid('bad_value');
+    }
+
+    // ── StockRotationStrategy Value Object ────────────────────────────────────
+
+    /** @test */
+    public function test_stock_rotation_strategy_valid_values(): void
+    {
+        $values = StockRotationStrategy::values();
+        $this->assertContains('fifo', $values);
+        $this->assertContains('fefo', $values);
+        $this->assertContains('lifo', $values);
+        $this->assertContains('fmfo', $values);
+    }
+
+    /** @test */
+    public function test_stock_rotation_strategy_constants(): void
+    {
+        $this->assertSame('fifo', StockRotationStrategy::FIFO);
+        $this->assertSame('fefo', StockRotationStrategy::FEFO);
+        $this->assertSame('lifo', StockRotationStrategy::LIFO);
+        $this->assertSame('fmfo', StockRotationStrategy::FMFO);
+    }
+
+    /** @test */
+    public function test_stock_rotation_strategy_fifo(): void
+    {
+        $s = new StockRotationStrategy('fifo');
+        $this->assertTrue($s->isFifo());
+        $this->assertFalse($s->isFefo());
+        $this->assertFalse($s->isLifo());
+        $this->assertFalse($s->isFmfo());
+    }
+
+    /** @test */
+    public function test_stock_rotation_strategy_fefo(): void
+    {
+        $s = new StockRotationStrategy('fefo');
+        $this->assertTrue($s->isFefo());
+        $this->assertFalse($s->isFifo());
+    }
+
+    /** @test */
+    public function test_stock_rotation_strategy_lifo(): void
+    {
+        $s = new StockRotationStrategy('lifo');
+        $this->assertTrue($s->isLifo());
+    }
+
+    /** @test */
+    public function test_stock_rotation_strategy_fmfo(): void
+    {
+        $s = new StockRotationStrategy('fmfo');
+        $this->assertTrue($s->isFmfo());
+    }
+
+    /** @test */
+    public function test_stock_rotation_strategy_value_and_to_string(): void
+    {
+        $s = new StockRotationStrategy('fefo');
+        $this->assertSame('fefo', $s->value());
+        $this->assertSame('fefo', (string) $s);
+    }
+
+    /** @test */
+    public function test_stock_rotation_strategy_equals(): void
+    {
+        $a = new StockRotationStrategy('fefo');
+        $b = new StockRotationStrategy('fefo');
+        $c = new StockRotationStrategy('fifo');
+        $this->assertTrue($a->equals($b));
+        $this->assertFalse($a->equals($c));
+    }
+
+    /** @test */
+    public function test_stock_rotation_strategy_invalid_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new StockRotationStrategy('bad_strategy');
+    }
+
+    /** @test */
+    public function test_stock_rotation_strategy_assert_valid_passes_for_valid_value(): void
+    {
+        StockRotationStrategy::assertValid('fefo'); // must not throw
+        $this->assertTrue(true);
+    }
+
+    /** @test */
+    public function test_stock_rotation_strategy_assert_valid_throws_for_invalid_value(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        StockRotationStrategy::assertValid('bad_strategy');
+    }
+
+    // ── AllocationAlgorithm Value Object ──────────────────────────────────────
+
+    /** @test */
+    public function test_allocation_algorithm_valid_values(): void
+    {
+        $values = AllocationAlgorithm::values();
+        $this->assertContains('fefo',        $values);
+        $this->assertContains('fifo',        $values);
+        $this->assertContains('lifo',        $values);
+        $this->assertContains('zone_based',  $values);
+        $this->assertContains('demand_based', $values);
+    }
+
+    /** @test */
+    public function test_allocation_algorithm_constants(): void
+    {
+        $this->assertSame('fefo',         AllocationAlgorithm::FEFO);
+        $this->assertSame('fifo',         AllocationAlgorithm::FIFO);
+        $this->assertSame('lifo',         AllocationAlgorithm::LIFO);
+        $this->assertSame('zone_based',   AllocationAlgorithm::ZONE_BASED);
+        $this->assertSame('demand_based', AllocationAlgorithm::DEMAND_BASED);
+    }
+
+    /** @test */
+    public function test_allocation_algorithm_fefo(): void
+    {
+        $a = new AllocationAlgorithm('fefo');
+        $this->assertTrue($a->isFefo());
+        $this->assertFalse($a->isFifo());
+        $this->assertFalse($a->isLifo());
+        $this->assertFalse($a->isZoneBased());
+        $this->assertFalse($a->isDemandBased());
+    }
+
+    /** @test */
+    public function test_allocation_algorithm_fifo(): void
+    {
+        $a = new AllocationAlgorithm('fifo');
+        $this->assertTrue($a->isFifo());
+    }
+
+    /** @test */
+    public function test_allocation_algorithm_zone_based(): void
+    {
+        $a = new AllocationAlgorithm('zone_based');
+        $this->assertTrue($a->isZoneBased());
+    }
+
+    /** @test */
+    public function test_allocation_algorithm_demand_based(): void
+    {
+        $a = new AllocationAlgorithm('demand_based');
+        $this->assertTrue($a->isDemandBased());
+    }
+
+    /** @test */
+    public function test_allocation_algorithm_value_and_to_string(): void
+    {
+        $a = new AllocationAlgorithm('fifo');
+        $this->assertSame('fifo', $a->value());
+        $this->assertSame('fifo', (string) $a);
+    }
+
+    /** @test */
+    public function test_allocation_algorithm_equals(): void
+    {
+        $a = new AllocationAlgorithm('fefo');
+        $b = new AllocationAlgorithm('fefo');
+        $c = new AllocationAlgorithm('fifo');
+        $this->assertTrue($a->equals($b));
+        $this->assertFalse($a->equals($c));
+    }
+
+    /** @test */
+    public function test_allocation_algorithm_invalid_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new AllocationAlgorithm('invalid_algo');
+    }
+
+    /** @test */
+    public function test_allocation_algorithm_assert_valid_passes_for_valid_value(): void
+    {
+        AllocationAlgorithm::assertValid('zone_based'); // must not throw
+        $this->assertTrue(true);
+    }
+
+    /** @test */
+    public function test_allocation_algorithm_assert_valid_throws_for_invalid_value(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        AllocationAlgorithm::assertValid('invalid_algo');
+    }
+
+    // ── CycleCountMethod Value Object ─────────────────────────────────────────
+
+    /** @test */
+    public function test_cycle_count_method_valid_values(): void
+    {
+        $values = CycleCountMethod::values();
+        $this->assertContains('abc',       $values);
+        $this->assertContains('frequency', $values);
+        $this->assertContains('random',    $values);
+        $this->assertContains('periodic',  $values);
+    }
+
+    /** @test */
+    public function test_cycle_count_method_constants(): void
+    {
+        $this->assertSame('abc',       CycleCountMethod::ABC);
+        $this->assertSame('frequency', CycleCountMethod::FREQUENCY);
+        $this->assertSame('random',    CycleCountMethod::RANDOM);
+        $this->assertSame('periodic',  CycleCountMethod::PERIODIC);
+    }
+
+    /** @test */
+    public function test_cycle_count_method_abc(): void
+    {
+        $m = new CycleCountMethod('abc');
+        $this->assertTrue($m->isAbc());
+        $this->assertFalse($m->isFrequency());
+        $this->assertFalse($m->isRandom());
+        $this->assertFalse($m->isPeriodic());
+    }
+
+    /** @test */
+    public function test_cycle_count_method_frequency(): void
+    {
+        $m = new CycleCountMethod('frequency');
+        $this->assertTrue($m->isFrequency());
+    }
+
+    /** @test */
+    public function test_cycle_count_method_random(): void
+    {
+        $m = new CycleCountMethod('random');
+        $this->assertTrue($m->isRandom());
+    }
+
+    /** @test */
+    public function test_cycle_count_method_periodic(): void
+    {
+        $m = new CycleCountMethod('periodic');
+        $this->assertTrue($m->isPeriodic());
+    }
+
+    /** @test */
+    public function test_cycle_count_method_value_and_to_string(): void
+    {
+        $m = new CycleCountMethod('abc');
+        $this->assertSame('abc', $m->value());
+        $this->assertSame('abc', (string) $m);
+    }
+
+    /** @test */
+    public function test_cycle_count_method_equals(): void
+    {
+        $a = new CycleCountMethod('abc');
+        $b = new CycleCountMethod('abc');
+        $c = new CycleCountMethod('random');
+        $this->assertTrue($a->equals($b));
+        $this->assertFalse($a->equals($c));
+    }
+
+    /** @test */
+    public function test_cycle_count_method_invalid_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new CycleCountMethod('invalid_method');
+    }
+
+    /** @test */
+    public function test_cycle_count_method_assert_valid_passes_for_valid_value(): void
+    {
+        CycleCountMethod::assertValid('abc'); // must not throw
+        $this->assertTrue(true);
+    }
+
+    /** @test */
+    public function test_cycle_count_method_assert_valid_throws_for_invalid_value(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        CycleCountMethod::assertValid('invalid_method');
+    }
+
+    // ── InventorySetting validates via VOs ────────────────────────────────────
+
+    /** @test */
+    public function test_inventory_setting_rejects_invalid_management_method(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new InventorySetting(tenantId: 1, managementMethod: 'invalid');
+    }
+
+    /** @test */
+    public function test_inventory_setting_rejects_invalid_rotation_strategy(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new InventorySetting(tenantId: 1, rotationStrategy: 'invalid');
+    }
+
+    /** @test */
+    public function test_inventory_setting_rejects_invalid_allocation_algorithm(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new InventorySetting(tenantId: 1, allocationAlgorithm: 'invalid');
+    }
+
+    /** @test */
+    public function test_inventory_setting_rejects_invalid_cycle_count_method(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new InventorySetting(tenantId: 1, cycleCountMethod: 'invalid');
+    }
+
+    /** @test */
+    public function test_inventory_setting_update_rejects_invalid_management_method(): void
+    {
+        $s = $this->makeSetting();
+        $this->expectException(\InvalidArgumentException::class);
+        $s->updateDetails('fifo', 'invalid', 'fefo', 'fefo', 'abc', false, true, true, true, false, true, null, true);
+    }
+
+    /** @test */
+    public function test_inventory_setting_update_rejects_invalid_rotation_strategy(): void
+    {
+        $s = $this->makeSetting();
+        $this->expectException(\InvalidArgumentException::class);
+        $s->updateDetails('fifo', 'perpetual', 'invalid', 'fefo', 'abc', false, true, true, true, false, true, null, true);
+    }
+
+    /** @test */
+    public function test_inventory_setting_update_rejects_invalid_allocation_algorithm(): void
+    {
+        $s = $this->makeSetting();
+        $this->expectException(\InvalidArgumentException::class);
+        $s->updateDetails('fifo', 'perpetual', 'fefo', 'invalid', 'abc', false, true, true, true, false, true, null, true);
+    }
+
+    /** @test */
+    public function test_inventory_setting_update_rejects_invalid_cycle_count_method(): void
+    {
+        $s = $this->makeSetting();
+        $this->expectException(\InvalidArgumentException::class);
+        $s->updateDetails('fifo', 'perpetual', 'fefo', 'fefo', 'invalid', false, true, true, true, false, true, null, true);
     }
 
     // ──────────────────────────── Domain Entities ────────────────────────────
