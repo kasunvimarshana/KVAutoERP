@@ -9,7 +9,9 @@ use Illuminate\Http\Request;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Returns\Application\Contracts\CreateStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\DeleteStockReturnLineServiceInterface;
+use Modules\Returns\Application\Contracts\FailQualityCheckServiceInterface;
 use Modules\Returns\Application\Contracts\FindStockReturnLineServiceInterface;
+use Modules\Returns\Application\Contracts\PassQualityCheckServiceInterface;
 use Modules\Returns\Application\Contracts\UpdateStockReturnLineServiceInterface;
 use Modules\Returns\Application\DTOs\StockReturnLineData;
 use Modules\Returns\Application\DTOs\UpdateStockReturnLineData;
@@ -25,6 +27,8 @@ class StockReturnLineController extends AuthorizedController
         protected CreateStockReturnLineServiceInterface $createService,
         protected UpdateStockReturnLineServiceInterface $updateService,
         protected DeleteStockReturnLineServiceInterface $deleteService,
+        protected PassQualityCheckServiceInterface $passQualityCheckService,
+        protected FailQualityCheckServiceInterface $failQualityCheckService,
     ) {}
 
     public function index(Request $request): StockReturnLineCollection
@@ -81,5 +85,25 @@ class StockReturnLineController extends AuthorizedController
     {
         $this->deleteService->execute(['id' => $id]);
         return response()->json(['message' => 'Stock return line deleted successfully']);
+    }
+
+    public function passQualityCheck(Request $request, int $id): JsonResponse
+    {
+        $validated = $request->validate(['checked_by' => 'required|integer|min:1']);
+        $line = $this->passQualityCheckService->execute([
+            'id'         => $id,
+            'checked_by' => $validated['checked_by'],
+        ]);
+        return (new StockReturnLineResource($line))->response();
+    }
+
+    public function failQualityCheck(Request $request, int $id): JsonResponse
+    {
+        $validated = $request->validate(['checked_by' => 'required|integer|min:1']);
+        $line = $this->failQualityCheckService->execute([
+            'id'         => $id,
+            'checked_by' => $validated['checked_by'],
+        ]);
+        return (new StockReturnLineResource($line))->response();
     }
 }

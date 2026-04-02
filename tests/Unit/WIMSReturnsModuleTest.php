@@ -61,6 +61,8 @@ use Modules\Returns\Application\Contracts\CreateStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\FindStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\UpdateStockReturnLineServiceInterface;
 use Modules\Returns\Application\Contracts\DeleteStockReturnLineServiceInterface;
+use Modules\Returns\Application\Contracts\PassQualityCheckServiceInterface;
+use Modules\Returns\Application\Contracts\FailQualityCheckServiceInterface;
 
 // ── Returns — Services ───────────────────────────────────────────────────────
 use Modules\Returns\Application\Services\CreateStockReturnService;
@@ -77,6 +79,8 @@ use Modules\Returns\Application\Services\CreateStockReturnLineService;
 use Modules\Returns\Application\Services\FindStockReturnLineService;
 use Modules\Returns\Application\Services\UpdateStockReturnLineService;
 use Modules\Returns\Application\Services\DeleteStockReturnLineService;
+use Modules\Returns\Application\Services\PassQualityCheckService;
+use Modules\Returns\Application\Services\FailQualityCheckService;
 
 // ── Returns — Infrastructure ─────────────────────────────────────────────────
 use Modules\Returns\Infrastructure\Persistence\Eloquent\Models\StockReturnModel;
@@ -1794,5 +1798,158 @@ class WIMSReturnsModuleTest extends TestCase
 
         $this->assertEquals($qtyBefore, $level->getQtyOnHand());
         $this->assertEquals('adjustment', $movement->getMovementType());
+    }
+
+    // ========================================================================
+    // QUALITY CHECK SERVICES — CONTRACTS
+    // ========================================================================
+
+    public function test_pass_quality_check_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_a(PassQualityCheckServiceInterface::class, WriteServiceInterface::class, true));
+    }
+
+    public function test_fail_quality_check_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_a(FailQualityCheckServiceInterface::class, WriteServiceInterface::class, true));
+    }
+
+    // ========================================================================
+    // QUALITY CHECK SERVICES — IMPLEMENTATIONS
+    // ========================================================================
+
+    public function test_pass_quality_check_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_a(PassQualityCheckService::class, BaseService::class, true));
+    }
+
+    public function test_fail_quality_check_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_a(FailQualityCheckService::class, BaseService::class, true));
+    }
+
+    public function test_pass_quality_check_service_implements_interface(): void
+    {
+        $this->assertTrue(is_a(PassQualityCheckService::class, PassQualityCheckServiceInterface::class, true));
+    }
+
+    public function test_fail_quality_check_service_implements_interface(): void
+    {
+        $this->assertTrue(is_a(FailQualityCheckService::class, FailQualityCheckServiceInterface::class, true));
+    }
+
+    // ========================================================================
+    // QUALITY CHECK — ENTITY-LEVEL BEHAVIOR
+    // ========================================================================
+
+    public function test_pass_quality_check_sets_passed_status_and_checker(): void
+    {
+        $line = new StockReturnLine(
+            tenantId:          1,
+            stockReturnId:     10,
+            productId:         50,
+            quantityRequested: 3.0,
+            condition:         'good',
+            disposition:       'restock',
+        );
+
+        $this->assertSame('pending', $line->getQualityCheckStatus());
+        $this->assertNull($line->getQualityCheckedBy());
+        $this->assertNull($line->getQualityCheckedAt());
+
+        $line->passQualityCheck(99);
+
+        $this->assertSame('passed', $line->getQualityCheckStatus());
+        $this->assertSame(99, $line->getQualityCheckedBy());
+        $this->assertNotNull($line->getQualityCheckedAt());
+    }
+
+    public function test_fail_quality_check_sets_failed_status_and_checker(): void
+    {
+        $line = new StockReturnLine(
+            tenantId:          1,
+            stockReturnId:     10,
+            productId:         50,
+            quantityRequested: 3.0,
+            condition:         'damaged',
+            disposition:       'scrap',
+        );
+
+        $this->assertSame('pending', $line->getQualityCheckStatus());
+
+        $line->failQualityCheck(88);
+
+        $this->assertSame('failed', $line->getQualityCheckStatus());
+        $this->assertSame(88, $line->getQualityCheckedBy());
+        $this->assertNotNull($line->getQualityCheckedAt());
+    }
+
+    public function test_pass_quality_check_fires_line_passed_event(): void
+    {
+        $line = new StockReturnLine(
+            tenantId:          1,
+            stockReturnId:     5,
+            productId:         20,
+            quantityRequested: 1.0,
+        );
+        $event = new StockReturnLinePassed($line);
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame(1, $event->tenantId);
+    }
+
+    public function test_fail_quality_check_fires_line_failed_event(): void
+    {
+        $line = new StockReturnLine(
+            tenantId:          2,
+            stockReturnId:     7,
+            productId:         30,
+            quantityRequested: 2.0,
+        );
+        $event = new StockReturnLineFailed($line);
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame(2, $event->tenantId);
+    }
+
+    public function test_quality_check_workflow_good_to_restock(): void
+    {
+        // Typical flow: received line → quality check passed → restock
+        $line = new StockReturnLine(
+            tenantId:          1,
+            stockReturnId:     100,
+            productId:         55,
+            quantityRequested: 5.0,
+            condition:         'good',
+            disposition:       'restock',
+        );
+
+        $this->assertSame('pending', $line->getQualityCheckStatus());
+        $this->assertSame('good', $line->getCondition());
+        $this->assertSame('restock', $line->getDisposition());
+
+        $line->passQualityCheck(10);
+
+        $this->assertSame('passed', $line->getQualityCheckStatus());
+        // Condition and disposition are unchanged after quality check
+        $this->assertSame('good', $line->getCondition());
+        $this->assertSame('restock', $line->getDisposition());
+    }
+
+    public function test_quality_check_workflow_damaged_to_scrap(): void
+    {
+        // Typical flow: received line → quality check failed → scrap
+        $line = new StockReturnLine(
+            tenantId:          1,
+            stockReturnId:     101,
+            productId:         56,
+            quantityRequested: 2.0,
+            condition:         'damaged',
+            disposition:       'scrap',
+        );
+
+        $line->failQualityCheck(11);
+
+        $this->assertSame('failed', $line->getQualityCheckStatus());
+        $this->assertSame('damaged', $line->getCondition());
+        $this->assertSame('scrap', $line->getDisposition());
     }
 }

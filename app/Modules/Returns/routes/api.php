@@ -23,4 +23,6 @@ Route::prefix('return-lines')->group(function () {
     Route::get('/{id}', [StockReturnLineController::class, 'show']);
     Route::put('/{id}', [StockReturnLineController::class, 'update']);
     Route::delete('/{id}', [StockReturnLineController::class, 'destroy']);
+    Route::post('/{id}/pass-quality-check', [StockReturnLineController::class, 'passQualityCheck']);
+    Route::post('/{id}/fail-quality-check', [StockReturnLineController::class, 'failQualityCheck']);
 });
