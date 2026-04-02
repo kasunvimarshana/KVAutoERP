@@ -72,6 +72,13 @@ class ValuationMethod
         return $this->value;
     }
 
+    public static function assertValid(string $value): void
+    {
+        if (! in_array($value, self::VALID_METHODS, true)) {
+            throw new InvalidArgumentException("Invalid valuation method: {$value}");
+        }
+    }
+
     public static function values(): array
     {
         return self::VALID_METHODS;

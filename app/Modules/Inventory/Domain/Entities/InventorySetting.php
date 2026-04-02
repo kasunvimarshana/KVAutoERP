@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Modules\Inventory\Domain\Entities;
 
 use Modules\Core\Domain\ValueObjects\Metadata;
+use Modules\Inventory\Domain\ValueObjects\AllocationAlgorithm;
+use Modules\Inventory\Domain\ValueObjects\CycleCountMethod;
+use Modules\Inventory\Domain\ValueObjects\ManagementMethod;
+use Modules\Inventory\Domain\ValueObjects\StockRotationStrategy;
+use Modules\Inventory\Domain\ValueObjects\ValuationMethod;
 
 class InventorySetting
 {
@@ -47,6 +52,7 @@ class InventorySetting
     ) {
         $this->id                   = $id;
         $this->tenantId             = $tenantId;
+        $this->assertStrategyConfig($valuationMethod, $managementMethod, $rotationStrategy, $allocationAlgorithm, $cycleCountMethod);
         $this->valuationMethod      = $valuationMethod;
         $this->managementMethod     = $managementMethod;
         $this->rotationStrategy     = $rotationStrategy;
@@ -97,6 +103,7 @@ class InventorySetting
         ?Metadata $metadata,
         bool $isActive
     ): void {
+        $this->assertStrategyConfig($valuationMethod, $managementMethod, $rotationStrategy, $allocationAlgorithm, $cycleCountMethod);
         $this->valuationMethod      = $valuationMethod;
         $this->managementMethod     = $managementMethod;
         $this->rotationStrategy     = $rotationStrategy;
@@ -123,5 +130,19 @@ class InventorySetting
     {
         $this->isActive  = false;
         $this->updatedAt = new \DateTimeImmutable;
+    }
+
+    private function assertStrategyConfig(
+        string $valuationMethod,
+        string $managementMethod,
+        string $rotationStrategy,
+        string $allocationAlgorithm,
+        string $cycleCountMethod,
+    ): void {
+        ValuationMethod::assertValid($valuationMethod);
+        ManagementMethod::assertValid($managementMethod);
+        StockRotationStrategy::assertValid($rotationStrategy);
+        AllocationAlgorithm::assertValid($allocationAlgorithm);
+        CycleCountMethod::assertValid($cycleCountMethod);
     }
 }
