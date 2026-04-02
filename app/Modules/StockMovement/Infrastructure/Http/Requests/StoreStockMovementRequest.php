@@ -25,14 +25,14 @@ class StoreStockMovementRequest extends FormRequest
             'serial_number_id' => 'nullable|integer',
             'uom_id'           => 'nullable|integer',
             'unit_cost'        => 'nullable|numeric|min:0',
-            'currency'         => 'string|size:3',
+            'currency'         => 'nullable|string|size:3',
             'reference_type'   => 'nullable|string|max:100',
             'reference_id'     => 'nullable|integer',
             'performed_by'     => 'nullable|integer',
             'movement_date'    => 'nullable|date',
             'notes'            => 'nullable|string',
             'metadata'         => 'nullable|array',
-            'status'           => 'string|in:draft,confirmed,cancelled',
+            'status'           => 'nullable|string|in:draft,confirmed,cancelled',
         ];
     }
 }

@@ -44,14 +44,14 @@ class StockMovementData extends BaseDto
             'serialNumberId'  => 'nullable|integer',
             'uomId'           => 'nullable|integer',
             'unitCost'        => 'nullable|numeric|min:0',
-            'currency'        => 'string|size:3',
+            'currency'        => 'nullable|string|size:3',
             'referenceType'   => 'nullable|string|max:100',
             'referenceId'     => 'nullable|integer',
             'performedBy'     => 'nullable|integer',
             'movementDate'    => 'nullable|date',
             'notes'           => 'nullable|string',
             'metadata'        => 'nullable|array',
-            'status'          => 'string|in:draft,confirmed,cancelled',
+            'status'          => 'nullable|string|in:draft,confirmed,cancelled',
         ];
     }
 }

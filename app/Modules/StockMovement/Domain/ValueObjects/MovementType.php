@@ -6,12 +6,12 @@ namespace Modules\StockMovement\Domain\ValueObjects;
 
 class MovementType
 {
-    const RECEIPT    = 'receipt';
-    const ISSUE      = 'issue';
-    const TRANSFER   = 'transfer';
-    const ADJUSTMENT = 'adjustment';
-    const RETURN_IN  = 'return_in';
-    const RETURN_OUT = 'return_out';
+    public const RECEIPT    = 'receipt';
+    public const ISSUE      = 'issue';
+    public const TRANSFER   = 'transfer';
+    public const ADJUSTMENT = 'adjustment';
+    public const RETURN_IN  = 'return_in';
+    public const RETURN_OUT = 'return_out';
 
     public static function values(): array
     {
