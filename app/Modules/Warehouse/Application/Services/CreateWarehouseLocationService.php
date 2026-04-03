@@ -18,10 +18,12 @@ class CreateWarehouseLocationService implements CreateWarehouseLocationServiceIn
 
     public function execute(WarehouseLocationData $data): WarehouseLocation
     {
+        $warehouse = $this->warehouseRepository->findById($data->warehouseId);
+        if ($warehouse === null) {
+            throw new \InvalidArgumentException("Warehouse with ID {$data->warehouseId} not found.");
+        }
         $location = $this->locationRepository->create($data->toArray());
-        $warehouse = $this->warehouseRepository->findById($location->warehouseId);
-        $tenantId = $warehouse?->tenantId ?? 0;
-        Event::dispatch(new WarehouseLocationCreated($tenantId, $location->id));
+        Event::dispatch(new WarehouseLocationCreated($warehouse->tenantId, $location->id));
         return $location;
     }
 }

@@ -18,10 +18,12 @@ class CreateWarehouseZoneService implements CreateWarehouseZoneServiceInterface
 
     public function execute(WarehouseZoneData $data): WarehouseZone
     {
+        $warehouse = $this->warehouseRepository->findById($data->warehouseId);
+        if ($warehouse === null) {
+            throw new \InvalidArgumentException("Warehouse with ID {$data->warehouseId} not found.");
+        }
         $zone = $this->zoneRepository->create($data->toArray());
-        $warehouse = $this->warehouseRepository->findById($zone->warehouseId);
-        $tenantId = $warehouse?->tenantId ?? 0;
-        Event::dispatch(new WarehouseZoneCreated($tenantId, $zone->id));
+        Event::dispatch(new WarehouseZoneCreated($warehouse->tenantId, $zone->id));
         return $zone;
     }
 }

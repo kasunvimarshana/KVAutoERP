@@ -18,10 +18,12 @@ class CreateProductVariantService implements CreateProductVariantServiceInterfac
 
     public function execute(ProductVariantData $data): ProductVariant
     {
+        $product = $this->productRepository->findById($data->productId);
+        if ($product === null) {
+            throw new \InvalidArgumentException("Product with ID {$data->productId} not found.");
+        }
         $variant = $this->variantRepository->create($data->toArray());
-        $product = $this->productRepository->findById($variant->productId);
-        $tenantId = $product?->tenantId ?? 0;
-        Event::dispatch(new ProductVariantCreated($tenantId, $variant->id));
+        Event::dispatch(new ProductVariantCreated($product->tenantId, $variant->id));
         return $variant;
     }
 }
