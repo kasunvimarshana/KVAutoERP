@@ -13,4 +13,5 @@ return [
     Modules\StockMovement\Infrastructure\Providers\StockMovementServiceProvider::class,
     Modules\SalesOrder\Infrastructure\Providers\SalesOrderServiceProvider::class,
     Modules\Dispatch\Infrastructure\Providers\DispatchServiceProvider::class,
+    Modules\Returns\Infrastructure\Providers\ReturnsServiceProvider::class,
 ];
