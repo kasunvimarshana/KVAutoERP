@@ -16,4 +16,6 @@ return [
     Modules\Returns\Infrastructure\Providers\ReturnsServiceProvider::class,
     Modules\UoM\Infrastructure\Providers\UomServiceProvider::class,
     Modules\GS1\Infrastructure\Providers\GS1ServiceProvider::class,
+    Modules\Supplier\Infrastructure\Providers\SupplierServiceProvider::class,
+    Modules\Customer\Infrastructure\Providers\CustomerServiceProvider::class,
 ];
