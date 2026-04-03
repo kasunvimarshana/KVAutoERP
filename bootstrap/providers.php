@@ -8,4 +8,7 @@ return [
     Modules\Warehouse\Infrastructure\Providers\WarehouseServiceProvider::class,
     Modules\Product\Infrastructure\Providers\ProductServiceProvider::class,
     Modules\Inventory\Infrastructure\Providers\InventoryServiceProvider::class,
+    Modules\PurchaseOrder\Infrastructure\Providers\PurchaseOrderServiceProvider::class,
+    Modules\GoodsReceipt\Infrastructure\Providers\GoodsReceiptServiceProvider::class,
+    Modules\StockMovement\Infrastructure\Providers\StockMovementServiceProvider::class,
 ];
