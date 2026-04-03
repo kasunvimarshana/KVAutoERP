@@ -28,6 +28,15 @@ class EloquentInventoryBatchRepository extends EloquentRepository implements Inv
         return $model ? $this->toEntity($model) : null;
     }
 
+    public function findByProduct(int $productId, int $tenantId): array
+    {
+        return $this->model->where('product_id', $productId)
+            ->where('tenant_id', $tenantId)
+            ->get()
+            ->map(fn($m) => $this->toEntity($m))
+            ->all();
+    }
+
     public function create(array $data): InventoryBatch
     {
         $model = parent::create($data);

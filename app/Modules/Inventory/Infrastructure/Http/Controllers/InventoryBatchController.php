@@ -17,12 +17,12 @@ class InventoryBatchController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $tenantId = (int) $request->query('tenant_id', 0);
+        $tenantId  = (int) $request->query('tenant_id', 0);
         $productId = (int) $request->query('product_id', 0);
 
-        if ($productId > 0 && $tenantId > 0) {
-            $batches = [];
-            // Return empty paginated-style result when no specific lookup method available
+        if ($tenantId > 0 && $productId > 0) {
+            $batches = $this->repository->findByProduct($productId, $tenantId);
+            return response()->json($batches);
         }
 
         return response()->json([]);
