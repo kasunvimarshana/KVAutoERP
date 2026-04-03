@@ -11,4 +11,6 @@ return [
     Modules\PurchaseOrder\Infrastructure\Providers\PurchaseOrderServiceProvider::class,
     Modules\GoodsReceipt\Infrastructure\Providers\GoodsReceiptServiceProvider::class,
     Modules\StockMovement\Infrastructure\Providers\StockMovementServiceProvider::class,
+    Modules\SalesOrder\Infrastructure\Providers\SalesOrderServiceProvider::class,
+    Modules\Dispatch\Infrastructure\Providers\DispatchServiceProvider::class,
 ];
