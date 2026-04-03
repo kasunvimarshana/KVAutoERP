@@ -213,6 +213,11 @@ class UserProfileModuleTest extends TestCase
         $this->assertTrue(method_exists(UserRepositoryInterface::class, 'updateAvatar'));
     }
 
+    public function test_user_repository_interface_has_verify_password_method(): void
+    {
+        $this->assertTrue(method_exists(UserRepositoryInterface::class, 'verifyPassword'));
+    }
+
     // -------------------------------------------------------------------------
     // Infrastructure: HTTP Requests
     // -------------------------------------------------------------------------

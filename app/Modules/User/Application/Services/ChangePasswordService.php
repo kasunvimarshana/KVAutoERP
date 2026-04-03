@@ -6,11 +6,11 @@ namespace Modules\User\Application\Services;
 
 use Illuminate\Support\Facades\Hash;
 use Modules\Core\Application\Services\BaseService;
-use Modules\User\Application\Contracts\ChangePasswordServiceInterface;
-use Modules\User\Domain\Exceptions\UserNotFoundException;
-use Modules\User\Domain\Events\UserPasswordChanged;
-use Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface;
 use Modules\Core\Domain\Exceptions\DomainException;
+use Modules\User\Application\Contracts\ChangePasswordServiceInterface;
+use Modules\User\Domain\Events\UserPasswordChanged;
+use Modules\User\Domain\Exceptions\UserNotFoundException;
+use Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface;
 
 class ChangePasswordService extends BaseService implements ChangePasswordServiceInterface
 {
@@ -33,9 +33,7 @@ class ChangePasswordService extends BaseService implements ChangePasswordService
             throw new UserNotFoundException($userId);
         }
 
-        // Verify current password against stored hash
-        $model = \Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel::find($userId);
-        if (! $model || ! Hash::check($currentPassword, $model->password)) {
+        if (! $this->userRepository->verifyPassword($userId, $currentPassword)) {
             throw new DomainException('Current password is incorrect.');
         }
 

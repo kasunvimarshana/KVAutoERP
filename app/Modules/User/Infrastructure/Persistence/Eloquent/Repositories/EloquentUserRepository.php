@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\User\Infrastructure\Persistence\Eloquent\Repositories;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Hash;
 use Modules\Core\Domain\ValueObjects\Address;
 use Modules\Core\Domain\ValueObjects\Email;
 use Modules\Core\Domain\ValueObjects\PhoneNumber;
@@ -83,6 +84,14 @@ class EloquentUserRepository extends EloquentRepository implements UserRepositor
     public function updateAvatar(int $userId, ?string $avatarPath): void
     {
         $this->model->where('id', $userId)->update(['avatar' => $avatarPath]);
+    }
+
+    public function verifyPassword(int $userId, string $plainPassword): bool
+    {
+        /** @var UserModel|null $model */
+        $model = $this->model->find($userId);
+
+        return $model && Hash::check($plainPassword, $model->password);
     }
 
     /**

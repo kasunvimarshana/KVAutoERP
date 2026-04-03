@@ -18,4 +18,6 @@ interface UserRepositoryInterface extends RepositoryInterface
     public function changePassword(int $userId, string $hashedPassword): void;
 
     public function updateAvatar(int $userId, ?string $avatarPath): void;
+
+    public function verifyPassword(int $userId, string $plainPassword): bool;
 }
