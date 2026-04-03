@@ -15,4 +15,5 @@ return [
     Modules\Dispatch\Infrastructure\Providers\DispatchServiceProvider::class,
     Modules\Returns\Infrastructure\Providers\ReturnsServiceProvider::class,
     Modules\UoM\Infrastructure\Providers\UomServiceProvider::class,
+    Modules\GS1\Infrastructure\Providers\GS1ServiceProvider::class,
 ];
