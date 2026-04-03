@@ -1,7 +1,0 @@
-<?php
-declare(strict_types=1);
-namespace Modules\User\Application\Contracts;
-
-interface CreateRoleServiceInterface {
-    public function execute(array $data = []): mixed;
-}
