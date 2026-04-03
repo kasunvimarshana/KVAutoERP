@@ -14,6 +14,7 @@ use Modules\GoodsReceipt\Application\Contracts\DeleteGoodsReceiptLineServiceInte
 use Modules\GoodsReceipt\Application\Contracts\DeleteGoodsReceiptServiceInterface;
 use Modules\GoodsReceipt\Application\Contracts\FindGoodsReceiptLineServiceInterface;
 use Modules\GoodsReceipt\Application\Contracts\FindGoodsReceiptServiceInterface;
+use Modules\GoodsReceipt\Application\Contracts\InspectGoodsReceiptServiceInterface;
 use Modules\GoodsReceipt\Application\Contracts\PutAwayGoodsReceiptServiceInterface;
 use Modules\GoodsReceipt\Application\Contracts\ReceiveGoodsReceiptServiceInterface;
 use Modules\GoodsReceipt\Application\Contracts\UpdateGoodsReceiptLineServiceInterface;
@@ -26,6 +27,7 @@ use Modules\GoodsReceipt\Application\Services\DeleteGoodsReceiptLineService;
 use Modules\GoodsReceipt\Application\Services\DeleteGoodsReceiptService;
 use Modules\GoodsReceipt\Application\Services\FindGoodsReceiptLineService;
 use Modules\GoodsReceipt\Application\Services\FindGoodsReceiptService;
+use Modules\GoodsReceipt\Application\Services\InspectGoodsReceiptService;
 use Modules\GoodsReceipt\Application\Services\PutAwayGoodsReceiptService;
 use Modules\GoodsReceipt\Application\Services\ReceiveGoodsReceiptService;
 use Modules\GoodsReceipt\Application\Services\UpdateGoodsReceiptLineService;
@@ -69,6 +71,9 @@ class GoodsReceiptServiceProvider extends ServiceProvider
 
         $this->app->bind(CancelGoodsReceiptServiceInterface::class, fn ($app) =>
             new CancelGoodsReceiptService($app->make(GoodsReceiptRepositoryInterface::class)));
+
+        $this->app->bind(InspectGoodsReceiptServiceInterface::class, fn ($app) =>
+            new InspectGoodsReceiptService($app->make(GoodsReceiptRepositoryInterface::class)));
 
         $this->app->bind(PutAwayGoodsReceiptServiceInterface::class, fn ($app) =>
             new PutAwayGoodsReceiptService($app->make(GoodsReceiptRepositoryInterface::class)));

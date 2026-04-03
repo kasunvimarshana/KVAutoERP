@@ -39,6 +39,9 @@ class EloquentGoodsReceiptRepository extends EloquentRepository implements Goods
                 'received_by'       => $goodsReceipt->getReceivedBy(),
                 'approved_by'       => $goodsReceipt->getApprovedBy(),
                 'approved_at'       => $goodsReceipt->getApprovedAt()?->format('Y-m-d H:i:s'),
+                'put_away_by'       => $goodsReceipt->getPutAwayBy(),
+                'inspected_by'      => $goodsReceipt->getInspectedBy(),
+                'inspected_at'      => $goodsReceipt->getInspectedAt()?->format('Y-m-d H:i:s'),
             ];
 
             if ($goodsReceipt->getId()) {
@@ -120,6 +123,9 @@ class EloquentGoodsReceiptRepository extends EloquentRepository implements Goods
             receivedBy:      $model->received_by,
             approvedBy:      $model->approved_by,
             approvedAt:      $model->approved_at,
+            inspectedBy:     $model->inspected_by ?? null,
+            inspectedAt:     $model->inspected_at ?? null,
+            putAwayBy:       $model->put_away_by ?? null,
             id:              $model->id,
             createdAt:       $model->created_at,
             updatedAt:       $model->updated_at,

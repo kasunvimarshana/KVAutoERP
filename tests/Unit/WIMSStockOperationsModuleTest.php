@@ -7,9 +7,12 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 // ── GoodsReceipt – PutAway ──────────────────────────────────────────────────
+use Modules\GoodsReceipt\Application\Contracts\InspectGoodsReceiptServiceInterface;
 use Modules\GoodsReceipt\Application\Contracts\PutAwayGoodsReceiptServiceInterface;
+use Modules\GoodsReceipt\Application\Services\InspectGoodsReceiptService;
 use Modules\GoodsReceipt\Application\Services\PutAwayGoodsReceiptService;
 use Modules\GoodsReceipt\Domain\Entities\GoodsReceipt;
+use Modules\GoodsReceipt\Domain\Events\GoodsReceiptInspected;
 use Modules\GoodsReceipt\Domain\Events\GoodsReceiptPutAway;
 use Modules\GoodsReceipt\Domain\RepositoryInterfaces\GoodsReceiptRepositoryInterface;
 
@@ -127,6 +130,87 @@ class WIMSStockOperationsModuleTest extends TestCase
         $repo    = $this->createMock(GoodsReceiptRepositoryInterface::class);
         $service = new PutAwayGoodsReceiptService($repo);
         $this->assertInstanceOf(PutAwayGoodsReceiptService::class, $service);
+    }
+
+    // =========================================================================
+    // GoodsReceipt::inspect()
+    // =========================================================================
+
+    public function test_goods_receipt_inspect_transitions_status(): void
+    {
+        $receipt = new GoodsReceipt(
+            tenantId:        1,
+            referenceNumber: 'GR-INS-001',
+            supplierId:      10,
+        );
+
+        $this->assertSame('draft', $receipt->getStatus());
+        $this->assertFalse($receipt->isInspected());
+
+        $receipt->inspect(42);
+
+        $this->assertSame('inspected', $receipt->getStatus());
+        $this->assertTrue($receipt->isInspected());
+        $this->assertSame(42, $receipt->getInspectedBy());
+        $this->assertInstanceOf(\DateTimeInterface::class, $receipt->getInspectedAt());
+    }
+
+    public function test_goods_receipt_is_inspected_returns_false_by_default(): void
+    {
+        $receipt = new GoodsReceipt(1, 'GR-INS-002', 10);
+        $this->assertFalse($receipt->isInspected());
+        $this->assertNull($receipt->getInspectedBy());
+        $this->assertNull($receipt->getInspectedAt());
+    }
+
+    public function test_goods_receipt_inspected_event_exists(): void
+    {
+        $this->assertTrue(class_exists(GoodsReceiptInspected::class));
+    }
+
+    public function test_goods_receipt_inspected_event_extends_base_event(): void
+    {
+        $receipt = new GoodsReceipt(tenantId: 1, referenceNumber: 'GR-INS-003', supplierId: 10);
+        $event   = new GoodsReceiptInspected($receipt, 5);
+        $this->assertInstanceOf(\Modules\Core\Domain\Events\BaseEvent::class, $event);
+        $this->assertSame($receipt, $event->receipt);
+        $this->assertSame(5, $event->inspectedBy);
+    }
+
+    public function test_goods_receipt_inspected_event_broadcast_with(): void
+    {
+        $receipt = new GoodsReceipt(tenantId: 1, referenceNumber: 'GR-INS-004', supplierId: 10);
+        $event   = new GoodsReceiptInspected($receipt, 7);
+        $payload = $event->broadcastWith();
+
+        $this->assertArrayHasKey('inspected_by', $payload);
+        $this->assertSame(7, $payload['inspected_by']);
+    }
+
+    public function test_inspect_goods_receipt_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(InspectGoodsReceiptServiceInterface::class, WriteServiceInterface::class)
+        );
+    }
+
+    public function test_inspect_goods_receipt_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(InspectGoodsReceiptService::class));
+    }
+
+    public function test_inspect_goods_receipt_service_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(InspectGoodsReceiptService::class, InspectGoodsReceiptServiceInterface::class)
+        );
+    }
+
+    public function test_inspect_goods_receipt_service_constructor_injects_repository(): void
+    {
+        $repo    = $this->createMock(GoodsReceiptRepositoryInterface::class);
+        $service = new InspectGoodsReceiptService($repo);
+        $this->assertInstanceOf(InspectGoodsReceiptService::class, $service);
     }
 
     // =========================================================================
@@ -598,6 +682,15 @@ class WIMSStockOperationsModuleTest extends TestCase
         );
 
         $this->assertStringContainsString('put-away', $routes);
+    }
+
+    public function test_goods_receipt_route_file_contains_inspect(): void
+    {
+        $routes = file_get_contents(
+            __DIR__ . '/../../app/Modules/GoodsReceipt/routes/api.php'
+        );
+
+        $this->assertStringContainsString('inspect', $routes);
     }
 
     public function test_inventory_routes_contain_reserve(): void

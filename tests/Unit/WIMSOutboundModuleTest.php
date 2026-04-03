@@ -15,6 +15,8 @@ use Modules\SalesOrder\Domain\Events\SalesOrderCreated;
 use Modules\SalesOrder\Domain\Events\SalesOrderConfirmed;
 use Modules\SalesOrder\Domain\Events\SalesOrderUpdated;
 use Modules\SalesOrder\Domain\Events\SalesOrderDeleted;
+use Modules\SalesOrder\Domain\Events\SalesOrderPickingStarted;
+use Modules\SalesOrder\Domain\Events\SalesOrderPackingStarted;
 use Modules\SalesOrder\Domain\Events\SalesOrderShipped;
 use Modules\SalesOrder\Domain\Events\SalesOrderDelivered;
 use Modules\SalesOrder\Domain\Events\SalesOrderCancelled;
@@ -33,6 +35,8 @@ use Modules\SalesOrder\Application\Contracts\UpdateSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\DeleteSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\ConfirmSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\CancelSalesOrderServiceInterface;
+use Modules\SalesOrder\Application\Contracts\StartPickingSalesOrderServiceInterface;
+use Modules\SalesOrder\Application\Contracts\StartPackingSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\ShipSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\DeliverSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\CreateSalesOrderLineServiceInterface;
@@ -43,6 +47,8 @@ use Modules\SalesOrder\Application\Services\CreateSalesOrderService;
 use Modules\SalesOrder\Application\Services\FindSalesOrderService;
 use Modules\SalesOrder\Application\Services\ConfirmSalesOrderService;
 use Modules\SalesOrder\Application\Services\CancelSalesOrderService;
+use Modules\SalesOrder\Application\Services\StartPickingSalesOrderService;
+use Modules\SalesOrder\Application\Services\StartPackingSalesOrderService;
 use Modules\SalesOrder\Application\Services\ShipSalesOrderService;
 use Modules\SalesOrder\Application\Services\DeliverSalesOrderService;
 use Modules\SalesOrder\Domain\RepositoryInterfaces\SalesOrderRepositoryInterface;
@@ -418,6 +424,36 @@ class WIMSOutboundModuleTest extends TestCase
         $this->assertInstanceOf(BaseEvent::class, $event);
     }
 
+    public function test_sales_order_picking_started_event_extends_base_event(): void
+    {
+        $event = new SalesOrderPickingStarted(salesOrderId: 1, tenantId: 1);
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame(1, $event->salesOrderId);
+    }
+
+    public function test_sales_order_packing_started_event_extends_base_event(): void
+    {
+        $event = new SalesOrderPackingStarted(salesOrderId: 2, tenantId: 1);
+        $this->assertInstanceOf(BaseEvent::class, $event);
+        $this->assertSame(2, $event->salesOrderId);
+    }
+
+    public function test_sales_order_picking_started_broadcast_with(): void
+    {
+        $event   = new SalesOrderPickingStarted(salesOrderId: 5, tenantId: 1);
+        $payload = $event->broadcastWith();
+        $this->assertArrayHasKey('id', $payload);
+        $this->assertSame(5, $payload['id']);
+    }
+
+    public function test_sales_order_packing_started_broadcast_with(): void
+    {
+        $event   = new SalesOrderPackingStarted(salesOrderId: 6, tenantId: 1);
+        $payload = $event->broadcastWith();
+        $this->assertArrayHasKey('id', $payload);
+        $this->assertSame(6, $payload['id']);
+    }
+
     public function test_sales_order_delivered_event_extends_base_event(): void
     {
         $event = new SalesOrderDelivered(1, 1);
@@ -524,6 +560,16 @@ class WIMSOutboundModuleTest extends TestCase
         $this->assertTrue(is_a(CancelSalesOrderServiceInterface::class, WriteServiceInterface::class, true));
     }
 
+    public function test_start_picking_sales_order_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_a(StartPickingSalesOrderServiceInterface::class, WriteServiceInterface::class, true));
+    }
+
+    public function test_start_packing_sales_order_service_interface_is_write_service(): void
+    {
+        $this->assertTrue(is_a(StartPackingSalesOrderServiceInterface::class, WriteServiceInterface::class, true));
+    }
+
     public function test_ship_sales_order_service_interface_is_write_service(): void
     {
         $this->assertTrue(is_a(ShipSalesOrderServiceInterface::class, WriteServiceInterface::class, true));
@@ -561,6 +607,16 @@ class WIMSOutboundModuleTest extends TestCase
     public function test_cancel_sales_order_service_extends_base_service(): void
     {
         $this->assertTrue(is_a(CancelSalesOrderService::class, BaseService::class, true));
+    }
+
+    public function test_start_picking_sales_order_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_a(StartPickingSalesOrderService::class, BaseService::class, true));
+    }
+
+    public function test_start_packing_sales_order_service_extends_base_service(): void
+    {
+        $this->assertTrue(is_a(StartPackingSalesOrderService::class, BaseService::class, true));
     }
 
     public function test_ship_sales_order_service_extends_base_service(): void
@@ -1113,5 +1169,63 @@ class WIMSOutboundModuleTest extends TestCase
     public function test_dispatch_service_provider_class_exists(): void
     {
         $this->assertTrue(class_exists(DispatchServiceProvider::class));
+    }
+
+    // ========================================================================
+    // SALES ORDER — PICKING & PACKING ROUTES
+    // ========================================================================
+
+    public function test_sales_order_routes_contain_start_picking(): void
+    {
+        $routes = file_get_contents(
+            __DIR__ . '/../../app/Modules/SalesOrder/routes/api.php'
+        );
+        $this->assertStringContainsString('start-picking', $routes);
+    }
+
+    public function test_sales_order_routes_contain_start_packing(): void
+    {
+        $routes = file_get_contents(
+            __DIR__ . '/../../app/Modules/SalesOrder/routes/api.php'
+        );
+        $this->assertStringContainsString('start-packing', $routes);
+    }
+
+    public function test_start_picking_sales_order_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(StartPickingSalesOrderService::class));
+    }
+
+    public function test_start_packing_sales_order_service_class_exists(): void
+    {
+        $this->assertTrue(class_exists(StartPackingSalesOrderService::class));
+    }
+
+    public function test_start_picking_sales_order_service_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(StartPickingSalesOrderService::class, StartPickingSalesOrderServiceInterface::class)
+        );
+    }
+
+    public function test_start_packing_sales_order_service_implements_interface(): void
+    {
+        $this->assertTrue(
+            is_subclass_of(StartPackingSalesOrderService::class, StartPackingSalesOrderServiceInterface::class)
+        );
+    }
+
+    public function test_start_picking_sales_order_service_constructor_injects_repository(): void
+    {
+        $repo    = $this->createMock(SalesOrderRepositoryInterface::class);
+        $service = new StartPickingSalesOrderService($repo);
+        $this->assertInstanceOf(StartPickingSalesOrderService::class, $service);
+    }
+
+    public function test_start_packing_sales_order_service_constructor_injects_repository(): void
+    {
+        $repo    = $this->createMock(SalesOrderRepositoryInterface::class);
+        $service = new StartPackingSalesOrderService($repo);
+        $this->assertInstanceOf(StartPackingSalesOrderService::class, $service);
     }
 }

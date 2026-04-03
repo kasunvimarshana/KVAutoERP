@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\GoodsReceipt\Domain\Entities;
 
 use Modules\Core\Domain\ValueObjects\Metadata;
+use Modules\GoodsReceipt\Domain\ValueObjects\GoodsReceiptStatus;
 
 class GoodsReceipt
 {
@@ -22,6 +23,8 @@ class GoodsReceipt
     private ?int $receivedBy;
     private ?int $approvedBy;
     private ?\DateTimeInterface $approvedAt;
+    private ?int $inspectedBy;
+    private ?\DateTimeInterface $inspectedAt;
     private ?int $putAwayBy;
     private \DateTimeInterface $createdAt;
     private \DateTimeInterface $updatedAt;
@@ -40,6 +43,8 @@ class GoodsReceipt
         ?int $receivedBy = null,
         ?int $approvedBy = null,
         ?\DateTimeInterface $approvedAt = null,
+        ?int $inspectedBy = null,
+        ?\DateTimeInterface $inspectedAt = null,
         ?int $putAwayBy = null,
         ?int $id = null,
         ?\DateTimeInterface $createdAt = null,
@@ -59,6 +64,8 @@ class GoodsReceipt
         $this->receivedBy      = $receivedBy;
         $this->approvedBy      = $approvedBy;
         $this->approvedAt      = $approvedAt;
+        $this->inspectedBy     = $inspectedBy;
+        $this->inspectedAt     = $inspectedAt;
         $this->putAwayBy       = $putAwayBy;
         $this->createdAt       = $createdAt ?? new \DateTimeImmutable;
         $this->updatedAt       = $updatedAt ?? new \DateTimeImmutable;
@@ -78,20 +85,22 @@ class GoodsReceipt
     public function getReceivedBy(): ?int { return $this->receivedBy; }
     public function getApprovedBy(): ?int { return $this->approvedBy; }
     public function getApprovedAt(): ?\DateTimeInterface { return $this->approvedAt; }
+    public function getInspectedBy(): ?int { return $this->inspectedBy; }
+    public function getInspectedAt(): ?\DateTimeInterface { return $this->inspectedAt; }
     public function getPutAwayBy(): ?int { return $this->putAwayBy; }
     public function getCreatedAt(): \DateTimeInterface { return $this->createdAt; }
     public function getUpdatedAt(): \DateTimeInterface { return $this->updatedAt; }
 
     public function receive(int $receivedBy): void
     {
-        $this->status     = 'pending';
+        $this->status     = GoodsReceiptStatus::PENDING;
         $this->receivedBy = $receivedBy;
         $this->updatedAt  = new \DateTimeImmutable;
     }
 
     public function approve(int $approvedBy): void
     {
-        $this->status     = 'approved';
+        $this->status     = GoodsReceiptStatus::APPROVED;
         $this->approvedBy = $approvedBy;
         $this->approvedAt = new \DateTimeImmutable;
         $this->updatedAt  = new \DateTimeImmutable;
@@ -99,33 +108,42 @@ class GoodsReceipt
 
     public function markPartiallyReceived(): void
     {
-        $this->status    = 'partially_received';
+        $this->status    = GoodsReceiptStatus::PARTIALLY_RECEIVED;
         $this->updatedAt = new \DateTimeImmutable;
     }
 
     public function markFullyReceived(): void
     {
-        $this->status    = 'fully_received';
+        $this->status    = GoodsReceiptStatus::FULLY_RECEIVED;
         $this->updatedAt = new \DateTimeImmutable;
+    }
+
+    public function inspect(int $inspectedBy): void
+    {
+        $this->status      = GoodsReceiptStatus::INSPECTED;
+        $this->inspectedBy = $inspectedBy;
+        $this->inspectedAt = new \DateTimeImmutable;
+        $this->updatedAt   = new \DateTimeImmutable;
     }
 
     public function putAway(int $putAwayBy): void
     {
-        $this->status    = 'put_away';
+        $this->status    = GoodsReceiptStatus::PUT_AWAY;
         $this->putAwayBy = $putAwayBy;
         $this->updatedAt = new \DateTimeImmutable;
     }
 
     public function cancel(): void
     {
-        $this->status    = 'cancelled';
+        $this->status    = GoodsReceiptStatus::CANCELLED;
         $this->updatedAt = new \DateTimeImmutable;
     }
 
-    public function isDraft(): bool { return $this->status === 'draft'; }
-    public function isApproved(): bool { return $this->status === 'approved'; }
-    public function isCancelled(): bool { return $this->status === 'cancelled'; }
-    public function isPutAway(): bool { return $this->status === 'put_away'; }
+    public function isDraft(): bool { return $this->status === GoodsReceiptStatus::DRAFT; }
+    public function isApproved(): bool { return $this->status === GoodsReceiptStatus::APPROVED; }
+    public function isInspected(): bool { return $this->status === GoodsReceiptStatus::INSPECTED; }
+    public function isCancelled(): bool { return $this->status === GoodsReceiptStatus::CANCELLED; }
+    public function isPutAway(): bool { return $this->status === GoodsReceiptStatus::PUT_AWAY; }
 
     public function updateDetails(?string $notes, ?array $metadata, ?int $warehouseId = null, ?\DateTimeInterface $receivedDate = null): void
     {

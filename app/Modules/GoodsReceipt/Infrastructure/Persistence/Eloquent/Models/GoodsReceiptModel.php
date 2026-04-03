@@ -16,7 +16,7 @@ class GoodsReceiptModel extends BaseModel
     protected $fillable = [
         'tenant_id', 'reference_number', 'status', 'purchase_order_id', 'supplier_id',
         'warehouse_id', 'received_date', 'currency', 'notes', 'metadata',
-        'received_by', 'approved_by', 'approved_at',
+        'received_by', 'approved_by', 'approved_at', 'put_away_by', 'inspected_by', 'inspected_at',
     ];
 
     protected $casts = [
@@ -28,6 +28,9 @@ class GoodsReceiptModel extends BaseModel
         'received_by'       => 'integer',
         'approved_by'       => 'integer',
         'approved_at'       => 'datetime',
+        'put_away_by'       => 'integer',
+        'inspected_by'      => 'integer',
+        'inspected_at'      => 'datetime',
         'metadata'          => 'array',
     ];
 }
