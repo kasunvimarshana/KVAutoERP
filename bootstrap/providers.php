@@ -18,4 +18,6 @@ return [
     Modules\GS1\Infrastructure\Providers\GS1ServiceProvider::class,
     Modules\Supplier\Infrastructure\Providers\SupplierServiceProvider::class,
     Modules\Customer\Infrastructure\Providers\CustomerServiceProvider::class,
+    Modules\Configuration\Infrastructure\Providers\ConfigurationServiceProvider::class,
+    Modules\Pricing\Infrastructure\Providers\PricingServiceProvider::class,
 ];
