@@ -9,6 +9,7 @@ use Modules\Inventory\Infrastructure\Providers\InventoryServiceProvider;
 use Modules\StockMovement\Infrastructure\Providers\StockMovementServiceProvider;
 use Modules\Returns\Infrastructure\Providers\ReturnsServiceProvider;
 use Modules\GS1\Infrastructure\Providers\GS1ServiceProvider;
+use Modules\Settings\Infrastructure\Providers\SettingsServiceProvider;
 use Modules\PurchaseOrder\Infrastructure\Providers\PurchaseOrderServiceProvider;
 use Modules\SalesOrder\Infrastructure\Providers\SalesOrderServiceProvider;
 use Modules\GoodsReceipt\Infrastructure\Providers\GoodsReceiptServiceProvider;
@@ -18,7 +19,10 @@ use Modules\Warehouse\Infrastructure\Providers\WarehouseServiceProvider;
 use Modules\Supplier\Infrastructure\Providers\SupplierServiceProvider;
 use Modules\HR\Infrastructure\Providers\HRServiceProvider;
 use Modules\Brand\Infrastructure\Providers\BrandServiceProvider;
+use Modules\Pricing\Infrastructure\Providers\PricingServiceProvider;
+use Modules\Taxation\Infrastructure\Providers\TaxationServiceProvider;
 use Modules\Category\Infrastructure\Providers\CategoryServiceProvider;
+use Modules\Transaction\Infrastructure\Providers\TransactionServiceProvider;
 use Modules\Core\Infrastructure\Providers\CoreServiceProvider;
 use Modules\OrganizationUnit\Infrastructure\Providers\OrganizationUnitServiceProvider;
 use Modules\Product\Infrastructure\Providers\ProductServiceProvider;
@@ -47,9 +51,13 @@ return [
     StockMovementServiceProvider::class,
     ReturnsServiceProvider::class,
     GS1ServiceProvider::class,
+    SettingsServiceProvider::class,
     PurchaseOrderServiceProvider::class,
     GoodsReceiptServiceProvider::class,
     SalesOrderServiceProvider::class,
     DispatchServiceProvider::class,
     HRServiceProvider::class,
+    PricingServiceProvider::class,
+    TaxationServiceProvider::class,
+    TransactionServiceProvider::class,
 ];
