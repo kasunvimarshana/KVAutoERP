@@ -36,14 +36,15 @@ class EloquentUserRepository extends EloquentRepository implements UserRepositor
     public function save(User $user): User
     {
         $data = [
-            'tenant_id' => $user->getTenantId(),
-            'email' => $user->getEmail()->value(),
-            'first_name' => $user->getFirstName(),
-            'last_name' => $user->getLastName(),
-            'phone' => $user->getPhone()?->value(),
-            'address' => $user->getAddress()?->toArray(),
+            'tenant_id'   => $user->getTenantId(),
+            'email'       => $user->getEmail()->value(),
+            'first_name'  => $user->getFirstName(),
+            'last_name'   => $user->getLastName(),
+            'phone'       => $user->getPhone()?->value(),
+            'address'     => $user->getAddress()?->toArray(),
             'preferences' => $user->getPreferences()->toArray(),
-            'active' => $user->isActive(),
+            'active'      => $user->isActive(),
+            'avatar'      => $user->getAvatar(),
         ];
 
         if ($user->getId()) {
@@ -72,6 +73,16 @@ class EloquentUserRepository extends EloquentRepository implements UserRepositor
         if ($model) {
             $model->roles()->sync($roleIds);
         }
+    }
+
+    public function changePassword(int $userId, string $hashedPassword): void
+    {
+        $this->model->where('id', $userId)->update(['password' => $hashedPassword]);
+    }
+
+    public function updateAvatar(int $userId, ?string $avatarPath): void
+    {
+        $this->model->where('id', $userId)->update(['avatar' => $avatarPath]);
     }
 
     /**
@@ -119,7 +130,8 @@ class EloquentUserRepository extends EloquentRepository implements UserRepositor
             active: $model->active,
             id: $model->id,
             createdAt: $model->created_at,
-            updatedAt: $model->updated_at
+            updatedAt: $model->updated_at,
+            avatar: $model->avatar
         );
 
         foreach ($model->roles as $roleModel) {

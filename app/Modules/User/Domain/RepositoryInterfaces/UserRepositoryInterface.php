@@ -14,4 +14,8 @@ interface UserRepositoryInterface extends RepositoryInterface
     public function syncRoles(User $user, array $roleIds): void;
 
     public function save(User $user): User;
+
+    public function changePassword(int $userId, string $hashedPassword): void;
+
+    public function updateAvatar(int $userId, ?string $avatarPath): void;
 }
