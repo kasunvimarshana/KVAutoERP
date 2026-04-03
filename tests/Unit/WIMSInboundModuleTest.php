@@ -763,6 +763,9 @@ class WIMSInboundModuleTest extends TestCase
         $this->assertSame('partially_received', GoodsReceiptStatus::PARTIALLY_RECEIVED);
         $this->assertSame('fully_received', GoodsReceiptStatus::FULLY_RECEIVED);
         $this->assertSame('approved', GoodsReceiptStatus::APPROVED);
+        $this->assertSame('under_inspection', GoodsReceiptStatus::UNDER_INSPECTION);
+        $this->assertSame('inspected', GoodsReceiptStatus::INSPECTED);
+        $this->assertSame('put_away', GoodsReceiptStatus::PUT_AWAY);
         $this->assertSame('cancelled', GoodsReceiptStatus::CANCELLED);
     }
 
@@ -774,8 +777,11 @@ class WIMSInboundModuleTest extends TestCase
         $this->assertContains('partially_received', $values);
         $this->assertContains('fully_received', $values);
         $this->assertContains('approved', $values);
+        $this->assertContains('under_inspection', $values);
+        $this->assertContains('inspected', $values);
+        $this->assertContains('put_away', $values);
         $this->assertContains('cancelled', $values);
-        $this->assertCount(6, $values);
+        $this->assertCount(9, $values);
     }
 
     public function test_goods_receipt_line_status_constants(): void

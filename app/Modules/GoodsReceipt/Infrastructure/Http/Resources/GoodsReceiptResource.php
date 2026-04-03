@@ -25,6 +25,9 @@ class GoodsReceiptResource extends JsonResource
             'received_by'       => $this->getReceivedBy(),
             'approved_by'       => $this->getApprovedBy(),
             'approved_at'       => $this->getApprovedAt()?->format('c'),
+            'inspected_by'      => $this->getInspectedBy(),
+            'inspected_at'      => $this->getInspectedAt()?->format('c'),
+            'put_away_by'       => $this->getPutAwayBy(),
             'created_at'        => $this->getCreatedAt()->format('c'),
             'updated_at'        => $this->getUpdatedAt()->format('c'),
         ];

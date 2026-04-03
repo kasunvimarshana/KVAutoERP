@@ -16,6 +16,8 @@ use Modules\SalesOrder\Application\Contracts\DeliverSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\FindSalesOrderLineServiceInterface;
 use Modules\SalesOrder\Application\Contracts\FindSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\ShipSalesOrderServiceInterface;
+use Modules\SalesOrder\Application\Contracts\StartPackingSalesOrderServiceInterface;
+use Modules\SalesOrder\Application\Contracts\StartPickingSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\UpdateSalesOrderLineServiceInterface;
 use Modules\SalesOrder\Application\Contracts\UpdateSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Services\CancelSalesOrderService;
@@ -28,6 +30,8 @@ use Modules\SalesOrder\Application\Services\DeliverSalesOrderService;
 use Modules\SalesOrder\Application\Services\FindSalesOrderLineService;
 use Modules\SalesOrder\Application\Services\FindSalesOrderService;
 use Modules\SalesOrder\Application\Services\ShipSalesOrderService;
+use Modules\SalesOrder\Application\Services\StartPackingSalesOrderService;
+use Modules\SalesOrder\Application\Services\StartPickingSalesOrderService;
 use Modules\SalesOrder\Application\Services\UpdateSalesOrderLineService;
 use Modules\SalesOrder\Application\Services\UpdateSalesOrderService;
 use Modules\SalesOrder\Domain\RepositoryInterfaces\SalesOrderLineRepositoryInterface;
@@ -66,6 +70,12 @@ class SalesOrderServiceProvider extends ServiceProvider
 
         $this->app->bind(CancelSalesOrderServiceInterface::class, fn ($app) =>
             new CancelSalesOrderService($app->make(SalesOrderRepositoryInterface::class)));
+
+        $this->app->bind(StartPickingSalesOrderServiceInterface::class, fn ($app) =>
+            new StartPickingSalesOrderService($app->make(SalesOrderRepositoryInterface::class)));
+
+        $this->app->bind(StartPackingSalesOrderServiceInterface::class, fn ($app) =>
+            new StartPackingSalesOrderService($app->make(SalesOrderRepositoryInterface::class)));
 
         $this->app->bind(ShipSalesOrderServiceInterface::class, fn ($app) =>
             new ShipSalesOrderService($app->make(SalesOrderRepositoryInterface::class)));

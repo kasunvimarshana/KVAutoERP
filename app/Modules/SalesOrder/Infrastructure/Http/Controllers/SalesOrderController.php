@@ -14,6 +14,8 @@ use Modules\SalesOrder\Application\Contracts\DeleteSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\DeliverSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\FindSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\ShipSalesOrderServiceInterface;
+use Modules\SalesOrder\Application\Contracts\StartPackingSalesOrderServiceInterface;
+use Modules\SalesOrder\Application\Contracts\StartPickingSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\Contracts\UpdateSalesOrderServiceInterface;
 use Modules\SalesOrder\Application\DTOs\SalesOrderData;
 use Modules\SalesOrder\Application\DTOs\UpdateSalesOrderData;
@@ -31,6 +33,8 @@ class SalesOrderController extends AuthorizedController
         protected DeleteSalesOrderServiceInterface $deleteService,
         protected ConfirmSalesOrderServiceInterface $confirmService,
         protected CancelSalesOrderServiceInterface $cancelService,
+        protected StartPickingSalesOrderServiceInterface $startPickingService,
+        protected StartPackingSalesOrderServiceInterface $startPackingService,
         protected ShipSalesOrderServiceInterface $shipService,
         protected DeliverSalesOrderServiceInterface $deliverService,
     ) {}
@@ -117,6 +121,20 @@ class SalesOrderController extends AuthorizedController
     public function cancel(int $id): JsonResponse
     {
         $order = $this->cancelService->execute(['id' => $id]);
+
+        return (new SalesOrderResource($order))->response();
+    }
+
+    public function startPicking(int $id): JsonResponse
+    {
+        $order = $this->startPickingService->execute(['id' => $id]);
+
+        return (new SalesOrderResource($order))->response();
+    }
+
+    public function startPacking(int $id): JsonResponse
+    {
+        $order = $this->startPackingService->execute(['id' => $id]);
 
         return (new SalesOrderResource($order))->response();
     }
