@@ -20,4 +20,5 @@ return [
     Modules\Customer\Infrastructure\Providers\CustomerServiceProvider::class,
     Modules\Configuration\Infrastructure\Providers\ConfigurationServiceProvider::class,
     Modules\Pricing\Infrastructure\Providers\PricingServiceProvider::class,
+    Modules\Attachment\Infrastructure\Providers\AttachmentServiceProvider::class,
 ];
