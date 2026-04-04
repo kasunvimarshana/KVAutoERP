@@ -6,7 +6,7 @@ use Modules\Core\Domain\Entities\BaseEntity;
 class Account extends BaseEntity
 {
     public function __construct(
-        public readonly ?int $id,
+        ?int $id,
         public readonly int $tenantId,
         public readonly string $code,
         public readonly string $name,

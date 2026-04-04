@@ -7,7 +7,7 @@ use Modules\Core\Domain\Entities\BaseEntity;
 class Attachment extends BaseEntity
 {
     public function __construct(
-        public readonly ?int $id,
+        ?int $id,
         public readonly int $tenantId,
         public readonly string $attachableType,
         public readonly int $attachableId,

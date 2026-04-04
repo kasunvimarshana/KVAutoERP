@@ -6,7 +6,7 @@ use Modules\Core\Domain\Entities\BaseEntity;
 class JournalLine extends BaseEntity
 {
     public function __construct(
-        public readonly ?int $id,
+        ?int $id,
         public readonly int $journalEntryId,
         public readonly int $accountId,
         public readonly float $debit,

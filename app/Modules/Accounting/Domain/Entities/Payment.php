@@ -6,7 +6,7 @@ use Modules\Core\Domain\Entities\BaseEntity;
 class Payment extends BaseEntity
 {
     public function __construct(
-        public readonly ?int $id,
+        ?int $id,
         public readonly int $tenantId,
         public readonly string $referenceNumber,
         public readonly string $status,
