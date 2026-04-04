@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Product\Application\Contracts\CreateProductCategoryServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductCategoryServiceInterface;
+use Modules\Product\Application\Contracts\ProductCategoryTreeServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductCategoryServiceInterface;
 use Modules\Product\Application\DTOs\ProductCategoryData;
 use Modules\Product\Domain\RepositoryInterfaces\ProductCategoryRepositoryInterface;
@@ -18,6 +19,7 @@ class ProductCategoryController extends Controller
         private readonly CreateProductCategoryServiceInterface $createService,
         private readonly UpdateProductCategoryServiceInterface $updateService,
         private readonly DeleteProductCategoryServiceInterface $deleteService,
+        private readonly ProductCategoryTreeServiceInterface $treeService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -78,5 +80,11 @@ class ProductCategoryController extends Controller
         }
         $this->deleteService->execute($category);
         return response()->json(null, 204);
+    }
+
+    public function tree(Request $request): JsonResponse
+    {
+        $tenantId = (int) $request->query('tenant_id', 0);
+        return response()->json($this->treeService->buildTree($tenantId));
     }
 }

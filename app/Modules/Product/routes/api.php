@@ -5,6 +5,7 @@ use Modules\Product\Infrastructure\Http\Controllers\ProductController;
 use Modules\Product\Infrastructure\Http\Controllers\ProductVariantController;
 
 Route::prefix('product-categories')->group(function () {
+    Route::get('/tree',    [ProductCategoryController::class, 'tree']);
     Route::get('/',        [ProductCategoryController::class, 'index']);
     Route::post('/',       [ProductCategoryController::class, 'store']);
     Route::get('/{id}',    [ProductCategoryController::class, 'show']);

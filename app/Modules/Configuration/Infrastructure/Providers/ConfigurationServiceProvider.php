@@ -6,12 +6,14 @@ use Modules\Configuration\Application\Contracts\CreateOrganizationUnitServiceInt
 use Modules\Configuration\Application\Contracts\DeleteOrganizationUnitServiceInterface;
 use Modules\Configuration\Application\Contracts\GetSettingGroupServiceInterface;
 use Modules\Configuration\Application\Contracts\GetSettingServiceInterface;
+use Modules\Configuration\Application\Contracts\OrgUnitTreeServiceInterface;
 use Modules\Configuration\Application\Contracts\SetSettingServiceInterface;
 use Modules\Configuration\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\Configuration\Application\Services\CreateOrganizationUnitService;
 use Modules\Configuration\Application\Services\DeleteOrganizationUnitService;
 use Modules\Configuration\Application\Services\GetSettingGroupService;
 use Modules\Configuration\Application\Services\GetSettingService;
+use Modules\Configuration\Application\Services\OrgUnitTreeService;
 use Modules\Configuration\Application\Services\SetSettingService;
 use Modules\Configuration\Application\Services\UpdateOrganizationUnitService;
 use Modules\Configuration\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
@@ -31,6 +33,7 @@ class ConfigurationServiceProvider extends ServiceProvider
         $this->app->bind(CreateOrganizationUnitServiceInterface::class, CreateOrganizationUnitService::class);
         $this->app->bind(UpdateOrganizationUnitServiceInterface::class, UpdateOrganizationUnitService::class);
         $this->app->bind(DeleteOrganizationUnitServiceInterface::class, DeleteOrganizationUnitService::class);
+        $this->app->bind(OrgUnitTreeServiceInterface::class, OrgUnitTreeService::class);
     }
 
     public function boot(): void

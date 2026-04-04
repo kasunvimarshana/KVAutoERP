@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Configuration\Application\Contracts\CreateOrganizationUnitServiceInterface;
 use Modules\Configuration\Application\Contracts\DeleteOrganizationUnitServiceInterface;
+use Modules\Configuration\Application\Contracts\OrgUnitTreeServiceInterface;
 use Modules\Configuration\Application\Contracts\UpdateOrganizationUnitServiceInterface;
 use Modules\Configuration\Application\DTOs\OrganizationUnitData;
 use Modules\Configuration\Domain\RepositoryInterfaces\OrganizationUnitRepositoryInterface;
@@ -19,6 +20,7 @@ class OrganizationUnitController extends Controller
         private readonly CreateOrganizationUnitServiceInterface $createService,
         private readonly UpdateOrganizationUnitServiceInterface $updateService,
         private readonly DeleteOrganizationUnitServiceInterface $deleteService,
+        private readonly OrgUnitTreeServiceInterface $treeService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -84,5 +86,11 @@ class OrganizationUnitController extends Controller
         }
         $this->deleteService->execute($unit);
         return response()->json(null, 204);
+    }
+
+    public function tree(Request $request): JsonResponse
+    {
+        $tenantId = (int) $request->query('tenant_id', $request->header('X-Tenant-ID', 1));
+        return response()->json($this->treeService->buildTree($tenantId));
     }
 }

@@ -8,6 +8,7 @@ use Modules\Product\Application\Contracts\CreateProductVariantServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductCategoryServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductVariantServiceInterface;
+use Modules\Product\Application\Contracts\ProductCategoryTreeServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductCategoryServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductVariantServiceInterface;
@@ -17,6 +18,7 @@ use Modules\Product\Application\Services\CreateProductVariantService;
 use Modules\Product\Application\Services\DeleteProductCategoryService;
 use Modules\Product\Application\Services\DeleteProductService;
 use Modules\Product\Application\Services\DeleteProductVariantService;
+use Modules\Product\Application\Services\ProductCategoryTreeService;
 use Modules\Product\Application\Services\UpdateProductCategoryService;
 use Modules\Product\Application\Services\UpdateProductService;
 use Modules\Product\Application\Services\UpdateProductVariantService;
@@ -44,6 +46,7 @@ class ProductServiceProvider extends ServiceProvider
         $this->app->bind(CreateProductVariantServiceInterface::class, CreateProductVariantService::class);
         $this->app->bind(UpdateProductVariantServiceInterface::class, UpdateProductVariantService::class);
         $this->app->bind(DeleteProductVariantServiceInterface::class, DeleteProductVariantService::class);
+        $this->app->bind(ProductCategoryTreeServiceInterface::class, ProductCategoryTreeService::class);
     }
 
     public function boot(): void

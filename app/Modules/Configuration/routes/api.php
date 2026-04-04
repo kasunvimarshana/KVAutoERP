@@ -10,6 +10,7 @@ Route::prefix('settings/{tenantId}')->group(function () {
 });
 
 Route::prefix('org-units')->group(function () {
+    Route::get('/tree',  [OrganizationUnitController::class, 'tree']);
     Route::get('/', [OrganizationUnitController::class, 'index']);
     Route::post('/', [OrganizationUnitController::class, 'store']);
     Route::get('/{id}', [OrganizationUnitController::class, 'show']);
