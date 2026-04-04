@@ -152,6 +152,8 @@ class EloquentOrgUnitRepository implements OrgUnitRepositoryInterface
     {
         $model = $this->model->newQuery()->withoutGlobalScopes()->findOrFail($orgUnit->id);
 
+        $parentChanged = $model->parent_id !== $orgUnit->parentId;
+
         $model->update([
             'tenant_id'   => $orgUnit->tenantId,
             'parent_id'   => $orgUnit->parentId,
@@ -163,9 +165,55 @@ class EloquentOrgUnitRepository implements OrgUnitRepositoryInterface
             'sort_order'  => $orgUnit->sortOrder,
         ]);
 
+        if ($parentChanged) {
+            $this->rebuildClosurePaths((int) $orgUnit->id, $orgUnit->parentId);
+        }
+
         $model->refresh();
 
         return $this->mapModelToEntity($model);
+    }
+
+    private function rebuildClosurePaths(int $nodeId, ?int $newParentId): void
+    {
+        // Collect all descendants of this node (including self)
+        $subtreeIds = DB::table('org_unit_closures')
+            ->where('ancestor_id', $nodeId)
+            ->pluck('descendant_id', 'descendant_id')
+            ->all();
+
+        // Remove all closure rows where ancestor is outside the subtree
+        // and descendant is inside the subtree (i.e., the old paths from ancestors above)
+        DB::table('org_unit_closures')
+            ->whereNotIn('ancestor_id', array_keys($subtreeIds))
+            ->whereIn('descendant_id', array_keys($subtreeIds))
+            ->delete();
+
+        // Re-insert paths from the new parent's ancestors into every subtree node
+        if ($newParentId !== null) {
+            $ancestorRows = DB::table('org_unit_closures')
+                ->where('descendant_id', $newParentId)
+                ->get(['ancestor_id', 'depth']);
+
+            $subtreeDepths = DB::table('org_unit_closures')
+                ->where('ancestor_id', $nodeId)
+                ->get(['descendant_id', 'depth']);
+
+            $inserts = [];
+            foreach ($ancestorRows as $ancestor) {
+                foreach ($subtreeDepths as $sub) {
+                    $inserts[] = [
+                        'ancestor_id'   => $ancestor->ancestor_id,
+                        'descendant_id' => $sub->descendant_id,
+                        'depth'         => $ancestor->depth + $sub->depth + 1,
+                    ];
+                }
+            }
+
+            if (!empty($inserts)) {
+                DB::table('org_unit_closures')->insertOrIgnore($inserts);
+            }
+        }
     }
 
     private function mapModelToEntity(OrgUnitModel $model): OrgUnit
