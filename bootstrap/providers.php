@@ -16,6 +16,7 @@ return [
     Modules\Product\Infrastructure\Providers\ProductServiceProvider::class,
     Modules\UoM\Infrastructure\Providers\UomServiceProvider::class,
     Modules\GS1\Infrastructure\Providers\GS1ServiceProvider::class,
+    Modules\Barcode\Infrastructure\Providers\BarcodeServiceProvider::class,
     Modules\Pricing\Infrastructure\Providers\PricingServiceProvider::class,
     // Inventory
     Modules\Inventory\Infrastructure\Providers\InventoryServiceProvider::class,
