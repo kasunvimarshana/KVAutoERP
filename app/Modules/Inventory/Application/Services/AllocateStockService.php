@@ -10,6 +10,7 @@ use Modules\Inventory\Domain\ValueObjects\AllocationAlgorithm;
 
 class AllocateStockService implements AllocateStockServiceInterface
 {
+    private const FLOAT_TOLERANCE = 0.0001;
     public function __construct(
         private readonly InventoryLevelRepositoryInterface $repository
     ) {}
@@ -54,7 +55,7 @@ class AllocateStockService implements AllocateStockServiceInterface
             $remaining -= $take;
         }
 
-        if ($remaining > 0.0001) {
+        if ($remaining > self::FLOAT_TOLERANCE) {
             throw new \DomainException(
                 "Insufficient available stock to allocate {$data->quantity} units "
                 . "(shortfall: {$remaining})."

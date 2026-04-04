@@ -411,4 +411,88 @@ class InventoryModuleTest extends TestCase
         $this->assertNull($layer->referenceId);
         $this->assertNull($layer->referenceType);
     }
+
+    // --------------- InventoryLevel::issue() + receive() ---------------
+
+    public function test_inventory_level_issue_reduces_on_hand(): void
+    {
+        $level = $this->makeLevel(100.0, 30.0, 70.0);
+        $level->issue(20.0);
+        $this->assertSame(80.0, $level->quantityOnHand);
+    }
+
+    public function test_inventory_level_issue_reduces_reserved(): void
+    {
+        $level = $this->makeLevel(100.0, 30.0, 70.0);
+        $level->issue(20.0);
+        $this->assertSame(10.0, $level->quantityReserved);
+    }
+
+    public function test_inventory_level_issue_does_not_change_available(): void
+    {
+        // quantityAvailable was already reduced when reserve() was called
+        $level = $this->makeLevel(100.0, 30.0, 70.0);
+        $level->issue(20.0);
+        $this->assertSame(70.0, $level->quantityAvailable);
+    }
+
+    public function test_inventory_level_issue_clamps_to_reserved(): void
+    {
+        $level = $this->makeLevel(100.0, 10.0, 90.0);
+        // Issuing exactly reserved qty
+        $level->issue(10.0);
+        $this->assertSame(0.0, $level->quantityReserved);
+        $this->assertSame(90.0, $level->quantityOnHand);
+    }
+
+    public function test_inventory_level_issue_exceeds_reserved_throws(): void
+    {
+        $level = $this->makeLevel(100.0, 10.0, 90.0);
+        $this->expectException(\DomainException::class);
+        $level->issue(50.0);
+    }
+
+    public function test_inventory_level_issue_zero_qty_is_noop(): void
+    {
+        $level = $this->makeLevel(100.0, 20.0, 80.0);
+        $level->issue(0.0);
+        $this->assertSame(100.0, $level->quantityOnHand);
+        $this->assertSame(20.0, $level->quantityReserved);
+    }
+
+    public function test_inventory_level_receive_increases_on_hand(): void
+    {
+        $level = $this->makeLevel(50.0, 0.0, 50.0);
+        $level->receive(25.0);
+        $this->assertSame(75.0, $level->quantityOnHand);
+    }
+
+    public function test_inventory_level_receive_increases_available(): void
+    {
+        $level = $this->makeLevel(50.0, 10.0, 40.0);
+        $level->receive(25.0);
+        $this->assertSame(65.0, $level->quantityAvailable);
+    }
+
+    public function test_inventory_level_receive_does_not_change_reserved(): void
+    {
+        $level = $this->makeLevel(50.0, 10.0, 40.0);
+        $level->receive(25.0);
+        $this->assertSame(10.0, $level->quantityReserved);
+    }
+
+    public function test_inventory_level_reserve_then_issue_full_cycle(): void
+    {
+        $level = $this->makeLevel(100.0, 0.0, 100.0);
+        // Reserve
+        $level->reserve(30.0);
+        $this->assertSame(30.0, $level->quantityReserved);
+        $this->assertSame(70.0, $level->quantityAvailable);
+        $this->assertSame(100.0, $level->quantityOnHand);
+        // Issue (confirm dispatch)
+        $level->issue(30.0);
+        $this->assertSame(0.0, $level->quantityReserved);
+        $this->assertSame(70.0, $level->quantityAvailable);
+        $this->assertSame(70.0, $level->quantityOnHand);
+    }
 }

@@ -5,6 +5,7 @@ use Modules\Core\Domain\Entities\BaseEntity;
 
 class InventoryLevel extends BaseEntity
 {
+    private const FLOAT_TOLERANCE = 0.0001;
     public function __construct(
         ?int $id,
         public readonly int $tenantId,
@@ -43,5 +44,34 @@ class InventoryLevel extends BaseEntity
     {
         $this->quantityOnHand    = $newQtyOnHand;
         $this->quantityAvailable = $newQtyOnHand - $this->quantityReserved;
+    }
+
+    /**
+     * Confirm physical issuance of previously-reserved stock.
+     * Reduces both quantityOnHand and quantityReserved by $qty.
+     *
+     * @throws \DomainException if $qty exceeds quantityReserved
+     */
+    public function issue(float $qty): void
+    {
+        if ($qty > $this->quantityReserved + self::FLOAT_TOLERANCE) {
+            throw new \DomainException(
+                "Cannot issue {$qty} units: only {$this->quantityReserved} are reserved."
+            );
+        }
+
+        $qty = min($qty, $this->quantityReserved);
+        $this->quantityReserved -= $qty;
+        $this->quantityOnHand   -= $qty;
+        // quantityAvailable was already reduced during reserve(); no change here.
+    }
+
+    /**
+     * Receive stock: increase on-hand and available quantities by $qty.
+     */
+    public function receive(float $qty): void
+    {
+        $this->quantityOnHand    += $qty;
+        $this->quantityAvailable += $qty;
     }
 }

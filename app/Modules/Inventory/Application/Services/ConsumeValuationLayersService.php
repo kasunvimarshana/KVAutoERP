@@ -8,6 +8,7 @@ use Modules\Inventory\Domain\ValueObjects\ValuationMethod;
 
 class ConsumeValuationLayersService implements ConsumeValuationLayersServiceInterface
 {
+    private const FLOAT_TOLERANCE = 0.0001;
     public function __construct(
         private readonly InventoryValuationLayerRepositoryInterface $repository
     ) {}
@@ -53,7 +54,7 @@ class ConsumeValuationLayersService implements ConsumeValuationLayersServiceInte
             $this->repository->save($layer);
         }
 
-        if ($remaining > 0.0001) {
+        if ($remaining > self::FLOAT_TOLERANCE) {
             throw new \DomainException(
                 "Insufficient inventory layers to consume {$data->quantity} units "
                 . "(shortfall: {$remaining})."
@@ -78,7 +79,7 @@ class ConsumeValuationLayersService implements ConsumeValuationLayersServiceInte
         $totalValue = array_sum(array_map(fn($l) => $l->remainingQuantity * $l->unitCost, $layers));
         $avgCost    = $totalQty > 0 ? $totalValue / $totalQty : 0.0;
 
-        if ($data->quantity > $totalQty + 0.0001) {
+        if ($data->quantity > $totalQty + self::FLOAT_TOLERANCE) {
             throw new \DomainException(
                 "Insufficient inventory layers to consume {$data->quantity} units "
                 . "(available: {$totalQty})."
