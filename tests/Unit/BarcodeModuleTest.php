@@ -80,7 +80,6 @@ class BarcodeModuleTest extends TestCase
     // BarcodeType value object
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_barcode_type_from_string_valid_types(): void
     {
         $validTypes = [
@@ -107,14 +106,12 @@ class BarcodeModuleTest extends TestCase
         }
     }
 
-    /** @test */
     public function test_barcode_type_from_string_invalid_throws(): void
     {
         $this->expectException(\InvalidArgumentException::class);
         BarcodeType::fromString('INVALID_TYPE');
     }
 
-    /** @test */
     public function test_barcode_type_is_one_dimensional(): void
     {
         $oneDTypes = [
@@ -138,7 +135,6 @@ class BarcodeModuleTest extends TestCase
         }
     }
 
-    /** @test */
     public function test_barcode_type_is_two_dimensional(): void
     {
         $twoDTypes = [
@@ -155,13 +151,11 @@ class BarcodeModuleTest extends TestCase
         }
     }
 
-    /** @test */
     public function test_barcode_type_all_types_returns_15_types(): void
     {
         $this->assertCount(15, BarcodeType::allTypes());
     }
 
-    /** @test */
     public function test_barcode_type_get_value_returns_string(): void
     {
         $type = BarcodeType::code128();
@@ -175,7 +169,6 @@ class BarcodeModuleTest extends TestCase
     // BarcodeOutputFormat value object
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_output_format_from_string_valid(): void
     {
         $svg    = BarcodeOutputFormat::fromString(BarcodeOutputFormat::SVG);
@@ -187,14 +180,12 @@ class BarcodeModuleTest extends TestCase
         $this->assertSame(BarcodeOutputFormat::RAW,        $raw->getValue());
     }
 
-    /** @test */
     public function test_output_format_from_string_invalid_throws(): void
     {
         $this->expectException(\InvalidArgumentException::class);
         BarcodeOutputFormat::fromString('pdf');
     }
 
-    /** @test */
     public function test_output_format_get_value(): void
     {
         $format = BarcodeOutputFormat::svg();
@@ -211,7 +202,6 @@ class BarcodeModuleTest extends TestCase
     // BarcodeDefinition entity
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_barcode_definition_creation(): void
     {
         $def = $this->makeDefinition(id: 7, tenantId: 3, type: BarcodeType::QR, value: 'QR-001');
@@ -223,7 +213,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertTrue($def->isActive());
     }
 
-    /** @test */
     public function test_barcode_definition_activate(): void
     {
         $def = $this->makeDefinition(isActive: false);
@@ -235,7 +224,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertNotNull($def->getUpdatedAt());
     }
 
-    /** @test */
     public function test_barcode_definition_deactivate(): void
     {
         $def = $this->makeDefinition(isActive: true);
@@ -247,7 +235,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertNotNull($def->getUpdatedAt());
     }
 
-    /** @test */
     public function test_barcode_definition_update_label(): void
     {
         $def = $this->makeDefinition(label: 'Old Label');
@@ -257,7 +244,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertNotNull($def->getUpdatedAt());
     }
 
-    /** @test */
     public function test_barcode_definition_update_metadata(): void
     {
         $def = $this->makeDefinition();
@@ -267,7 +253,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertNotNull($def->getUpdatedAt());
     }
 
-    /** @test */
     public function test_barcode_definition_getters(): void
     {
         $createdAt = new \DateTime('2024-01-01');
@@ -304,7 +289,6 @@ class BarcodeModuleTest extends TestCase
     // BarcodeScan entity
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_barcode_scan_creation(): void
     {
         $scan = $this->makeScan();
@@ -316,7 +300,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertSame(BarcodeType::CODE128, $scan->getResolvedType());
     }
 
-    /** @test */
     public function test_barcode_scan_getters(): void
     {
         $scannedAt = new \DateTime('2024-03-15 10:30:00');
@@ -346,7 +329,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertSame($scannedAt,       $scan->getScannedAt());
     }
 
-    /** @test */
     public function test_barcode_scan_null_optional_fields(): void
     {
         $scan = new BarcodeScan(
@@ -375,7 +357,6 @@ class BarcodeModuleTest extends TestCase
     // Exceptions
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_barcode_not_found_exception_with_id(): void
     {
         $e = BarcodeNotFoundException::withId(42);
@@ -385,7 +366,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertStringContainsString('42', $e->getMessage());
     }
 
-    /** @test */
     public function test_invalid_barcode_exception_for_value(): void
     {
         $e = InvalidBarcodeException::forValue('BAD!', BarcodeType::CODE39, 'unsupported character');
@@ -397,7 +377,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertStringContainsString('unsupported character', $e->getMessage());
     }
 
-    /** @test */
     public function test_unsupported_type_exception_for_type(): void
     {
         $e = UnsupportedBarcodeTypeException::forType('FANCY_TYPE');
@@ -411,7 +390,6 @@ class BarcodeModuleTest extends TestCase
     // BarcodeGeneratorDispatcher
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_dispatcher_add_and_has_driver(): void
     {
         $dispatcher = new BarcodeGeneratorDispatcher();
@@ -424,7 +402,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertTrue($dispatcher->hasDriver(BarcodeType::CODE128));
     }
 
-    /** @test */
     public function test_dispatcher_get_supported_types(): void
     {
         $dispatcher = new BarcodeGeneratorDispatcher();
@@ -443,7 +420,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertCount(2, $types);
     }
 
-    /** @test */
     public function test_dispatcher_throws_for_unknown_type(): void
     {
         $dispatcher = new BarcodeGeneratorDispatcher();
@@ -453,7 +429,6 @@ class BarcodeModuleTest extends TestCase
         $dispatcher->generate($def, BarcodeOutputFormat::SVG, []);
     }
 
-    /** @test */
     public function test_dispatcher_validate_delegates_to_driver(): void
     {
         $dispatcher = new BarcodeGeneratorDispatcher();
@@ -470,7 +445,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertTrue($dispatcher->validate(BarcodeType::CODE128, 'HELLO'));
     }
 
-    /** @test */
     public function test_dispatcher_generate_returns_string(): void
     {
         $dispatcher = new BarcodeGeneratorDispatcher();
@@ -493,7 +467,6 @@ class BarcodeModuleTest extends TestCase
     // Code128Driver
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_code128_supports_correct_type(): void
     {
         $driver = new Code128Driver();
@@ -502,7 +475,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertFalse($driver->supports(BarcodeType::QR));
     }
 
-    /** @test */
     public function test_code128_generate_returns_svg(): void
     {
         $driver = new Code128Driver();
@@ -511,7 +483,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertNotEmpty($svg);
     }
 
-    /** @test */
     public function test_code128_svg_contains_svg_tag(): void
     {
         $driver = new Code128Driver();
@@ -519,7 +490,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertStringContainsString('<svg', $svg);
     }
 
-    /** @test */
     public function test_code128_validate_valid_string(): void
     {
         $driver = new Code128Driver();
@@ -528,7 +498,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertTrue($driver->validate('0123456789'));
     }
 
-    /** @test */
     public function test_code128_validate_rejects_invalid_chars(): void
     {
         $driver = new Code128Driver();
@@ -536,7 +505,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertFalse($driver->validate("\x01 control")); // ASCII < 32
     }
 
-    /** @test */
     public function test_code128_generate_hello_world(): void
     {
         $driver = new Code128Driver();
@@ -545,7 +513,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertStringContainsString('Hello World', $svg);
     }
 
-    /** @test */
     public function test_code128_generate_different_values_produce_different_svgs(): void
     {
         $driver = new Code128Driver();
@@ -558,7 +525,6 @@ class BarcodeModuleTest extends TestCase
     // Code39Driver
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_code39_supports_correct_type(): void
     {
         $driver = new Code39Driver();
@@ -567,7 +533,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertFalse($driver->supports(BarcodeType::QR));
     }
 
-    /** @test */
     public function test_code39_generate_returns_svg(): void
     {
         $driver = new Code39Driver();
@@ -576,7 +541,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertStringContainsString('<svg', $svg);
     }
 
-    /** @test */
     public function test_code39_validate_valid_chars(): void
     {
         $driver = new Code39Driver();
@@ -592,7 +556,6 @@ class BarcodeModuleTest extends TestCase
     // Ean13Driver
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_ean13_supports_correct_type(): void
     {
         $driver = new Ean13Driver();
@@ -601,7 +564,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertFalse($driver->supports(BarcodeType::CODE128));
     }
 
-    /** @test */
     public function test_ean13_generate_returns_svg(): void
     {
         $driver = new Ean13Driver();
@@ -611,7 +573,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertStringContainsString('<svg', $svg);
     }
 
-    /** @test */
     public function test_ean13_validate_valid_13_digit(): void
     {
         $driver = new Ean13Driver();
@@ -619,7 +580,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertTrue($driver->validate('590123412345'));  // 12 digits, check digit auto-computed
     }
 
-    /** @test */
     public function test_ean13_validate_invalid_length(): void
     {
         $driver = new Ean13Driver();
@@ -632,7 +592,6 @@ class BarcodeModuleTest extends TestCase
     // Ean8Driver
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_ean8_supports_correct_type(): void
     {
         $driver = new Ean8Driver();
@@ -641,7 +600,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertFalse($driver->supports(BarcodeType::CODE128));
     }
 
-    /** @test */
     public function test_ean8_generate_returns_svg(): void
     {
         $driver = new Ean8Driver();
@@ -655,7 +613,6 @@ class BarcodeModuleTest extends TestCase
     // QrCodeDriver
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_qr_supports_correct_type(): void
     {
         $driver = new QrCodeDriver();
@@ -664,7 +621,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertFalse($driver->supports(BarcodeType::EAN13));
     }
 
-    /** @test */
     public function test_qr_generate_returns_svg(): void
     {
         $driver = new QrCodeDriver();
@@ -673,7 +629,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertNotEmpty($svg);
     }
 
-    /** @test */
     public function test_qr_svg_contains_svg_tag(): void
     {
         $driver = new QrCodeDriver();
@@ -681,7 +636,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertStringContainsString('<svg', $svg);
     }
 
-    /** @test */
     public function test_qr_generate_short_value(): void
     {
         $driver = new QrCodeDriver();
@@ -689,7 +643,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertStringContainsString('<svg', $svg);
     }
 
-    /** @test */
     public function test_qr_generate_long_value(): void
     {
         $driver = new QrCodeDriver();
@@ -698,7 +651,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertStringContainsString('<svg', $svg);
     }
 
-    /** @test */
     public function test_qr_generate_numeric_value(): void
     {
         $driver = new QrCodeDriver();
@@ -706,7 +658,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertStringContainsString('<svg', $svg);
     }
 
-    /** @test */
     public function test_qr_generate_url(): void
     {
         $driver = new QrCodeDriver();
@@ -723,7 +674,6 @@ class BarcodeModuleTest extends TestCase
         return $this->createMock(BarcodeDefinitionRepositoryInterface::class);
     }
 
-    /** @test */
     public function test_manage_service_create_barcode(): void
     {
         $repo    = $this->makeDefinitionRepo();
@@ -740,7 +690,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertSame($saved, $result);
     }
 
-    /** @test */
     public function test_manage_service_create_invalid_type_throws(): void
     {
         $repo    = $this->makeDefinitionRepo();
@@ -750,7 +699,6 @@ class BarcodeModuleTest extends TestCase
         $service->create(1, 'BOGUS_TYPE', 'value', null, null, null);
     }
 
-    /** @test */
     public function test_manage_service_get_by_id_found(): void
     {
         $repo    = $this->makeDefinitionRepo();
@@ -766,7 +714,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertSame($def, $result);
     }
 
-    /** @test */
     public function test_manage_service_get_by_id_not_found_throws(): void
     {
         $repo    = $this->makeDefinitionRepo();
@@ -778,7 +725,6 @@ class BarcodeModuleTest extends TestCase
         $service->getById(999);
     }
 
-    /** @test */
     public function test_manage_service_get_by_value_not_found_throws(): void
     {
         $repo    = $this->makeDefinitionRepo();
@@ -790,7 +736,6 @@ class BarcodeModuleTest extends TestCase
         $service->getByValue(1, 'NONEXISTENT');
     }
 
-    /** @test */
     public function test_manage_service_activate(): void
     {
         $repo    = $this->makeDefinitionRepo();
@@ -807,7 +752,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertTrue($def->isActive());
     }
 
-    /** @test */
     public function test_manage_service_deactivate(): void
     {
         $repo    = $this->makeDefinitionRepo();
@@ -824,7 +768,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertFalse($def->isActive());
     }
 
-    /** @test */
     public function test_manage_service_delete(): void
     {
         $repo    = $this->makeDefinitionRepo();
@@ -839,7 +782,6 @@ class BarcodeModuleTest extends TestCase
         $service->delete(6);
     }
 
-    /** @test */
     public function test_manage_service_list_all(): void
     {
         $repo    = $this->makeDefinitionRepo();
@@ -859,7 +801,6 @@ class BarcodeModuleTest extends TestCase
     // RecordBarcodeScanService
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_record_scan_with_known_barcode(): void
     {
         /** @var BarcodeScanRepositoryInterface&MockObject $scanRepo */
@@ -880,7 +821,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertSame($savedScan, $result);
     }
 
-    /** @test */
     public function test_record_scan_with_unknown_barcode(): void
     {
         /** @var BarcodeScanRepositoryInterface&MockObject $scanRepo */
@@ -901,7 +841,6 @@ class BarcodeModuleTest extends TestCase
         $this->assertNull($result->getBarcodeDefinitionId());
     }
 
-    /** @test */
     public function test_record_scan_get_by_id_not_found_throws(): void
     {
         /** @var BarcodeScanRepositoryInterface&MockObject $scanRepo */
@@ -919,7 +858,6 @@ class BarcodeModuleTest extends TestCase
     // GenerateBarcodeService
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_generate_service_delegates_to_dispatcher(): void
     {
         $dispatcher = new BarcodeGeneratorDispatcher();
