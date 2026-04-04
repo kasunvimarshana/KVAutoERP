@@ -8,9 +8,10 @@ class InventoryValuationLayerModel extends BaseModel
     protected $table = 'inventory_valuation_layers';
 
     protected $casts = [
-        'quantity'     => 'float',
-        'unit_cost'    => 'float',
-        'total_cost'   => 'float',
-        'receipt_date' => 'date',
+        'quantity'           => 'float',
+        'remaining_quantity' => 'float',
+        'unit_cost'          => 'float',
+        'total_cost'         => 'float',
+        'receipt_date'       => 'date',
     ];
 }

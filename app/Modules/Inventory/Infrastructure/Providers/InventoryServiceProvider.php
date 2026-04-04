@@ -2,7 +2,10 @@
 namespace Modules\Inventory\Infrastructure\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Modules\Inventory\Application\Contracts\AddValuationLayerServiceInterface;
 use Modules\Inventory\Application\Contracts\AdjustInventoryServiceInterface;
+use Modules\Inventory\Application\Contracts\AllocateStockServiceInterface;
+use Modules\Inventory\Application\Contracts\ConsumeValuationLayersServiceInterface;
 use Modules\Inventory\Application\Contracts\CreateCycleCountServiceInterface;
 use Modules\Inventory\Application\Contracts\CreateInventoryBatchServiceInterface;
 use Modules\Inventory\Application\Contracts\CreateInventorySerialServiceInterface;
@@ -11,7 +14,10 @@ use Modules\Inventory\Application\Contracts\ReconcileInventoryServiceInterface;
 use Modules\Inventory\Application\Contracts\ReleaseStockServiceInterface;
 use Modules\Inventory\Application\Contracts\ReserveStockServiceInterface;
 use Modules\Inventory\Application\Contracts\UpdateInventorySettingServiceInterface;
+use Modules\Inventory\Application\Services\AddValuationLayerService;
 use Modules\Inventory\Application\Services\AdjustInventoryService;
+use Modules\Inventory\Application\Services\AllocateStockService;
+use Modules\Inventory\Application\Services\ConsumeValuationLayersService;
 use Modules\Inventory\Application\Services\CreateCycleCountService;
 use Modules\Inventory\Application\Services\CreateInventoryBatchService;
 use Modules\Inventory\Application\Services\CreateInventorySerialService;
@@ -44,6 +50,9 @@ class InventoryServiceProvider extends ServiceProvider
         $this->app->bind(InventorySettingRepositoryInterface::class, EloquentInventorySettingRepository::class);
         $this->app->bind(InventoryCycleCountRepositoryInterface::class, EloquentInventoryCycleCountRepository::class);
 
+        $this->app->bind(AddValuationLayerServiceInterface::class, AddValuationLayerService::class);
+        $this->app->bind(ConsumeValuationLayersServiceInterface::class, ConsumeValuationLayersService::class);
+        $this->app->bind(AllocateStockServiceInterface::class, AllocateStockService::class);
         $this->app->bind(ReserveStockServiceInterface::class, ReserveStockService::class);
         $this->app->bind(ReleaseStockServiceInterface::class, ReleaseStockService::class);
         $this->app->bind(AdjustInventoryServiceInterface::class, AdjustInventoryService::class);

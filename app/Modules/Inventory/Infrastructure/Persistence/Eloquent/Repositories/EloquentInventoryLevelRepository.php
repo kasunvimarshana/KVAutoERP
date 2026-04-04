@@ -52,11 +52,37 @@ class EloquentInventoryLevelRepository extends EloquentRepository implements Inv
         return $query->paginate($perPage);
     }
 
-    public function create(array $data): InventoryLevel
+    public function findByProductForAllocation(int $productId, int $warehouseId, string $algorithm): array
     {
-        $model = parent::create($data);
-        return $this->toEntity($model);
+        $query = $this->model
+            ->where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId)
+            ->whereRaw('quantity_available > 0');
+
+        switch ($algorithm) {
+            case 'fefo':
+                // Join inventory_batches to order by expiry_date ascending (nearest expiry first)
+                $query->leftJoin('inventory_batches', 'inventory_levels.batch_id', '=', 'inventory_batches.id')
+                    ->select('inventory_levels.*')
+                    ->orderByRaw('inventory_batches.expiry_date IS NULL')
+                    ->orderBy('inventory_batches.expiry_date', 'asc');
+                break;
+
+            case 'lifo':
+                $query->orderBy('inventory_levels.created_at', 'desc');
+                break;
+
+            case 'fifo':
+            case 'nearest':
+            case 'zone_based':
+            default:
+                $query->orderBy('inventory_levels.created_at', 'asc');
+        }
+
+        return $query->get()->map(fn($m) => $this->toEntity($m))->all();
     }
+
+
 
     public function update(InventoryLevel $level, array $data): InventoryLevel
     {
