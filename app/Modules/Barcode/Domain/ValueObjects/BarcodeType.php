@@ -49,29 +49,11 @@ class BarcodeType
         self::AZTEC,
     ];
 
-    private static array $valid = [
-        self::CODE128,
-        self::CODE39,
-        self::CODE93,
-        self::EAN13,
-        self::EAN8,
-        self::UPCA,
-        self::UPCE,
-        self::ITF14,
-        self::CODABAR,
-        self::MSI,
-        self::INTERLEAVED2OF5,
-        self::QR,
-        self::DATAMATRIX,
-        self::PDF417,
-        self::AZTEC,
-    ];
-
     private function __construct(private readonly string $value) {}
 
     public static function fromString(string $value): self
     {
-        if (!in_array($value, self::$valid, true)) {
+        if (!in_array($value, array_merge(self::ONE_DIMENSIONAL, self::TWO_DIMENSIONAL), true)) {
             throw new \InvalidArgumentException("Unknown barcode type: {$value}");
         }
 
@@ -120,7 +102,7 @@ class BarcodeType
 
     public static function allTypes(): array
     {
-        return self::$valid;
+        return array_merge(self::ONE_DIMENSIONAL, self::TWO_DIMENSIONAL);
     }
 
     public function __toString(): string
