@@ -22,8 +22,6 @@ return new class extends Migration
             $table->unsignedBigInteger('deleted_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
-
-            $table->index('journal_entry_id');
         });
     }
 
