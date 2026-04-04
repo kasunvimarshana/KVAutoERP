@@ -22,4 +22,5 @@ return [
     Modules\Pricing\Infrastructure\Providers\PricingServiceProvider::class,
     Modules\Attachment\Infrastructure\Providers\AttachmentServiceProvider::class,
     Modules\Accounting\Infrastructure\Providers\AccountingServiceProvider::class,
+    Modules\Authorization\Infrastructure\Providers\AuthorizationServiceProvider::class,
 ];
