@@ -31,7 +31,9 @@ class UpdateOrgUnitService implements UpdateOrgUnitServiceInterface
             if ($data->name !== null) {
                 $orgUnit->name = $data->name;
             }
-            if ($data->parentId !== null) {
+            if ($data->clearParentId) {
+                $orgUnit->parentId = null;
+            } elseif ($data->parentId !== null) {
                 $orgUnit->parentId = $data->parentId;
             }
             if ($data->code !== null) {

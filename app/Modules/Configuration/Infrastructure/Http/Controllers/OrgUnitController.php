@@ -85,7 +85,10 @@ class OrgUnitController extends AuthorizedController
 
         $data = new UpdateOrgUnitData(
             name: $validated['name'] ?? null,
-            parentId: isset($validated['parent_id']) ? (int) $validated['parent_id'] : null,
+            parentId: isset($validated['parent_id']) && $validated['parent_id'] !== null
+                ? (int) $validated['parent_id']
+                : null,
+            clearParentId: array_key_exists('parent_id', $validated) && $validated['parent_id'] === null,
             code: $validated['code'] ?? null,
             type: $validated['type'] ?? null,
             description: $validated['description'] ?? null,

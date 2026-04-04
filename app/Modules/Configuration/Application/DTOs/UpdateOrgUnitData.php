@@ -11,6 +11,7 @@ class UpdateOrgUnitData extends BaseDto
     public function __construct(
         public ?string $name = null,
         public ?int $parentId = null,
+        public bool $clearParentId = false,
         public ?string $code = null,
         public ?string $type = null,
         public ?string $description = null,

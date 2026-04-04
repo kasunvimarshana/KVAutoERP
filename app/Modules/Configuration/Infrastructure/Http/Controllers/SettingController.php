@@ -10,6 +10,7 @@ use Modules\Configuration\Application\Contracts\GetSettingGroupServiceInterface;
 use Modules\Configuration\Application\Contracts\GetSettingServiceInterface;
 use Modules\Configuration\Application\Contracts\SetSettingServiceInterface;
 use Modules\Configuration\Application\DTOs\SetSettingData;
+use Modules\Configuration\Domain\RepositoryInterfaces\SettingRepositoryInterface;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 
 class SettingController extends AuthorizedController
@@ -18,15 +19,13 @@ class SettingController extends AuthorizedController
         private readonly GetSettingServiceInterface $getService,
         private readonly SetSettingServiceInterface $setService,
         private readonly GetSettingGroupServiceInterface $groupService,
+        private readonly SettingRepositoryInterface $settingRepository,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
         $tenantId = (int) $request->header('X-Tenant-ID', $request->user()?->tenant_id ?? 0);
-
-        /** @var \Modules\Configuration\Domain\RepositoryInterfaces\SettingRepositoryInterface $repo */
-        $repo = app(\Modules\Configuration\Domain\RepositoryInterfaces\SettingRepositoryInterface::class);
-        $settings = $repo->getAllByTenant($tenantId);
+        $settings = $this->settingRepository->getAllByTenant($tenantId);
 
         return response()->json($settings);
     }
