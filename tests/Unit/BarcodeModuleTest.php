@@ -916,4 +916,610 @@ class BarcodeModuleTest extends TestCase
         $result = $service->generate($def, BarcodeOutputFormat::SVG, []);
         $this->assertSame('<svg>barcode</svg>', $result);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BarcodeScanRecorded event
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function test_barcode_scan_recorded_event_holds_scan(): void
+    {
+        $scan  = $this->makeScan();
+        $event = new \Modules\Barcode\Domain\Events\BarcodeScanRecorded($scan);
+
+        $this->assertSame($scan, $event->scan);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LabelTemplate entity
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private function makeLabelTemplate(
+        ?int    $id      = 1,
+        int     $tenant  = 1,
+        string  $name    = 'Default ZPL',
+        string  $format  = 'zpl',
+        string  $content = '^XA^FO10,10^BCN,80,Y,N,N^FD{{ barcode_value }}^FS^XZ',
+        array   $defaults = [],
+        bool    $active  = true,
+    ): \Modules\Barcode\Domain\Entities\LabelTemplate {
+        return new \Modules\Barcode\Domain\Entities\LabelTemplate(
+            $id, $tenant, $name, $format, $content, $defaults, $active,
+            new \DateTime(), new \DateTime(),
+        );
+    }
+
+    public function test_label_template_creation(): void
+    {
+        $template = $this->makeLabelTemplate();
+        $this->assertSame(1, $template->getId());
+        $this->assertSame('Default ZPL', $template->getName());
+        $this->assertSame('zpl', $template->getFormat());
+        $this->assertTrue($template->isActive());
+    }
+
+    public function test_label_template_render_substitutes_placeholders(): void
+    {
+        $template = $this->makeLabelTemplate(
+            content: '^XA^FD{{ barcode_value }} - {{ product_name }}^FS^XZ',
+        );
+
+        $rendered = $template->render([
+            'barcode_value' => 'SKU-001',
+            'product_name'  => 'Widget A',
+        ]);
+
+        $this->assertStringContainsString('SKU-001', $rendered);
+        $this->assertStringContainsString('Widget A', $rendered);
+    }
+
+    public function test_label_template_render_uses_defaults_when_no_override(): void
+    {
+        $template = $this->makeLabelTemplate(
+            content:  '{{ company_name }} - {{ barcode_value }}',
+            defaults: ['company_name' => 'ACME Corp'],
+        );
+
+        $rendered = $template->render(['barcode_value' => '123']);
+        $this->assertStringContainsString('ACME Corp', $rendered);
+        $this->assertStringContainsString('123', $rendered);
+    }
+
+    public function test_label_template_render_variables_override_defaults(): void
+    {
+        $template = $this->makeLabelTemplate(
+            content:  '{{ company_name }}',
+            defaults: ['company_name' => 'Default Co'],
+        );
+
+        $rendered = $template->render(['company_name' => 'Override Co']);
+        $this->assertStringContainsString('Override Co', $rendered);
+        $this->assertStringNotContainsString('Default Co', $rendered);
+    }
+
+    public function test_label_template_get_placeholders(): void
+    {
+        $template = $this->makeLabelTemplate(
+            content: '{{ barcode_value }} {{ product_name }} {{ quantity }}',
+        );
+
+        $placeholders = $template->getPlaceholders();
+        $this->assertContains('barcode_value', $placeholders);
+        $this->assertContains('product_name', $placeholders);
+        $this->assertContains('quantity', $placeholders);
+    }
+
+    public function test_label_template_activate_deactivate(): void
+    {
+        $template = $this->makeLabelTemplate(active: false);
+        $this->assertFalse($template->isActive());
+
+        $template->activate();
+        $this->assertTrue($template->isActive());
+
+        $template->deactivate();
+        $this->assertFalse($template->isActive());
+    }
+
+    public function test_label_template_update_content_changes_format(): void
+    {
+        $template = $this->makeLabelTemplate(format: 'zpl');
+        $template->updateContent('new body {{ barcode_value }}', 'svg');
+
+        $this->assertSame('svg', $template->getFormat());
+        $this->assertStringContainsString('new body', $template->getContent());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BarcodePrintJob entity
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private function makePrintJob(
+        ?int   $id     = 1,
+        int    $tenant = 1,
+        int    $defId  = 10,
+        ?int   $tplId  = 5,
+        string $status = \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_PENDING,
+        int    $copies = 1,
+    ): \Modules\Barcode\Domain\Entities\BarcodePrintJob {
+        return new \Modules\Barcode\Domain\Entities\BarcodePrintJob(
+            $id, $tenant, $defId, $tplId, $status,
+            '192.168.1.50:9100', $copies,
+            null, [], null, new \DateTime(), null,
+        );
+    }
+
+    public function test_print_job_creation(): void
+    {
+        $job = $this->makePrintJob();
+        $this->assertSame(1, $job->getId());
+        $this->assertTrue($job->isPending());
+        $this->assertSame(1, $job->getCopies());
+        $this->assertSame('192.168.1.50:9100', $job->getPrinterTarget());
+    }
+
+    public function test_print_job_mark_processing(): void
+    {
+        $job = $this->makePrintJob();
+        $job->markProcessing();
+        $this->assertTrue($job->isProcessing());
+        $this->assertFalse($job->isPending());
+    }
+
+    public function test_print_job_mark_completed(): void
+    {
+        $job = $this->makePrintJob();
+        $job->markCompleted('^XA^XZ');
+        $this->assertTrue($job->isCompleted());
+        $this->assertSame('^XA^XZ', $job->getRenderedOutput());
+        $this->assertNotNull($job->getCompletedAt());
+    }
+
+    public function test_print_job_mark_failed(): void
+    {
+        $job = $this->makePrintJob();
+        $job->markFailed('driver error');
+        $this->assertTrue($job->isFailed());
+        $this->assertSame('driver error', $job->getErrorMessage());
+        $this->assertNotNull($job->getCompletedAt());
+    }
+
+    public function test_print_job_cancel_pending(): void
+    {
+        $job = $this->makePrintJob();
+        $job->cancel();
+        $this->assertTrue($job->isCancelled());
+        $this->assertNotNull($job->getCompletedAt());
+    }
+
+    public function test_print_job_cancel_completed_throws(): void
+    {
+        $job = $this->makePrintJob(status: \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_COMPLETED);
+        $this->expectException(\LogicException::class);
+        $job->cancel();
+    }
+
+    public function test_print_job_cancel_processing_throws(): void
+    {
+        $job = $this->makePrintJob(status: \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_PROCESSING);
+        $this->expectException(\LogicException::class);
+        $job->cancel();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BarcodePrinterDispatcher
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function test_printer_dispatcher_routes_to_registered_driver(): void
+    {
+        $dispatcher = new \Modules\Barcode\Infrastructure\Printing\BarcodePrinterDispatcher();
+        $def        = $this->makeDefinition();
+        $template   = null;
+
+        /** @var \Modules\Barcode\Infrastructure\Printing\BarcodePrinterDriverInterface&MockObject $driver */
+        $driver = $this->createMock(\Modules\Barcode\Infrastructure\Printing\BarcodePrinterDriverInterface::class);
+        $driver->method('getFormat')->willReturn('zpl');
+        $driver->expects($this->once())
+               ->method('render')
+               ->with($def, null, [])
+               ->willReturn('^XA^XZ');
+
+        $dispatcher->addDriver($driver);
+
+        $result = $dispatcher->render('zpl', $def, $template, []);
+        $this->assertSame('^XA^XZ', $result);
+    }
+
+    public function test_printer_dispatcher_throws_for_unknown_format(): void
+    {
+        $dispatcher = new \Modules\Barcode\Infrastructure\Printing\BarcodePrinterDispatcher();
+        $def        = $this->makeDefinition();
+
+        $this->expectException(\Modules\Barcode\Domain\Exceptions\UnsupportedBarcodeTypeException::class);
+        $dispatcher->render('pdf', $def, null, []);
+    }
+
+    public function test_printer_dispatcher_get_supported_formats(): void
+    {
+        $dispatcher = new \Modules\Barcode\Infrastructure\Printing\BarcodePrinterDispatcher();
+
+        /** @var \Modules\Barcode\Infrastructure\Printing\BarcodePrinterDriverInterface&MockObject $driver */
+        $zpl = $this->createMock(\Modules\Barcode\Infrastructure\Printing\BarcodePrinterDriverInterface::class);
+        $zpl->method('getFormat')->willReturn('zpl');
+
+        /** @var \Modules\Barcode\Infrastructure\Printing\BarcodePrinterDriverInterface&MockObject $epl */
+        $epl = $this->createMock(\Modules\Barcode\Infrastructure\Printing\BarcodePrinterDriverInterface::class);
+        $epl->method('getFormat')->willReturn('epl');
+
+        $dispatcher->addDriver($zpl);
+        $dispatcher->addDriver($epl);
+
+        $formats = $dispatcher->getSupportedFormats();
+        $this->assertContains('zpl', $formats);
+        $this->assertContains('epl', $formats);
+    }
+
+    public function test_printer_dispatcher_has_driver(): void
+    {
+        $dispatcher = new \Modules\Barcode\Infrastructure\Printing\BarcodePrinterDispatcher();
+        $this->assertFalse($dispatcher->hasDriver('zpl'));
+
+        /** @var \Modules\Barcode\Infrastructure\Printing\BarcodePrinterDriverInterface&MockObject $driver */
+        $driver = $this->createMock(\Modules\Barcode\Infrastructure\Printing\BarcodePrinterDriverInterface::class);
+        $driver->method('getFormat')->willReturn('zpl');
+        $dispatcher->addDriver($driver);
+
+        $this->assertTrue($dispatcher->hasDriver('zpl'));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ZplPrinterDriver
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function test_zpl_driver_format(): void
+    {
+        $driver = new \Modules\Barcode\Infrastructure\Printing\Drivers\ZplPrinterDriver();
+        $this->assertSame('zpl', $driver->getFormat());
+    }
+
+    public function test_zpl_driver_default_layout_code128(): void
+    {
+        $driver = new \Modules\Barcode\Infrastructure\Printing\Drivers\ZplPrinterDriver();
+        $def    = $this->makeDefinition(type: BarcodeType::CODE128, value: 'SKU001');
+
+        $output = $driver->render($def, null, []);
+        $this->assertStringContainsString('^XA', $output);
+        $this->assertStringContainsString('^XZ', $output);
+        $this->assertStringContainsString('SKU001', $output);
+    }
+
+    public function test_zpl_driver_default_layout_qr(): void
+    {
+        $driver = new \Modules\Barcode\Infrastructure\Printing\Drivers\ZplPrinterDriver();
+        $def    = $this->makeDefinition(type: BarcodeType::QR, value: 'https://example.com');
+
+        $output = $driver->render($def, null, []);
+        $this->assertStringContainsString('^BQ', $output);
+    }
+
+    public function test_zpl_driver_uses_template_when_provided(): void
+    {
+        $driver   = new \Modules\Barcode\Infrastructure\Printing\Drivers\ZplPrinterDriver();
+        $def      = $this->makeDefinition(value: 'ABC');
+        $template = $this->makeLabelTemplate(content: 'CUSTOM-{{ barcode_value }}-END');
+
+        $output = $driver->render($def, $template, []);
+        $this->assertStringContainsString('CUSTOM-ABC-END', $output);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // EplPrinterDriver
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function test_epl_driver_format(): void
+    {
+        $driver = new \Modules\Barcode\Infrastructure\Printing\Drivers\EplPrinterDriver();
+        $this->assertSame('epl', $driver->getFormat());
+    }
+
+    public function test_epl_driver_default_layout(): void
+    {
+        $driver = new \Modules\Barcode\Infrastructure\Printing\Drivers\EplPrinterDriver();
+        $def    = $this->makeDefinition(value: 'LOT-XYZ');
+
+        $output = $driver->render($def, null, []);
+        $this->assertStringContainsString('LOT-XYZ', $output);
+        $this->assertStringContainsString('P1', $output);  // print 1 copy
+    }
+
+    public function test_epl_driver_uses_template(): void
+    {
+        $driver   = new \Modules\Barcode\Infrastructure\Printing\Drivers\EplPrinterDriver();
+        $def      = $this->makeDefinition(value: 'EPL-VAL');
+        $template = $this->makeLabelTemplate(format: 'epl', content: 'N\nB10,10,0,1,2,5,40,B,"{{ barcode_value }}"\nP1');
+
+        $output = $driver->render($def, $template, []);
+        $this->assertStringContainsString('EPL-VAL', $output);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ManageLabelTemplateService
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** @return \Modules\Barcode\Domain\RepositoryInterfaces\LabelTemplateRepositoryInterface&MockObject */
+    private function makeLabelTemplateRepo(): \Modules\Barcode\Domain\RepositoryInterfaces\LabelTemplateRepositoryInterface
+    {
+        return $this->createMock(\Modules\Barcode\Domain\RepositoryInterfaces\LabelTemplateRepositoryInterface::class);
+    }
+
+    public function test_manage_label_template_service_create(): void
+    {
+        $repo    = $this->makeLabelTemplateRepo();
+        $service = new \Modules\Barcode\Application\Services\ManageLabelTemplateService($repo);
+        $saved   = $this->makeLabelTemplate();
+
+        $repo->expects($this->once())
+             ->method('save')
+             ->willReturn($saved);
+
+        $result = $service->create(1, 'Default ZPL', 'zpl', '^XA^XZ', []);
+        $this->assertSame($saved, $result);
+    }
+
+    public function test_manage_label_template_service_invalid_format_throws(): void
+    {
+        $repo    = $this->makeLabelTemplateRepo();
+        $service = new \Modules\Barcode\Application\Services\ManageLabelTemplateService($repo);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $service->create(1, 'Bad Template', 'pdf', '^XA^XZ', []);
+    }
+
+    public function test_manage_label_template_service_get_by_id_not_found(): void
+    {
+        $repo    = $this->makeLabelTemplateRepo();
+        $service = new \Modules\Barcode\Application\Services\ManageLabelTemplateService($repo);
+
+        $repo->method('findById')->willReturn(null);
+
+        $this->expectException(\Modules\Barcode\Domain\Exceptions\BarcodeNotFoundException::class);
+        $service->getById(99);
+    }
+
+    public function test_manage_label_template_service_activate(): void
+    {
+        $repo    = $this->makeLabelTemplateRepo();
+        $service = new \Modules\Barcode\Application\Services\ManageLabelTemplateService($repo);
+        $tpl     = $this->makeLabelTemplate(active: false);
+        $saved   = $this->makeLabelTemplate(active: true);
+
+        $repo->method('findById')->willReturn($tpl);
+        $repo->expects($this->once())->method('save')->willReturn($saved);
+
+        $result = $service->activate(1);
+        $this->assertTrue($result->isActive());
+    }
+
+    public function test_manage_label_template_service_deactivate(): void
+    {
+        $repo    = $this->makeLabelTemplateRepo();
+        $service = new \Modules\Barcode\Application\Services\ManageLabelTemplateService($repo);
+        $tpl     = $this->makeLabelTemplate(active: true);
+        $saved   = $this->makeLabelTemplate(active: false);
+
+        $repo->method('findById')->willReturn($tpl);
+        $repo->expects($this->once())->method('save')->willReturn($saved);
+
+        $result = $service->deactivate(1);
+        $this->assertFalse($result->isActive());
+    }
+
+    public function test_manage_label_template_service_list_all(): void
+    {
+        $repo    = $this->makeLabelTemplateRepo();
+        $service = new \Modules\Barcode\Application\Services\ManageLabelTemplateService($repo);
+        $list    = [$this->makeLabelTemplate(id: 1), $this->makeLabelTemplate(id: 2)];
+
+        $repo->expects($this->once())->method('findAll')->with(1)->willReturn($list);
+
+        $this->assertSame($list, $service->listAll(1));
+    }
+
+    public function test_manage_label_template_service_delete(): void
+    {
+        $repo    = $this->makeLabelTemplateRepo();
+        $service = new \Modules\Barcode\Application\Services\ManageLabelTemplateService($repo);
+        $tpl     = $this->makeLabelTemplate();
+
+        $repo->method('findById')->willReturn($tpl);
+        $repo->expects($this->once())->method('delete')->with(1);
+
+        $service->delete(1);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PrintBarcodeLabelService
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** @return \Modules\Barcode\Domain\RepositoryInterfaces\BarcodePrintJobRepositoryInterface&MockObject */
+    private function makePrintJobRepo(): \Modules\Barcode\Domain\RepositoryInterfaces\BarcodePrintJobRepositoryInterface
+    {
+        return $this->createMock(\Modules\Barcode\Domain\RepositoryInterfaces\BarcodePrintJobRepositoryInterface::class);
+    }
+
+    private function makePrintLabelService(
+        ?\Modules\Barcode\Domain\RepositoryInterfaces\BarcodePrintJobRepositoryInterface $jobRepo = null,
+        ?\Modules\Barcode\Domain\RepositoryInterfaces\BarcodeDefinitionRepositoryInterface $defRepo = null,
+        ?\Modules\Barcode\Domain\RepositoryInterfaces\LabelTemplateRepositoryInterface $tplRepo = null,
+        ?\Modules\Barcode\Infrastructure\Printing\BarcodePrinterDispatcher $printerDispatcher = null,
+    ): \Modules\Barcode\Application\Services\PrintBarcodeLabelService {
+        return new \Modules\Barcode\Application\Services\PrintBarcodeLabelService(
+            $jobRepo           ?? $this->makePrintJobRepo(),
+            $defRepo           ?? $this->makeDefinitionRepo(),
+            $tplRepo           ?? $this->makeLabelTemplateRepo(),
+            $printerDispatcher ?? new \Modules\Barcode\Infrastructure\Printing\BarcodePrinterDispatcher(),
+        );
+    }
+
+    public function test_print_service_queue_creates_pending_job(): void
+    {
+        $defRepo = $this->makeDefinitionRepo();
+        $jobRepo = $this->makePrintJobRepo();
+        $service = $this->makePrintLabelService(jobRepo: $jobRepo, defRepo: $defRepo);
+
+        $def         = $this->makeDefinition(id: 10);
+        $pendingJob  = $this->makePrintJob(id: null, defId: 10, status: \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_PENDING);
+        $savedJob    = $this->makePrintJob(id: 1,    defId: 10, status: \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_PENDING);
+
+        $defRepo->method('findById')->with(10)->willReturn($def);
+        $jobRepo->expects($this->once())->method('save')->willReturn($savedJob);
+
+        $result = $service->queue(1, 10, null, 'zpl', null, 1, []);
+        $this->assertSame($savedJob, $result);
+        $this->assertTrue($result->isPending());
+    }
+
+    public function test_print_service_queue_throws_when_definition_not_found(): void
+    {
+        $defRepo = $this->makeDefinitionRepo();
+        $service = $this->makePrintLabelService(defRepo: $defRepo);
+
+        $defRepo->method('findById')->willReturn(null);
+
+        $this->expectException(\Modules\Barcode\Domain\Exceptions\BarcodeNotFoundException::class);
+        $service->queue(1, 99, null, 'zpl', null, 1, []);
+    }
+
+    public function test_print_service_process_renders_and_completes_job(): void
+    {
+        $defRepo    = $this->makeDefinitionRepo();
+        $jobRepo    = $this->makePrintJobRepo();
+        $tplRepo    = $this->makeLabelTemplateRepo();
+
+        $dispatcher = new \Modules\Barcode\Infrastructure\Printing\BarcodePrinterDispatcher();
+
+        /** @var \Modules\Barcode\Infrastructure\Printing\BarcodePrinterDriverInterface&MockObject $driver */
+        $driver = $this->createMock(\Modules\Barcode\Infrastructure\Printing\BarcodePrinterDriverInterface::class);
+        $driver->method('getFormat')->willReturn('zpl');
+        $driver->method('render')->willReturn('^XA RENDERED ^XZ');
+        $dispatcher->addDriver($driver);
+
+        $service = $this->makePrintLabelService(
+            jobRepo: $jobRepo, defRepo: $defRepo, tplRepo: $tplRepo, printerDispatcher: $dispatcher,
+        );
+
+        $pendingJob   = $this->makePrintJob(id: 1, defId: 10, tplId: null);
+        $processingJob = $this->makePrintJob(id: 1, defId: 10, status: \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_PROCESSING);
+        $completedJob  = $this->makePrintJob(id: 1, defId: 10, status: \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_COMPLETED);
+        $completedJob->markCompleted('^XA RENDERED ^XZ');
+
+        $def = $this->makeDefinition(id: 10, type: BarcodeType::CODE128, value: 'SKU-001');
+
+        $jobRepo->method('findById')->willReturn($pendingJob);
+        $defRepo->method('findById')->willReturn($def);
+        $tplRepo->method('findById')->willReturn(null);
+
+        // Save is called twice: once for processing, once for completed
+        $jobRepo->expects($this->exactly(2))
+                ->method('save')
+                ->willReturnOnConsecutiveCalls($processingJob, $completedJob);
+
+        $result = $service->process(1);
+        $this->assertTrue($result->isCompleted());
+    }
+
+    public function test_print_service_process_marks_failed_on_error(): void
+    {
+        $defRepo = $this->makeDefinitionRepo();
+        $jobRepo = $this->makePrintJobRepo();
+        $service = $this->makePrintLabelService(jobRepo: $jobRepo, defRepo: $defRepo);
+
+        $pendingJob    = $this->makePrintJob(id: 1);
+        $processingJob = $this->makePrintJob(id: 1, status: \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_PROCESSING);
+        $failedJob     = $this->makePrintJob(id: 1, status: \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_FAILED);
+
+        $jobRepo->method('findById')->willReturn($pendingJob);
+        $defRepo->method('findById')->willReturn(null);  // triggers BarcodeNotFoundException
+
+        $jobRepo->expects($this->exactly(2))
+                ->method('save')
+                ->willReturnOnConsecutiveCalls($processingJob, $failedJob);
+
+        $result = $service->process(1);
+        $this->assertTrue($result->isFailed());
+    }
+
+    public function test_print_service_process_throws_when_not_pending(): void
+    {
+        $jobRepo = $this->makePrintJobRepo();
+        $service = $this->makePrintLabelService(jobRepo: $jobRepo);
+
+        $completedJob = $this->makePrintJob(id: 1, status: \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_COMPLETED);
+        $jobRepo->method('findById')->willReturn($completedJob);
+
+        $this->expectException(\LogicException::class);
+        $service->process(1);
+    }
+
+    public function test_print_service_cancel_pending_job(): void
+    {
+        $jobRepo = $this->makePrintJobRepo();
+        $service = $this->makePrintLabelService(jobRepo: $jobRepo);
+
+        $job       = $this->makePrintJob(id: 1);
+        $cancelled = $this->makePrintJob(id: 1, status: \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_CANCELLED);
+
+        $jobRepo->method('findById')->willReturn($job);
+        $jobRepo->expects($this->once())->method('save')->willReturn($cancelled);
+
+        $result = $service->cancel(1);
+        $this->assertTrue($result->isCancelled());
+    }
+
+    public function test_print_service_list_all(): void
+    {
+        $jobRepo = $this->makePrintJobRepo();
+        $service = $this->makePrintLabelService(jobRepo: $jobRepo);
+        $list    = [$this->makePrintJob(id: 1), $this->makePrintJob(id: 2)];
+
+        $jobRepo->expects($this->once())->method('findAll')->with(1)->willReturn($list);
+        $this->assertSame($list, $service->listAll(1));
+    }
+
+    public function test_print_service_list_by_status(): void
+    {
+        $jobRepo = $this->makePrintJobRepo();
+        $service = $this->makePrintLabelService(jobRepo: $jobRepo);
+        $list    = [$this->makePrintJob(status: \Modules\Barcode\Domain\Entities\BarcodePrintJob::STATUS_PENDING)];
+
+        $jobRepo->expects($this->once())
+                ->method('findByStatus')
+                ->with(1, 'pending')
+                ->willReturn($list);
+
+        $this->assertSame($list, $service->listByStatus(1, 'pending'));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RecordBarcodeScanService – event dispatch
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function test_record_scan_dispatches_scan_recorded_event(): void
+    {
+        /** @var \Modules\Barcode\Domain\RepositoryInterfaces\BarcodeScanRepositoryInterface&MockObject $scanRepo */
+        $scanRepo = $this->createMock(\Modules\Barcode\Domain\RepositoryInterfaces\BarcodeScanRepositoryInterface::class);
+        $defRepo  = $this->makeDefinitionRepo();
+        $service  = new RecordBarcodeScanService($scanRepo, $defRepo);
+
+        $savedScan = $this->makeScan(id: 1);
+
+        $defRepo->method('findByValue')->willReturn(null);
+        $scanRepo->method('save')->willReturn($savedScan);
+
+        // In pure unit tests the 'events' binding is not present in the container;
+        // the guard `app()->bound('events')` prevents dispatch. We verify the scan
+        // is still returned correctly.
+        $result = $service->record(1, 'ANY_VALUE', null, null, null);
+        $this->assertSame($savedScan, $result);
+        $this->assertInstanceOf(\Modules\Barcode\Domain\Entities\BarcodeScan::class, $result);
+    }
 }

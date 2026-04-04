@@ -6,6 +6,7 @@ namespace Modules\Barcode\Application\Services;
 
 use Modules\Barcode\Application\Contracts\RecordBarcodeScanServiceInterface;
 use Modules\Barcode\Domain\Entities\BarcodeScan;
+use Modules\Barcode\Domain\Events\BarcodeScanRecorded;
 use Modules\Barcode\Domain\Exceptions\BarcodeNotFoundException;
 use Modules\Barcode\Domain\RepositoryInterfaces\BarcodeDefinitionRepositoryInterface;
 use Modules\Barcode\Domain\RepositoryInterfaces\BarcodeScanRepositoryInterface;
@@ -43,7 +44,13 @@ class RecordBarcodeScanService implements RecordBarcodeScanServiceInterface
             new \DateTime(),
         );
 
-        return $this->scans->save($scan);
+        $saved = $this->scans->save($scan);
+
+        if (function_exists('app') && app()->bound('events')) {
+            event(new BarcodeScanRecorded($saved));
+        }
+
+        return $saved;
     }
 
     public function getById(int $id): BarcodeScan
