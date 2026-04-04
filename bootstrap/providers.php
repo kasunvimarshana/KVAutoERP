@@ -31,4 +31,6 @@ return [
     // Cross-cutting
     Modules\Attachment\Infrastructure\Providers\AttachmentServiceProvider::class,
     Modules\Accounting\Infrastructure\Providers\AccountingServiceProvider::class,
+    // HR
+    Modules\HR\Infrastructure\Providers\HRServiceProvider::class,
 ];
