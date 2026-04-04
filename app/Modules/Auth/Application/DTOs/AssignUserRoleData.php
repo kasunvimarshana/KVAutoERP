@@ -1,0 +1,14 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\Auth\Application\DTOs;
+
+use Modules\Core\Application\DTOs\BaseDto;
+
+class AssignUserRoleData extends BaseDto
+{
+    public int $userId;
+    public int $roleId;
+    public int $tenantId;
+}
