@@ -199,4 +199,54 @@ class AccountingModuleTest extends TestCase
         $this->assertEquals(500.0, $line->getCreditAmount());
         $this->assertEquals('INV-001', $line->getReferenceLine());
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Account – additional tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_account_credit_decreases_balance(): void
+    {
+        // credit() always decreases balance in double-entry (debit = increase, credit = decrease)
+        $acc = $this->makeAccount(['type' => 'asset', 'balance' => 1000.0]);
+        $acc->credit(200.0);
+        $this->assertEquals(800.0, $acc->getBalance());
+    }
+
+    public function test_account_zero_balance(): void
+    {
+        $acc = $this->makeAccount(['balance' => 0.0]);
+        $this->assertEquals(0.0, $acc->getBalance());
+    }
+
+    public function test_account_inactive(): void
+    {
+        $acc = new Account(
+            2, 1, '2000', 'Accounts Payable', 'liability', 'current', null,
+            0.0, 'USD', false, null, null, null
+        );
+        $this->assertFalse($acc->isActive());
+        $this->assertEquals('liability', $acc->getType());
+    }
+
+    public function test_journal_entry_getters(): void
+    {
+        $je = $this->makeJournalEntry();
+        $this->assertEquals(1, $je->getId());
+        $this->assertEquals(1, $je->getTenantId());
+        $this->assertEquals('JE-001', $je->getEntryNumber());
+        $this->assertEquals('draft', $je->getStatus());
+        $this->assertEquals('Test Entry', $je->getDescription());
+        $this->assertEquals('USD', $je->getCurrency());
+        $this->assertIsArray($je->getLines());
+    }
+
+    public function test_journal_entry_is_balanced_with_float_tolerance(): void
+    {
+        // Small float differences within tolerance should be considered balanced
+        $je = new JournalEntry(
+            1, 1, 'JE-002', 'draft', 'Float test', 'USD',
+            100.00001, 100.0, null, null, [], null, null, null
+        );
+        $this->assertTrue($je->isBalanced());
+    }
 }
