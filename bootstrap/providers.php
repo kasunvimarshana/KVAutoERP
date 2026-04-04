@@ -21,4 +21,5 @@ return [
     Modules\Configuration\Infrastructure\Providers\ConfigurationServiceProvider::class,
     Modules\Pricing\Infrastructure\Providers\PricingServiceProvider::class,
     Modules\Attachment\Infrastructure\Providers\AttachmentServiceProvider::class,
+    Modules\Accounting\Infrastructure\Providers\AccountingServiceProvider::class,
 ];
