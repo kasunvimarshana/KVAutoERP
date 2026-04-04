@@ -77,4 +77,87 @@ class UomGS1ModuleTest extends TestCase
         $this->assertEquals(1.5, $label->getNetWeight());
         $this->assertEquals('LK', $label->getCountryOfOrigin());
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // UoM – additional tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_uom_category_type(): void
+    {
+        foreach (['length', 'weight', 'volume', 'time', 'quantity', 'other'] as $type) {
+            $cat = new UomCategory(1, 1, 'Cat', $type, true, null, null);
+            $this->assertEquals($type, $cat->getType());
+        }
+    }
+
+    public function test_unit_of_measure_types(): void
+    {
+        foreach (['base', 'purchase', 'sales', 'inventory'] as $type) {
+            $uom = new UnitOfMeasure(1, 1, 1, 'Unit', 'u', true, 1.0, $type, true, null, null);
+            $this->assertEquals($type, $uom->getType());
+        }
+    }
+
+    public function test_unit_of_measure_convert_to_base_gram(): void
+    {
+        // 500g to kg: 500 * 0.001 = 0.5
+        $gram = new UnitOfMeasure(2, 1, 1, 'Gram', 'g', false, 0.001, 'base', true, null, null);
+        $this->assertEqualsWithDelta(0.5, $gram->convertToBase(500), 0.0001);
+    }
+
+    public function test_unit_of_measure_convert_from_base_gram(): void
+    {
+        // 0.5 kg to g: 0.5 / 0.001 = 500
+        $gram = new UnitOfMeasure(2, 1, 1, 'Gram', 'g', false, 0.001, 'base', true, null, null);
+        $this->assertEqualsWithDelta(500.0, $gram->convertFromBase(0.5), 0.0001);
+    }
+
+    public function test_uom_convert_handles_zero_factor(): void
+    {
+        $uom = new UnitOfMeasure(3, 1, 1, 'Bad', 'b', false, 0.0, 'base', false, null, null);
+        $this->assertEquals(0.0, $uom->convertFromBase(10.0));
+    }
+
+    public function test_unit_of_measure_not_active(): void
+    {
+        $uom = new UnitOfMeasure(4, 1, 1, 'Old Unit', 'old', false, 1.0, 'base', false, null, null);
+        $this->assertFalse($uom->isActive());
+        $this->assertFalse($uom->isBase());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // GS1 – additional tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_gs1_label_with_serial_number(): void
+    {
+        $label = new Gs1Label(2, 1, 1, 'gtin-13', '0123456789012', null, null, 'SN-123456', null, null, null, null, null);
+        $barcode = $label->buildBarcode();
+        $this->assertStringContainsString('(21)SN-123456', $barcode);
+        $this->assertStringNotContainsString('(10)', $barcode);  // no batch number
+    }
+
+    public function test_gs1_label_with_lot_number(): void
+    {
+        $label = new Gs1Label(3, 1, 1, 'gtin-13', '5901234123457', null, 'LOT-2024', null, null, null, null, null, null);
+        $barcode = $label->buildBarcode();
+        $this->assertStringContainsString('(23)LOT-2024', $barcode);
+    }
+
+    public function test_gs1_label_minimal_barcode(): void
+    {
+        // GTIN-13 only, no batch/lot/serial/expiry
+        $label = new Gs1Label(4, 1, 1, 'gtin-13', '5901234123457', null, null, null, null, null, null, null, null);
+        $barcode = $label->buildBarcode();
+        $this->assertEquals('(01)5901234123457', $barcode);
+    }
+
+    public function test_gs1_label_non_gtin13_type(): void
+    {
+        // For gtin-12, the (01) prefix should not be added
+        $label = new Gs1Label(5, 1, 1, 'gtin-12', '012345678901', 'BATCH-002', null, null, null, null, null, null, null);
+        $barcode = $label->buildBarcode();
+        $this->assertStringNotContainsString('(01)', $barcode);  // only gtin-13 adds (01)
+        $this->assertStringContainsString('(10)BATCH-002', $barcode);
+    }
 }

@@ -220,4 +220,77 @@ class ReturnsModuleTest extends TestCase
         $this->assertEquals('approved', ReturnLine::QUALITY_APPROVED);
         $this->assertEquals('rejected', ReturnLine::QUALITY_REJECTED);
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // ReturnRequest – restocking fee, credit memo, return-to-vendor
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_return_request_with_restocking_fee(): void
+    {
+        $ret = new ReturnRequest(
+            2, 1, ReturnRequest::TYPE_SALES, 5, 'RET-002', 'pending',
+            'Customer regrets', null, null, [], null, null, null,
+            ReturnRequest::RETURN_TO_WAREHOUSE, 15.0, null, null, null,
+        );
+        $this->assertEquals(15.0, $ret->getRestockingFee());
+    }
+
+    public function test_return_request_credit_memo_association(): void
+    {
+        $ret = new ReturnRequest(
+            3, 1, ReturnRequest::TYPE_SALES, 5, 'RET-003', 'completed',
+            'Wrong item', null, null, [], null, null, null,
+            ReturnRequest::RETURN_TO_WAREHOUSE, 0.0, 42, null, null,
+        );
+        $this->assertEquals(42, $ret->getCreditMemoId());
+    }
+
+    public function test_return_request_return_to_vendor(): void
+    {
+        $ret = new ReturnRequest(
+            4, 1, ReturnRequest::TYPE_PURCHASE, 10, 'RET-004', 'approved',
+            'Wrong shipment', null, null, [], null, null, null,
+            ReturnRequest::RETURN_TO_VENDOR, 0.0, null, null, null,
+        );
+        $this->assertEquals(ReturnRequest::RETURN_TO_VENDOR, $ret->getReturnTo());
+    }
+
+    public function test_return_request_restock_tracking(): void
+    {
+        $ret = $this->makeReturn('restocking');
+        $ret->completeRestock(7, 99);
+        $this->assertEquals(7, $ret->getRestockedBy());
+        $this->assertNotNull($ret->getRestockedAt());
+        $this->assertEquals(99, $ret->getCreditMemoId());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // ReturnLine – batch/lot/serial traceability
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_return_line_with_batch_and_lot(): void
+    {
+        $line = new ReturnLine(
+            10, 1, 5, 3.0, 100.0,
+            'BATCH-2024', 'LOT-A', null,
+            'Defective', ReturnLine::CONDITION_DAMAGED, ReturnLine::QUALITY_PENDING,
+            null, null,
+        );
+        $this->assertEquals('BATCH-2024', $line->getBatchNumber());
+        $this->assertEquals('LOT-A', $line->getLotNumber());
+        $this->assertNull($line->getSerialNumber());
+        $this->assertTrue($line->isDamaged());
+    }
+
+    public function test_return_line_with_serial_number(): void
+    {
+        $line = new ReturnLine(
+            11, 1, 5, 1.0, 500.0,
+            null, null, 'SN-123456',
+            'Defective unit', ReturnLine::CONDITION_GOOD, ReturnLine::QUALITY_PENDING,
+            null, null,
+        );
+        $this->assertEquals('SN-123456', $line->getSerialNumber());
+        $this->assertTrue($line->isGoodCondition());
+    }
 }

@@ -118,4 +118,52 @@ class TenantModuleTest extends TestCase
         $this->assertStringContainsString('42', $e->getMessage());
         $this->assertStringContainsString('Tenant', $e->getMessage());
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Tenant – additional tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_tenant_update_settings(): void
+    {
+        $tenant = $this->makeTenant();
+        $settings = ['timezone' => 'UTC', 'currency' => 'USD', 'locale' => 'en_US'];
+        $tenant->updateSettings($settings);
+        $this->assertEquals($settings, $tenant->getSettings());
+    }
+
+    public function test_tenant_update_settings_to_null(): void
+    {
+        $tenant = $this->makeTenant();
+        $tenant->updateSettings(null);
+        $this->assertNull($tenant->getSettings());
+    }
+
+    public function test_tenant_plan_type(): void
+    {
+        $tenant = new Tenant(1, 'Acme', 'acme', 'active', 'enterprise', null, null, null, null);
+        $this->assertEquals('enterprise', $tenant->getPlanType());
+    }
+
+    public function test_tenant_trial_ends_at(): void
+    {
+        $trialEnd = new \DateTimeImmutable('+30 days');
+        $tenant = new Tenant(1, 'Trial Co', 'trial-co', 'active', 'trial', null, $trialEnd, null, null);
+        $this->assertEquals($trialEnd, $tenant->getTrialEndsAt());
+    }
+
+    public function test_tenant_activate_from_suspended(): void
+    {
+        $tenant = $this->makeTenant();
+        $tenant->suspend();
+        $this->assertFalse($tenant->isActive());
+        $tenant->activate();
+        $this->assertTrue($tenant->isActive());
+    }
+
+    public function test_tenant_with_settings(): void
+    {
+        $settings = ['max_users' => 100, 'storage_gb' => 50];
+        $tenant = new Tenant(2, 'Settings Co', 'settings-co', 'active', 'pro', $settings, null, null, null);
+        $this->assertEquals($settings, $tenant->getSettings());
+    }
 }

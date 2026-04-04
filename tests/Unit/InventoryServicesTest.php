@@ -7,7 +7,11 @@ use PHPUnit\Framework\TestCase;
 use Modules\Inventory\Application\Services\AddValuationLayerService;
 use Modules\Inventory\Application\Services\AllocateStockService;
 use Modules\Inventory\Application\Services\ConsumeValuationLayersService;
+use Modules\Inventory\Application\Services\ReserveStockService;
+use Modules\Inventory\Application\Services\ReleaseStockService;
 use Modules\Inventory\Domain\Entities\InventoryBatch;
+use Modules\Inventory\Domain\Entities\InventoryCycleCount;
+use Modules\Inventory\Domain\Exceptions\InsufficientStockException;
 use Modules\Inventory\Domain\Entities\InventoryLevel;
 use Modules\Inventory\Domain\Entities\InventoryValuationLayer;
 use Modules\Inventory\Domain\RepositoryInterfaces\InventoryBatchRepositoryInterface;
@@ -186,5 +190,175 @@ class InventoryServicesTest extends TestCase
 
         $this->expectException(\InvalidArgumentException::class);
         $service->execute(1, 1, 1, 0.0, 'fifo');
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // ReserveStockService
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_reserve_stock_service_reserves_successfully(): void
+    {
+        $level = $this->makeLevel(100.0, 0.0);
+
+        $levelRepo = $this->createMock(InventoryLevelRepositoryInterface::class);
+        $levelRepo->method('findByProduct')->willReturn($level);
+        $levelRepo->expects($this->once())->method('update');
+
+        $service = new ReserveStockService($levelRepo);
+        $result  = $service->execute(1, 1, 1, 30.0);
+
+        $this->assertEquals(30.0, $result->getQuantityReserved());
+        $this->assertEquals(70.0, $result->getAvailableQuantity());
+    }
+
+    public function test_reserve_stock_service_throws_when_level_not_found(): void
+    {
+        $levelRepo = $this->createMock(InventoryLevelRepositoryInterface::class);
+        $levelRepo->method('findByProduct')->willReturn(null);
+
+        $service = new ReserveStockService($levelRepo);
+        $this->expectException(InsufficientStockException::class);
+        $service->execute(1, 1, 1, 10.0);
+    }
+
+    public function test_reserve_stock_service_throws_when_insufficient_available(): void
+    {
+        $level = $this->makeLevel(20.0, 15.0);  // available = 5
+
+        $levelRepo = $this->createMock(InventoryLevelRepositoryInterface::class);
+        $levelRepo->method('findByProduct')->willReturn($level);
+
+        $service = new ReserveStockService($levelRepo);
+        $this->expectException(\DomainException::class);
+        $service->execute(1, 1, 1, 10.0);  // wants 10, only 5 available
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // ReleaseStockService
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_release_stock_service_releases_reservation(): void
+    {
+        $level = $this->makeLevel(100.0, 50.0);
+
+        $levelRepo = $this->createMock(InventoryLevelRepositoryInterface::class);
+        $levelRepo->method('findByProduct')->willReturn($level);
+        $levelRepo->expects($this->once())->method('update');
+
+        $service = new ReleaseStockService($levelRepo);
+        $result  = $service->execute(1, 1, 1, 30.0);
+
+        $this->assertEquals(20.0, $result->getQuantityReserved());
+    }
+
+    public function test_release_stock_service_clamps_reservation_to_zero(): void
+    {
+        $level = $this->makeLevel(100.0, 10.0);
+
+        $levelRepo = $this->createMock(InventoryLevelRepositoryInterface::class);
+        $levelRepo->method('findByProduct')->willReturn($level);
+        $levelRepo->method('update');
+
+        $service = new ReleaseStockService($levelRepo);
+        $result  = $service->execute(1, 1, 1, 50.0);  // release more than reserved
+
+        $this->assertEquals(0.0, $result->getQuantityReserved());
+    }
+
+    public function test_release_stock_service_throws_when_level_not_found(): void
+    {
+        $levelRepo = $this->createMock(InventoryLevelRepositoryInterface::class);
+        $levelRepo->method('findByProduct')->willReturn(null);
+
+        $service = new ReleaseStockService($levelRepo);
+        $this->expectException(InsufficientStockException::class);
+        $service->execute(1, 1, 1, 10.0);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // InventoryCycleCount entity
+    // ──────────────────────────────────────────────────────────────────────
+
+    private function makeCycleCount(string $status = 'pending'): InventoryCycleCount
+    {
+        return new InventoryCycleCount(
+            1, 1, 1, null, $status, null, null, null, 'Annual count', null, null,
+        );
+    }
+
+    public function test_cycle_count_creation(): void
+    {
+        $count = $this->makeCycleCount();
+        $this->assertEquals(1, $count->getId());
+        $this->assertEquals(1, $count->getTenantId());
+        $this->assertEquals(1, $count->getWarehouseId());
+        $this->assertNull($count->getProductId());
+        $this->assertEquals('pending', $count->getStatus());
+        $this->assertEquals('Annual count', $count->getNotes());
+        $this->assertNull($count->getCountedBy());
+    }
+
+    public function test_cycle_count_start_transitions_to_in_progress(): void
+    {
+        $count = $this->makeCycleCount();
+        $count->start(42);
+        $this->assertEquals('in_progress', $count->getStatus());
+        $this->assertEquals(42, $count->getCountedBy());
+        $this->assertNotNull($count->getStartedAt());
+    }
+
+    public function test_cycle_count_start_fails_if_not_pending(): void
+    {
+        $count = $this->makeCycleCount('in_progress');
+        $this->expectException(\DomainException::class);
+        $count->start(42);
+    }
+
+    public function test_cycle_count_complete_transitions_from_in_progress(): void
+    {
+        $count = $this->makeCycleCount('in_progress');
+        $count->complete();
+        $this->assertEquals('completed', $count->getStatus());
+        $this->assertNotNull($count->getCompletedAt());
+    }
+
+    public function test_cycle_count_complete_fails_if_pending(): void
+    {
+        $count = $this->makeCycleCount('pending');
+        $this->expectException(\DomainException::class);
+        $count->complete();
+    }
+
+    public function test_cycle_count_cancel_from_pending(): void
+    {
+        $count = $this->makeCycleCount('pending');
+        $count->cancel();
+        $this->assertEquals('cancelled', $count->getStatus());
+    }
+
+    public function test_cycle_count_cancel_from_in_progress(): void
+    {
+        $count = $this->makeCycleCount('in_progress');
+        $count->cancel();
+        $this->assertEquals('cancelled', $count->getStatus());
+    }
+
+    public function test_cycle_count_cancel_fails_if_already_completed(): void
+    {
+        $count = $this->makeCycleCount('completed');
+        $this->expectException(\DomainException::class);
+        $count->cancel();
+    }
+
+    public function test_cycle_count_full_lifecycle(): void
+    {
+        $count = $this->makeCycleCount();
+        $count->start(7);
+        $count->complete();
+
+        $this->assertEquals('completed', $count->getStatus());
+        $this->assertEquals(7, $count->getCountedBy());
+        $this->assertNotNull($count->getStartedAt());
+        $this->assertNotNull($count->getCompletedAt());
     }
 }

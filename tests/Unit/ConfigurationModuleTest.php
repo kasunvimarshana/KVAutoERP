@@ -111,4 +111,68 @@ class ConfigurationModuleTest extends TestCase
         $this->assertStringContainsString('7', $e->getMessage());
         $this->assertStringContainsString('OrgUnit', $e->getMessage());
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Setting – additional tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_setting_description(): void
+    {
+        $s = new Setting(null, 1, 'tax_rate', '10', 'float', 'Default tax rate', null, null);
+        $this->assertEquals('float', $s->getType());
+        $this->assertEquals('Default tax rate', $s->getDescription());
+        $this->assertNull($s->getId());
+    }
+
+    public function test_setting_update_to_null(): void
+    {
+        $s = $this->makeSetting();
+        $s->updateValue(null);
+        $this->assertNull($s->getValue());
+    }
+
+    public function test_setting_update_to_integer(): void
+    {
+        $s = $this->makeSetting();
+        $s->updateValue(42);
+        $this->assertEquals(42, $s->getValue());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // OrgUnit – additional hierarchy tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_org_unit_clear_parent(): void
+    {
+        $unit = $this->makeOrgUnit(2, 1);
+        $this->assertEquals(1, $unit->getParentId());
+        $unit->changeParent(null);
+        $this->assertNull($unit->getParentId());
+    }
+
+    public function test_org_unit_type_and_level(): void
+    {
+        $division = new OrgUnit(3, 1, 1, 'Sales Division', 'SD', 'division', 1, true, null, null);
+        $this->assertEquals('division', $division->getType());
+        $this->assertEquals(1, $division->getLevel());
+        $this->assertEquals(1, $division->getParentId());
+    }
+
+    public function test_org_unit_various_types(): void
+    {
+        foreach (['company', 'division', 'department', 'team', 'branch'] as $type) {
+            $unit = new OrgUnit(1, 1, null, 'Unit', 'U', $type, 0, true, null, null);
+            $this->assertEquals($type, $unit->getType());
+        }
+    }
+
+    public function test_setting_service_gets_existing_setting(): void
+    {
+        $repo = $this->createMock(SettingRepositoryInterface::class);
+        $repo->method('findByKey')->willReturn($this->makeSetting());
+
+        $service = new SettingService($repo);
+        $result = $service->get(1, 'site_name');
+        $this->assertEquals('My ERP', $result);
+    }
 }

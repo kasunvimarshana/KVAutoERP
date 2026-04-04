@@ -84,4 +84,122 @@ class ProductModuleTest extends TestCase
             $this->assertStringContainsString('42', $e->getMessage());
         }
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Product entity – lifecycle transitions
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_product_deactivate(): void
+    {
+        $p = $this->makeProduct();
+        $this->assertTrue($p->isActive());
+        $p->deactivate();
+        $this->assertFalse($p->isActive());
+        $this->assertEquals('inactive', $p->getStatus());
+    }
+
+    public function test_product_activate(): void
+    {
+        $p = $this->makeProduct('physical', 'inactive');
+        $p->activate();
+        $this->assertTrue($p->isActive());
+        $this->assertEquals('active', $p->getStatus());
+    }
+
+    public function test_product_discontinue(): void
+    {
+        $p = $this->makeProduct();
+        $p->discontinue();
+        $this->assertEquals('discontinued', $p->getStatus());
+        $this->assertFalse($p->isActive());
+    }
+
+    public function test_product_update_price(): void
+    {
+        $p = $this->makeProduct();
+        $p->updatePrice(149.99);
+        $this->assertEquals(149.99, $p->getBasePrice());
+    }
+
+    public function test_product_all_types(): void
+    {
+        foreach (ProductType::VALID as $type) {
+            $p = $this->makeProduct($type);
+            $this->assertEquals($type, $p->getType()->getValue());
+        }
+    }
+
+    public function test_product_type_combo(): void
+    {
+        $t = new ProductType('combo');
+        $this->assertTrue($t->isCombo());
+    }
+
+    public function test_product_type_variable(): void
+    {
+        $t = new ProductType('variable');
+        $this->assertTrue($t->isVariable());
+    }
+
+    public function test_product_type_digital(): void
+    {
+        $t = new ProductType('digital');
+        $this->assertTrue($t->isDigital());
+    }
+
+    public function test_product_is_serialized(): void
+    {
+        $p = new Product(
+            2, 1, null, 'Laptop', 'laptop', 'LAPTOP-001',
+            new ProductType('physical'), null, 'active',
+            1299.99, 0.0, 2.0, 'pcs', true, true, false,
+            null, null, null, null, null,
+        );
+        $this->assertTrue($p->isSerialized());
+        $this->assertFalse($p->isBatchTracked());
+    }
+
+    public function test_product_optional_fields(): void
+    {
+        $p = new Product(
+            null, 1, null, 'Software', 'software', 'SW-001',
+            new ProductType('digital'), null, 'active',
+            49.99, 0.0, null, 'license', false, false, false,
+            null, null, ['download_url' => 'https://example.com'], null, null,
+        );
+        $this->assertNull($p->getId());
+        $this->assertNull($p->getCategoryId());
+        $this->assertNull($p->getWeight());
+        $this->assertNull($p->getMinStockLevel());
+        $this->assertEquals(['download_url' => 'https://example.com'], $p->getMetadata());
+        $this->assertFalse($p->isTrackable());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // ProductCategory – lifecycle transitions and hierarchy
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_product_category_activate_deactivate(): void
+    {
+        $c = $this->makeCategory();
+        $this->assertTrue($c->isActive());
+        $c->deactivate();
+        $this->assertFalse($c->isActive());
+        $c->activate();
+        $this->assertTrue($c->isActive());
+    }
+
+    public function test_product_category_nested(): void
+    {
+        $child = new ProductCategory(2, 1, 1, 'Laptops', 'laptops', 'Portable computers', true, 1, null, null);
+        $this->assertEquals(1, $child->getParentId());
+        $this->assertEquals(1, $child->getLevel());
+        $this->assertEquals('Laptops', $child->getName());
+    }
+
+    public function test_product_category_with_description(): void
+    {
+        $c = new ProductCategory(3, 1, null, 'Furniture', 'furniture', 'Home furniture', true, 0, null, null);
+        $this->assertEquals('Home furniture', $c->getDescription());
+    }
 }

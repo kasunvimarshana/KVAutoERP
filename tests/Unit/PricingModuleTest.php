@@ -143,4 +143,79 @@ class PricingModuleTest extends TestCase
 
         $this->assertEqualsWithDelta(90.0, $price, 0.001); // 10% off 100
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // PriceList entity – additional tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_price_list_inactive(): void
+    {
+        $pl = new PriceList(2, 1, 'Wholesale', 'EUR', 0.0, false, false, null, null, null, null);
+        $this->assertFalse($pl->isDefault());
+        $this->assertFalse($pl->isActive());
+        $this->assertEquals('EUR', $pl->getCurrency());
+        $this->assertEquals(0.0, $pl->getDiscountPercent());
+    }
+
+    public function test_price_list_date_range(): void
+    {
+        $pl = $this->makePriceList();
+        $this->assertEquals('2024-01-01', $pl->getValidFrom());
+        $this->assertEquals('2024-12-31', $pl->getValidTo());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // TaxRate entity – additional tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_tax_rate_exclusive_type(): void
+    {
+        $t = new TaxRate(3, 1, 'VAT', 'VAT20', 20.0, 'exclusive', false, true, 'goods', null, null);
+        $this->assertEquals('exclusive', $t->getType());
+        $this->assertEquals('goods', $t->getAppliesTo());
+    }
+
+    public function test_tax_rate_zero_calculate(): void
+    {
+        $t = $this->makeTaxRate(0.0);
+        $this->assertEquals(0.0, $t->calculate(100.0));
+    }
+
+    public function test_tax_rate_not_active(): void
+    {
+        $t = new TaxRate(4, 1, 'Old Tax', 'OT', 5.0, 'inclusive', false, false, 'all', null, null);
+        $this->assertFalse($t->isActive());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // ResolvePriceService – edge cases
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_resolve_price_with_only_inapplicable_tiers(): void
+    {
+        // Both tiers require qty >= 100, but we only have qty=5
+        $tier1 = new PriceListItem(1, 1, 1, 1, null, PriceListItem::TYPE_FIXED, 50.0, 100.0, 'USD', null, null);
+        $tier2 = new PriceListItem(2, 1, 1, 1, null, PriceListItem::TYPE_FIXED, 40.0, 200.0, 'USD', null, null);
+
+        $repo = $this->createMock(PriceListItemRepositoryInterface::class);
+        $repo->method('findForProduct')->willReturn([$tier1, $tier2]);
+
+        $service = new ResolvePriceService($repo);
+        $price   = $service->resolve(1, 1, 1, 100.0, 5.0);  // no tier applies
+
+        $this->assertEquals(100.0, $price);  // falls back to base price
+    }
+
+    public function test_resolve_price_exact_minimum_quantity(): void
+    {
+        $item = new PriceListItem(1, 1, 1, 1, null, PriceListItem::TYPE_FIXED, 75.0, 10.0, 'USD', null, null);
+
+        $repo = $this->createMock(PriceListItemRepositoryInterface::class);
+        $repo->method('findForProduct')->willReturn([$item]);
+
+        $service = new ResolvePriceService($repo);
+        $price   = $service->resolve(1, 1, 1, 100.0, 10.0);  // exactly at minQty
+
+        $this->assertEquals(75.0, $price);
+    }
 }

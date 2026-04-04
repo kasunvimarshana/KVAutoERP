@@ -120,4 +120,68 @@ class GoodsReceiptDispatchTest extends TestCase
         $this->assertEquals('adjustment', StockMovement::TYPE_ADJUSTMENT);
         $this->assertEquals('return', StockMovement::TYPE_RETURN);
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // GoodsReceipt – additional tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_goods_receipt_status_constants(): void
+    {
+        $this->assertEquals('pending',          GoodsReceipt::STATUS_PENDING);
+        $this->assertEquals('under_inspection', GoodsReceipt::STATUS_UNDER_INSPECTION);
+        $this->assertEquals('inspected',        GoodsReceipt::STATUS_INSPECTED);
+        $this->assertEquals('put_away',         GoodsReceipt::STATUS_PUT_AWAY);
+        $this->assertEquals('cancelled',        GoodsReceipt::STATUS_CANCELLED);
+    }
+
+    public function test_goods_receipt_getters(): void
+    {
+        $gr = $this->makeGR();
+        $this->assertEquals(1, $gr->getId());
+        $this->assertEquals(1, $gr->getTenantId());
+        $this->assertEquals(1, $gr->getPurchaseOrderId());
+        $this->assertEquals(1, $gr->getWarehouseId());
+        $this->assertEquals(1, $gr->getReceivedBy());
+        $this->assertIsArray($gr->getLines());
+        $this->assertNull($gr->getNotes());
+    }
+
+    public function test_goods_receipt_with_lines(): void
+    {
+        $lines = [['product_id' => 1, 'quantity' => 10.0, 'unit_cost' => 5.0]];
+        $gr = new GoodsReceipt(2, 1, 1, 1, 'GR-002', 'pending', 'Fragile', 1, null, null, null, null, $lines, null, null);
+        $this->assertCount(1, $gr->getLines());
+        $this->assertEquals('Fragile', $gr->getNotes());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Dispatch – additional tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_dispatch_getters(): void
+    {
+        $d = $this->makeDispatch();
+        $this->assertEquals(1, $d->getId());
+        $this->assertEquals(1, $d->getTenantId());
+        $this->assertEquals(1, $d->getSalesOrderId());
+        $this->assertEquals(1, $d->getWarehouseId());
+        $this->assertNull($d->getCarrier());
+        $this->assertNull($d->getShippingCost());
+    }
+
+    public function test_dispatch_with_shipping_cost(): void
+    {
+        $d = new Dispatch(1, 1, 1, 1, 'DSP-001', 'pending', 'FedEx', null, 25.50, [], null, null, null, null);
+        $this->assertEquals(25.50, $d->getShippingCost());
+        $this->assertEquals('FedEx', $d->getCarrier());
+    }
+
+    public function test_dispatch_delivered_has_timestamps(): void
+    {
+        $d = $this->makeDispatch('pending');
+        $d->ship('DHL', 'DHL-12345');
+        $d->markDelivered();
+        $this->assertNotNull($d->getShippedAt());
+        $this->assertNotNull($d->getDeliveredAt());
+    }
 }
