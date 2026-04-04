@@ -1,0 +1,25 @@
+<?php
+
+return [
+    App\Providers\AppServiceProvider::class,
+    Modules\Core\Infrastructure\Providers\CoreServiceProvider::class,
+    Modules\Tenant\Infrastructure\Providers\TenantServiceProvider::class,
+    Modules\User\Infrastructure\Providers\UserServiceProvider::class,
+    Modules\Warehouse\Infrastructure\Providers\WarehouseServiceProvider::class,
+    Modules\Product\Infrastructure\Providers\ProductServiceProvider::class,
+    Modules\Inventory\Infrastructure\Providers\InventoryServiceProvider::class,
+    Modules\PurchaseOrder\Infrastructure\Providers\PurchaseOrderServiceProvider::class,
+    Modules\GoodsReceipt\Infrastructure\Providers\GoodsReceiptServiceProvider::class,
+    Modules\StockMovement\Infrastructure\Providers\StockMovementServiceProvider::class,
+    Modules\SalesOrder\Infrastructure\Providers\SalesOrderServiceProvider::class,
+    Modules\Dispatch\Infrastructure\Providers\DispatchServiceProvider::class,
+    Modules\Returns\Infrastructure\Providers\ReturnsServiceProvider::class,
+    Modules\UoM\Infrastructure\Providers\UomServiceProvider::class,
+    Modules\GS1\Infrastructure\Providers\GS1ServiceProvider::class,
+    Modules\Supplier\Infrastructure\Providers\SupplierServiceProvider::class,
+    Modules\Customer\Infrastructure\Providers\CustomerServiceProvider::class,
+    Modules\Configuration\Infrastructure\Providers\ConfigurationServiceProvider::class,
+    Modules\Pricing\Infrastructure\Providers\PricingServiceProvider::class,
+    Modules\Attachment\Infrastructure\Providers\AttachmentServiceProvider::class,
+    Modules\Accounting\Infrastructure\Providers\AccountingServiceProvider::class,
+];
