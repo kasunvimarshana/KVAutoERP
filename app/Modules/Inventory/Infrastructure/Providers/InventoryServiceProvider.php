@@ -5,14 +5,22 @@ declare(strict_types=1);
 namespace Modules\Inventory\Infrastructure\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Modules\Inventory\Application\Contracts\AddValuationLayerServiceInterface;
 use Modules\Inventory\Application\Contracts\AdjustInventoryServiceInterface;
+use Modules\Inventory\Application\Contracts\AllocateStockServiceInterface;
+use Modules\Inventory\Application\Contracts\ConsumeValuationLayersServiceInterface;
 use Modules\Inventory\Application\Contracts\IssueStockServiceInterface;
 use Modules\Inventory\Application\Contracts\ReceiveStockServiceInterface;
+use Modules\Inventory\Application\Contracts\ReconcileInventoryServiceInterface;
 use Modules\Inventory\Application\Contracts\ReleaseStockServiceInterface;
 use Modules\Inventory\Application\Contracts\ReserveStockServiceInterface;
+use Modules\Inventory\Application\Services\AddValuationLayerService;
 use Modules\Inventory\Application\Services\AdjustInventoryService;
+use Modules\Inventory\Application\Services\AllocateStockService;
+use Modules\Inventory\Application\Services\ConsumeValuationLayersService;
 use Modules\Inventory\Application\Services\IssueStockService;
 use Modules\Inventory\Application\Services\ReceiveStockService;
+use Modules\Inventory\Application\Services\ReconcileInventoryService;
 use Modules\Inventory\Application\Services\ReleaseStockService;
 use Modules\Inventory\Application\Services\ReserveStockService;
 use Modules\Inventory\Domain\RepositoryInterfaces\InventoryBatchRepositoryInterface;
@@ -65,6 +73,24 @@ class InventoryServiceProvider extends ServiceProvider
         );
         $this->app->bind(ReleaseStockServiceInterface::class, fn($app) =>
             new ReleaseStockService($app->make(InventoryLevelRepositoryInterface::class))
+        );
+        $this->app->bind(AddValuationLayerServiceInterface::class, fn($app) =>
+            new AddValuationLayerService($app->make(InventoryValuationLayerRepositoryInterface::class))
+        );
+        $this->app->bind(ConsumeValuationLayersServiceInterface::class, fn($app) =>
+            new ConsumeValuationLayersService($app->make(InventoryValuationLayerRepositoryInterface::class))
+        );
+        $this->app->bind(AllocateStockServiceInterface::class, fn($app) =>
+            new AllocateStockService(
+                $app->make(InventoryLevelRepositoryInterface::class),
+                $app->make(InventoryBatchRepositoryInterface::class),
+            )
+        );
+        $this->app->bind(ReconcileInventoryServiceInterface::class, fn($app) =>
+            new ReconcileInventoryService(
+                $app->make(InventoryCycleCountRepositoryInterface::class),
+                $app->make(InventoryLevelRepositoryInterface::class),
+            )
         );
     }
 
