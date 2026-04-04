@@ -51,4 +51,67 @@ class WarehouseModuleTest extends TestCase
         $this->assertEquals('aisle', $loc->getType());
         $this->assertTrue($loc->isActive());
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Additional Warehouse entity tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_warehouse_types(): void
+    {
+        foreach (['standard', 'cold_storage', 'hazmat', 'bonded'] as $type) {
+            $wh = $this->makeWarehouse(['type' => $type]);
+            $this->assertEquals($type, $wh->getType());
+        }
+    }
+
+    public function test_warehouse_optional_fields(): void
+    {
+        $wh = $this->makeWarehouse();
+        $this->assertNull($wh->getManagerId());
+        $this->assertNull($wh->getMetadata());
+    }
+
+    public function test_warehouse_with_manager_and_metadata(): void
+    {
+        $wh = new Warehouse(
+            2, 1, 'Cold Storage', 'WH-002', 'cold_storage', '456 Freeze Ave',
+            true, 5, ['temperature' => '-18C'], null, null,
+        );
+        $this->assertEquals(5, $wh->getManagerId());
+        $this->assertEquals(['temperature' => '-18C'], $wh->getMetadata());
+    }
+
+    public function test_warehouse_name_and_address(): void
+    {
+        $wh = $this->makeWarehouse(['name' => 'East Warehouse', 'address' => '789 East Blvd']);
+        $this->assertEquals('East Warehouse', $wh->getName());
+        $this->assertEquals('789 East Blvd', $wh->getAddress());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // WarehouseLocation – hierarchy support
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_warehouse_location_hierarchical(): void
+    {
+        $rack = new WarehouseLocation(2, 1, 1, 1, 'Rack A1', 'A1-R', 'rack', 1, true, null, null);
+        $this->assertEquals(1, $rack->getParentId());
+        $this->assertEquals(1, $rack->getLevel());
+        $this->assertEquals('rack', $rack->getType());
+    }
+
+    public function test_warehouse_location_bin_level(): void
+    {
+        $bin = new WarehouseLocation(3, 1, 1, 2, 'Bin A1-R-01', 'A1-R-01', 'bin', 2, true, null, null);
+        $this->assertEquals('bin', $bin->getType());
+        $this->assertEquals(2, $bin->getLevel());
+    }
+
+    public function test_warehouse_location_all_types(): void
+    {
+        foreach (['aisle', 'rack', 'shelf', 'bin', 'zone'] as $type) {
+            $loc = new WarehouseLocation(1, 1, 1, null, 'Loc', 'L', $type, 0, true, null, null);
+            $this->assertEquals($type, $loc->getType());
+        }
+    }
 }

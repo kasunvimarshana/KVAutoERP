@@ -81,4 +81,72 @@ class StockMovementTransferTest extends TestCase
         $this->expectException(\DomainException::class);
         $sourceLevel->issue(50.0);  // only 30 available
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // StockMovement entity – comprehensive tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    private function makeStockMovement(string $type = StockMovement::TYPE_TRANSFER): StockMovement
+    {
+        return new StockMovement(
+            1, 1, 100, 1, null, null,
+            $type, 50.0, 10.0, 'TRF-001', 'Transfer note', 7,
+            new \DateTimeImmutable(), null, null,
+        );
+    }
+
+    public function test_stock_movement_all_type_constants(): void
+    {
+        $this->assertEquals('receipt',    StockMovement::TYPE_RECEIPT);
+        $this->assertEquals('issue',      StockMovement::TYPE_ISSUE);
+        $this->assertEquals('transfer',   StockMovement::TYPE_TRANSFER);
+        $this->assertEquals('adjustment', StockMovement::TYPE_ADJUSTMENT);
+        $this->assertEquals('return',     StockMovement::TYPE_RETURN);
+    }
+
+    public function test_stock_movement_getters(): void
+    {
+        $mv = $this->makeStockMovement();
+        $this->assertEquals(1, $mv->getId());
+        $this->assertEquals(1, $mv->getTenantId());
+        $this->assertEquals(100, $mv->getProductId());
+        $this->assertEquals(1, $mv->getWarehouseId());
+        $this->assertEquals('transfer', $mv->getMovementType());
+        $this->assertEquals(50.0, $mv->getQuantity());
+        $this->assertEquals(10.0, $mv->getUnitCost());
+        $this->assertEquals('TRF-001', $mv->getReference());
+        $this->assertEquals('Transfer note', $mv->getNotes());
+        $this->assertEquals(7, $mv->getCreatedBy());
+        $this->assertNotNull($mv->getMovedAt());
+    }
+
+    public function test_stock_movement_receipt_type(): void
+    {
+        $mv = $this->makeStockMovement(StockMovement::TYPE_RECEIPT);
+        $this->assertEquals('receipt', $mv->getMovementType());
+    }
+
+    public function test_stock_movement_issue_type(): void
+    {
+        $mv = $this->makeStockMovement(StockMovement::TYPE_ISSUE);
+        $this->assertEquals('issue', $mv->getMovementType());
+    }
+
+    public function test_stock_movement_adjustment_type(): void
+    {
+        $mv = $this->makeStockMovement(StockMovement::TYPE_ADJUSTMENT);
+        $this->assertEquals('adjustment', $mv->getMovementType());
+    }
+
+    public function test_stock_movement_optional_location_fields(): void
+    {
+        $mv = new StockMovement(
+            null, 1, 1, 1, 2, 3, StockMovement::TYPE_TRANSFER,
+            20.0, 5.0, null, null, null, null, null, null,
+        );
+        $this->assertNull($mv->getId());
+        $this->assertEquals(2, $mv->getFromLocationId());
+        $this->assertEquals(3, $mv->getToLocationId());
+        $this->assertNull($mv->getReference());
+    }
 }

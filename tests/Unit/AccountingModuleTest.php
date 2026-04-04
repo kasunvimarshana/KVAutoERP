@@ -5,6 +5,9 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Modules\Accounting\Domain\Entities\Account;
 use Modules\Accounting\Domain\Entities\JournalEntry;
+use Modules\Accounting\Domain\Entities\JournalEntryLine;
+use Modules\Accounting\Domain\Entities\Payment;
+use Modules\Accounting\Domain\Entities\Refund;
 
 class AccountingModuleTest extends TestCase
 {
@@ -80,5 +83,120 @@ class AccountingModuleTest extends TestCase
         $je = $this->makeJournalEntry('draft', 100.0, 90.0);
         $this->expectException(\DomainException::class);
         $je->post();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Payment entity tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    private function makePayment(string $status = 'pending'): Payment
+    {
+        return new Payment(
+            1, 1, 'purchase_order', 10, 500.0, 'USD',
+            'bank_transfer', $status, 'outbound',
+            'PAY-REF-001', 'Supplier payment', new \DateTimeImmutable(), null, null, null
+        );
+    }
+
+    public function test_payment_creation(): void
+    {
+        $p = $this->makePayment();
+        $this->assertEquals(500.0, $p->getAmount());
+        $this->assertEquals('USD', $p->getCurrency());
+        $this->assertEquals('bank_transfer', $p->getPaymentMethod());
+        $this->assertEquals('pending', $p->getStatus());
+        $this->assertTrue($p->isPending());
+        $this->assertEquals('outbound', $p->getDirection());
+    }
+
+    public function test_payment_complete_transitions_status(): void
+    {
+        $p = $this->makePayment();
+        $p->complete();
+        $this->assertEquals('completed', $p->getStatus());
+        $this->assertFalse($p->isPending());
+    }
+
+    public function test_payment_fail_transitions_status(): void
+    {
+        $p = $this->makePayment();
+        $p->fail();
+        $this->assertEquals('failed', $p->getStatus());
+    }
+
+    public function test_payment_cancel_transitions_status(): void
+    {
+        $p = $this->makePayment();
+        $p->cancel();
+        $this->assertEquals('cancelled', $p->getStatus());
+    }
+
+    public function test_payment_inbound_direction(): void
+    {
+        $p = new Payment(
+            2, 1, 'sales_order', 5, 250.0, 'USD',
+            'cash', 'pending', 'inbound',
+            null, null, new \DateTimeImmutable(), null, null, null
+        );
+        $this->assertEquals('inbound', $p->getDirection());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Refund entity tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    private function makeRefund(string $status = 'pending'): Refund
+    {
+        return new Refund(
+            1, 1, 100, 200.0, 'USD', $status,
+            'Defective goods', 'REF-001',
+            new \DateTimeImmutable(), null, null, null
+        );
+    }
+
+    public function test_refund_creation(): void
+    {
+        $r = $this->makeRefund();
+        $this->assertEquals(200.0, $r->getAmount());
+        $this->assertEquals('USD', $r->getCurrency());
+        $this->assertEquals(100, $r->getOriginalPaymentId());
+        $this->assertEquals('pending', $r->getStatus());
+        $this->assertEquals('Defective goods', $r->getReason());
+        $this->assertEquals('REF-001', $r->getReference());
+    }
+
+    public function test_refund_complete_transitions_status(): void
+    {
+        $r = $this->makeRefund();
+        $r->complete();
+        $this->assertEquals('completed', $r->getStatus());
+    }
+
+    public function test_refund_fail_transitions_status(): void
+    {
+        $r = $this->makeRefund();
+        $r->fail();
+        $this->assertEquals('failed', $r->getStatus());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // JournalEntryLine entity tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_journal_entry_line_debit(): void
+    {
+        $line = new JournalEntryLine(1, 1, 100, 500.0, 0.0, 'Cash payment', null);
+        $this->assertEquals(500.0, $line->getDebitAmount());
+        $this->assertEquals(0.0, $line->getCreditAmount());
+        $this->assertEquals(100, $line->getAccountId());
+        $this->assertEquals('Cash payment', $line->getDescription());
+    }
+
+    public function test_journal_entry_line_credit(): void
+    {
+        $line = new JournalEntryLine(2, 1, 200, 0.0, 500.0, 'Accounts payable', 'INV-001');
+        $this->assertEquals(0.0, $line->getDebitAmount());
+        $this->assertEquals(500.0, $line->getCreditAmount());
+        $this->assertEquals('INV-001', $line->getReferenceLine());
     }
 }
