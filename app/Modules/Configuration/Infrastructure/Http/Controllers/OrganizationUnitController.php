@@ -90,7 +90,7 @@ class OrganizationUnitController extends Controller
 
     public function tree(Request $request): JsonResponse
     {
-        $tenantId = (int) $request->query('tenant_id', $request->header('X-Tenant-ID', 1));
+        $tenantId = (int) $request->query('tenant_id', 0);
         return response()->json($this->treeService->buildTree($tenantId));
     }
 }
