@@ -1,0 +1,10 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\Product\Application\Contracts;
+
+interface GetProductCategoryTreeServiceInterface
+{
+    public function execute(int $tenantId): array;
+}
