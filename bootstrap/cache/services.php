@@ -55,6 +55,7 @@
     51 => 'Modules\\Returns\\Infrastructure\\Providers\\ReturnsServiceProvider',
     52 => 'Modules\\Attachment\\Infrastructure\\Providers\\AttachmentServiceProvider',
     53 => 'Modules\\Accounting\\Infrastructure\\Providers\\AccountingServiceProvider',
+    54 => 'Modules\\HR\\Infrastructure\\Providers\\HRServiceProvider',
   ),
   'eager' => 
   array (
@@ -96,6 +97,7 @@
     35 => 'Modules\\Returns\\Infrastructure\\Providers\\ReturnsServiceProvider',
     36 => 'Modules\\Attachment\\Infrastructure\\Providers\\AttachmentServiceProvider',
     37 => 'Modules\\Accounting\\Infrastructure\\Providers\\AccountingServiceProvider',
+    38 => 'Modules\\HR\\Infrastructure\\Providers\\HRServiceProvider',
   ),
   'deferred' => 
   array (
