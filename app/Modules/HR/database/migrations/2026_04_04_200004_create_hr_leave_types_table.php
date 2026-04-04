@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->string('name');
-            $table->string('code')->unique();
+            $table->string('code');
             $table->text('description')->nullable();
             $table->integer('default_days')->default(0);
             $table->boolean('is_paid')->default(true);
@@ -19,6 +19,7 @@ return new class extends Migration {
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
+            $table->unique(['tenant_id', 'code']);
             $table->index(['tenant_id', 'is_active']);
         });
     }

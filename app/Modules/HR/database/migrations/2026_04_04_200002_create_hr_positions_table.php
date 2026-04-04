@@ -12,7 +12,7 @@ return new class extends Migration {
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('department_id')->constrained('hr_departments')->cascadeOnDelete();
             $table->string('title');
-            $table->string('code')->unique();
+            $table->string('code');
             $table->text('description')->nullable();
             $table->string('employment_type')->nullable(); // full_time, part_time, contract, etc.
             $table->decimal('min_salary', 15, 2)->nullable();
@@ -20,6 +20,7 @@ return new class extends Migration {
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
+            $table->unique(['tenant_id', 'code']);
             $table->index(['tenant_id', 'department_id']);
         });
     }

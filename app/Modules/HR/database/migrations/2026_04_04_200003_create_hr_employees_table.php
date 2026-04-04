@@ -13,10 +13,10 @@ return new class extends Migration {
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('department_id')->constrained('hr_departments')->cascadeOnDelete();
             $table->foreignId('position_id')->constrained('hr_positions')->cascadeOnDelete();
-            $table->string('employee_code')->unique();
+            $table->string('employee_code');
             $table->string('first_name');
             $table->string('last_name');
-            $table->string('email')->unique();
+            $table->string('email');
             $table->string('phone')->nullable();
             $table->string('gender')->nullable();
             $table->date('date_of_birth')->nullable();
@@ -32,6 +32,8 @@ return new class extends Migration {
             $table->json('metadata')->nullable();
             $table->timestamps();
             $table->softDeletes();
+            $table->unique(['tenant_id', 'employee_code']);
+            $table->unique(['tenant_id', 'email']);
             $table->index(['tenant_id', 'status']);
             $table->index(['tenant_id', 'department_id']);
         });
