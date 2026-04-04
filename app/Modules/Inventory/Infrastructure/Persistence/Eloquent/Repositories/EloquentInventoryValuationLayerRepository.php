@@ -29,7 +29,19 @@ class EloquentInventoryValuationLayerRepository extends EloquentRepository imple
             ->all();
     }
 
-    public function create(array $data): InventoryValuationLayer
+    public function findByProductOrdered(int $productId, int $warehouseId, string $direction = 'asc'): array
+    {
+        return $this->model
+            ->where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId)
+            ->where('remaining_quantity', '>', 0)
+            ->orderBy('receipt_date', $direction)
+            ->get()
+            ->map(fn($m) => $this->toEntity($m))
+            ->all();
+    }
+
+
     {
         $model = parent::create($data);
         return $this->toEntity($model);
@@ -46,9 +58,10 @@ class EloquentInventoryValuationLayerRepository extends EloquentRepository imple
     {
         $model = $this->model->findOrFail($layer->id);
         $updated = parent::update($model, [
-            'quantity'   => $layer->quantity,
-            'unit_cost'  => $layer->unitCost,
-            'total_cost' => $layer->totalCost,
+            'quantity'            => $layer->quantity,
+            'remaining_quantity'  => $layer->remainingQuantity,
+            'unit_cost'           => $layer->unitCost,
+            'total_cost'          => $layer->totalCost,
         ]);
         return $this->toEntity($updated);
     }
@@ -62,6 +75,7 @@ class EloquentInventoryValuationLayerRepository extends EloquentRepository imple
             warehouseId: $model->warehouse_id,
             valuationMethod: $model->valuation_method,
             quantity: (float) $model->quantity,
+            remainingQuantity: (float) ($model->remaining_quantity ?? $model->quantity),
             unitCost: (float) $model->unit_cost,
             totalCost: (float) $model->total_cost,
             batchId: $model->batch_id,
