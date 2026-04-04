@@ -37,4 +37,6 @@ interface PrintBarcodeLabelServiceInterface
     public function listByStatus(int $tenantId, string $status): array;
 
     public function cancel(int $id): BarcodePrintJob;
+
+    public function delete(int $id): void;
 }

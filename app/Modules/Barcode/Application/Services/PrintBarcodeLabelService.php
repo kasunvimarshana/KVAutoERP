@@ -126,4 +126,10 @@ class PrintBarcodeLabelService implements PrintBarcodeLabelServiceInterface
 
         return $this->jobs->save($job);
     }
+
+    public function delete(int $id): void
+    {
+        $this->getById($id); // throws if not found
+        $this->jobs->delete($id);
+    }
 }

@@ -1499,6 +1499,29 @@ class BarcodeModuleTest extends TestCase
         $this->assertSame($list, $service->listByStatus(1, 'pending'));
     }
 
+    public function test_print_service_delete(): void
+    {
+        $jobRepo = $this->makePrintJobRepo();
+        $service = $this->makePrintLabelService(jobRepo: $jobRepo);
+
+        $job = $this->makePrintJob(id: 1);
+        $jobRepo->method('findById')->willReturn($job);
+        $jobRepo->expects($this->once())->method('delete')->with(1);
+
+        $service->delete(1);
+    }
+
+    public function test_print_service_delete_throws_when_not_found(): void
+    {
+        $jobRepo = $this->makePrintJobRepo();
+        $service = $this->makePrintLabelService(jobRepo: $jobRepo);
+
+        $jobRepo->method('findById')->willReturn(null);
+
+        $this->expectException(\Modules\Barcode\Domain\Exceptions\BarcodeNotFoundException::class);
+        $service->delete(99);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // RecordBarcodeScanService – event dispatch
     // ─────────────────────────────────────────────────────────────────────────

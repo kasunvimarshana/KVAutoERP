@@ -59,7 +59,7 @@ class BarcodePrintJobController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $this->service->getById($id);  // throws 404 if not found
+        $this->service->delete($id);
         return response()->json(null, 204);
     }
 }
