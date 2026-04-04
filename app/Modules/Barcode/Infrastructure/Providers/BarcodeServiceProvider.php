@@ -19,6 +19,7 @@ use Modules\Barcode\Infrastructure\Generators\Drivers\AztecDriver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\CodabarDriver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\Code128Driver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\Code39Driver;
+use Modules\Barcode\Infrastructure\Generators\Drivers\Code93Driver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\DataMatrixDriver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\Ean13Driver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\Ean8Driver;
@@ -43,7 +44,7 @@ class BarcodeServiceProvider extends ServiceProvider
             $dispatcher = new BarcodeGeneratorDispatcher();
             $dispatcher->addDriver(BarcodeType::CODE128,        new Code128Driver());
             $dispatcher->addDriver(BarcodeType::CODE39,         new Code39Driver());
-            $dispatcher->addDriver(BarcodeType::CODE93,         new Code39Driver()); // placeholder: no dedicated CODE93 driver
+            $dispatcher->addDriver(BarcodeType::CODE93,         new Code93Driver());
             $dispatcher->addDriver(BarcodeType::EAN13,          new Ean13Driver());
             $dispatcher->addDriver(BarcodeType::EAN8,           new Ean8Driver());
             $dispatcher->addDriver(BarcodeType::UPCA,           new UpcADriver());

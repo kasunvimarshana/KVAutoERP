@@ -22,6 +22,7 @@ use Modules\Barcode\Infrastructure\Generators\BarcodeGeneratorDispatcher;
 use Modules\Barcode\Infrastructure\Generators\BarcodeGeneratorDriverInterface;
 use Modules\Barcode\Infrastructure\Generators\Drivers\Code128Driver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\Code39Driver;
+use Modules\Barcode\Infrastructure\Generators\Drivers\Code93Driver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\Ean13Driver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\Ean8Driver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\QrCodeDriver;
@@ -550,6 +551,45 @@ class BarcodeModuleTest extends TestCase
         $this->assertFalse($driver->validate(''));
         $this->assertFalse($driver->validate('HELLO*WORLD')); // * is reserved
         $this->assertTrue($driver->validate('hello'));        // lowercase is uppercased internally
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Code93Driver
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function test_code93_supports_correct_type(): void
+    {
+        $driver = new Code93Driver();
+        $this->assertTrue($driver->supports(BarcodeType::CODE93));
+        $this->assertFalse($driver->supports(BarcodeType::CODE39));
+        $this->assertFalse($driver->supports(BarcodeType::CODE128));
+    }
+
+    public function test_code93_generate_returns_svg(): void
+    {
+        $driver = new Code93Driver();
+        $svg    = $driver->generate('ABC123', BarcodeOutputFormat::SVG, []);
+        $this->assertIsString($svg);
+        $this->assertStringContainsString('<svg', $svg);
+        $this->assertGreaterThan(100, strlen($svg));
+    }
+
+    public function test_code93_validate_valid_chars(): void
+    {
+        $driver = new Code93Driver();
+        $this->assertTrue($driver->validate('HELLO'));
+        $this->assertTrue($driver->validate('ABC-123'));
+        $this->assertTrue($driver->validate('TEST VALUE'));
+        $this->assertFalse($driver->validate(''));
+        $this->assertFalse($driver->validate('hello')); // lowercase invalid per Code93 spec
+    }
+
+    public function test_code93_different_values_produce_different_svgs(): void
+    {
+        $driver = new Code93Driver();
+        $svg1   = $driver->generate('ABC', BarcodeOutputFormat::SVG, []);
+        $svg2   = $driver->generate('XYZ', BarcodeOutputFormat::SVG, []);
+        $this->assertNotEquals($svg1, $svg2);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
