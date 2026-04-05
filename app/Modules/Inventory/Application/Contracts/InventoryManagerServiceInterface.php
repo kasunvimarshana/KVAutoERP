@@ -45,5 +45,6 @@ interface InventoryManagerServiceInterface
         int $warehouseId,
         float $quantity,
         ?int $locationId = null,
+        string $strategy = 'fefo',
     ): void;
 }

@@ -506,4 +506,48 @@ class InventoryServicesTest extends TestCase
 
         $manager->issueStock(1, 1, 1, 30.0);
     }
+
+    public function test_inventory_manager_issue_stock_uses_fefo_by_default(): void
+    {
+        $level = $this->makeLevel(70.0);
+
+        /** @var IssueStockServiceInterface&MockObject $issueSvc */
+        $issueSvc = $this->createMock(IssueStockServiceInterface::class);
+        $issueSvc->expects($this->once())
+            ->method('execute')
+            ->with($this->callback(function ($dto): bool {
+                return $dto->allocation_strategy === 'fefo';
+            }))
+            ->willReturn($level);
+
+        $manager = new InventoryManagerService(
+            $this->createMock(ReceiveStockServiceInterface::class),
+            $issueSvc,
+            $this->createMock(AllocateStockServiceInterface::class),
+        );
+
+        $manager->issueStock(1, 1, 1, 30.0);
+    }
+
+    public function test_inventory_manager_issue_stock_accepts_custom_strategy(): void
+    {
+        $level = $this->makeLevel(70.0);
+
+        /** @var IssueStockServiceInterface&MockObject $issueSvc */
+        $issueSvc = $this->createMock(IssueStockServiceInterface::class);
+        $issueSvc->expects($this->once())
+            ->method('execute')
+            ->with($this->callback(function ($dto): bool {
+                return $dto->allocation_strategy === 'lifo';
+            }))
+            ->willReturn($level);
+
+        $manager = new InventoryManagerService(
+            $this->createMock(ReceiveStockServiceInterface::class),
+            $issueSvc,
+            $this->createMock(AllocateStockServiceInterface::class),
+        );
+
+        $manager->issueStock(1, 1, 1, 30.0, null, 'lifo');
+    }
 }

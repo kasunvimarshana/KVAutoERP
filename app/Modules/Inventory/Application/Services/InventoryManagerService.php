@@ -71,14 +71,15 @@ class InventoryManagerService implements InventoryManagerServiceInterface
         int $warehouseId,
         float $quantity,
         ?int $locationId = null,
+        string $strategy = 'fefo',
     ): void {
-        $dto                     = new IssueStockData();
-        $dto->tenant_id          = $tenantId;
-        $dto->product_id         = $productId;
-        $dto->warehouse_id       = $warehouseId;
-        $dto->quantity           = $quantity;
-        $dto->location_id        = $locationId;
-        $dto->allocation_strategy = 'fifo';
+        $dto                      = new IssueStockData();
+        $dto->tenant_id           = $tenantId;
+        $dto->product_id          = $productId;
+        $dto->warehouse_id        = $warehouseId;
+        $dto->quantity            = $quantity;
+        $dto->location_id         = $locationId;
+        $dto->allocation_strategy = $strategy;
 
         $this->issueService->execute($dto);
     }
