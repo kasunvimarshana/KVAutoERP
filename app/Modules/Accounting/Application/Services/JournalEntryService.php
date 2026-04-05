@@ -61,7 +61,7 @@ final class JournalEntryService implements JournalEntryServiceInterface
 
         return $this->repository->update($entryId, [
             'status'    => JournalEntry::STATUS_POSTED,
-            'posted_at' => now()->toDateTimeString(),
+            'posted_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
         ]);
     }
 
@@ -75,7 +75,7 @@ final class JournalEntryService implements JournalEntryServiceInterface
 
         return $this->repository->update($entryId, [
             'status'      => JournalEntry::STATUS_VOIDED,
-            'voided_at'   => now()->toDateTimeString(),
+            'voided_at'   => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
             'void_reason' => $reason,
         ]);
     }
