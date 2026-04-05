@@ -11,4 +11,7 @@ return [
     Modules\Currency\Infrastructure\Providers\CurrencyServiceProvider::class,
     Modules\Tax\Infrastructure\Providers\TaxServiceProvider::class,
     Modules\Accounting\Infrastructure\Providers\AccountingServiceProvider::class,
+    Modules\CRM\Infrastructure\Providers\CRMServiceProvider::class,
+    Modules\Product\Infrastructure\Providers\ProductServiceProvider::class,
+    Modules\Pricing\Infrastructure\Providers\PricingServiceProvider::class,
 ];
