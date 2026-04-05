@@ -36,4 +36,20 @@ return [
     Modules\HR\Infrastructure\Providers\HRServiceProvider::class,
     // Notifications
     Modules\Notification\Infrastructure\Providers\NotificationServiceProvider::class,
+    // Tax
+    Modules\Tax\Infrastructure\Providers\TaxServiceProvider::class,
+    // Audit
+    Modules\Audit\Infrastructure\Providers\AuditServiceProvider::class,
+    // Currency
+    Modules\Currency\Infrastructure\Providers\CurrencyServiceProvider::class,
+    // POS
+    Modules\POS\Infrastructure\Providers\POSServiceProvider::class,
+    // CRM
+    Modules\CRM\Infrastructure\Providers\CRMServiceProvider::class,
+    // Asset
+    Modules\Asset\Infrastructure\Providers\AssetServiceProvider::class,
+    // Contract
+    Modules\Contract\Infrastructure\Providers\ContractServiceProvider::class,
+    // Maintenance
+    Modules\Maintenance\Infrastructure\Providers\MaintenanceServiceProvider::class,
 ];
