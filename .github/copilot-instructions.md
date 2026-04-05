@@ -61,7 +61,7 @@ app/Modules/<Module>/
 - Always start files with `declare(strict_types=1);`
 - Use PHP 8+ features: named arguments, union types, readonly properties, enums
 - Use strong type hints on all method parameters and return types
-- Use `abs($value) < PHP_FLOAT_EPSILON` for float-zero comparisons instead of `== 0.0`
+- For near-zero float checks, use `abs($value) < PHP_FLOAT_EPSILON` instead of `== 0.0`; for general float equality with tolerance, use an application-appropriate epsilon
 
 ### Naming
 - **Classes:** PascalCase (e.g., `EloquentAuditRepository`, `AuditLogData`)
@@ -85,14 +85,15 @@ app/Modules/<Module>/
 ### Infrastructure Layer Rules
 - Eloquent models extend `BaseModel` (which includes `SoftDeletes`)
 - All tables for models extending `BaseModel` must include `$table->softDeletes()`
-- Repositories bypass the `HasTenant` global scope with `withoutGlobalScopes()` and manually filter `where('tenant_id', $tenantId)`
+- Repositories bypass the `HasTenant` global scope with `withoutGlobalScopes()` and explicitly filter `where('tenant_id', $tenantId)` to ensure consistent, predictable tenant isolation at the query level rather than relying on the implicit global scope
 - Controllers extend `BaseController` or `AuthorizedController`
 - API resources extend `BaseResource`
 
 ### Multi-Tenancy
-- Tenant isolation uses `HasTenant` trait with a global scope
+- Tenant isolation uses `HasTenant` trait with a global scope for automatic filtering at the model level
 - Tenant ID resolves from the authenticated user's `tenant_id` or the `X-Tenant-ID` header
 - On model creation, `tenant_id` is auto-filled only when the attribute is empty
+- In repositories, the global scope is bypassed via `withoutGlobalScopes()` so that tenant filtering is applied explicitly with `where('tenant_id', ...)`, ensuring deterministic and testable query behavior
 
 ### Dependency Flow
 ```
