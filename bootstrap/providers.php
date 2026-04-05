@@ -44,4 +44,12 @@ return [
     Modules\Currency\Infrastructure\Providers\CurrencyServiceProvider::class,
     // POS
     Modules\POS\Infrastructure\Providers\POSServiceProvider::class,
+    // CRM
+    Modules\CRM\Infrastructure\Providers\CRMServiceProvider::class,
+    // Asset
+    Modules\Asset\Infrastructure\Providers\AssetServiceProvider::class,
+    // Contract
+    Modules\Contract\Infrastructure\Providers\ContractServiceProvider::class,
+    // Maintenance
+    Modules\Maintenance\Infrastructure\Providers\MaintenanceServiceProvider::class,
 ];
