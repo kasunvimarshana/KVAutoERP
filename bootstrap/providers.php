@@ -52,4 +52,6 @@ return [
     Modules\Contract\Infrastructure\Providers\ContractServiceProvider::class,
     // Maintenance
     Modules\Maintenance\Infrastructure\Providers\MaintenanceServiceProvider::class,
+    // Organisation Unit
+    Modules\OrgUnit\Infrastructure\Providers\OrgUnitServiceProvider::class,
 ];
