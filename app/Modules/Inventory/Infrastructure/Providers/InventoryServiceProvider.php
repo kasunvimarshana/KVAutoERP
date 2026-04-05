@@ -9,6 +9,8 @@ use Modules\Inventory\Application\Contracts\AddValuationLayerServiceInterface;
 use Modules\Inventory\Application\Contracts\AdjustInventoryServiceInterface;
 use Modules\Inventory\Application\Contracts\AllocateStockServiceInterface;
 use Modules\Inventory\Application\Contracts\ConsumeValuationLayersServiceInterface;
+use Modules\Inventory\Application\Contracts\CreateCycleCountServiceInterface;
+use Modules\Inventory\Application\Contracts\InventoryManagerServiceInterface;
 use Modules\Inventory\Application\Contracts\IssueStockServiceInterface;
 use Modules\Inventory\Application\Contracts\ReceiveStockServiceInterface;
 use Modules\Inventory\Application\Contracts\ReconcileInventoryServiceInterface;
@@ -18,6 +20,8 @@ use Modules\Inventory\Application\Services\AddValuationLayerService;
 use Modules\Inventory\Application\Services\AdjustInventoryService;
 use Modules\Inventory\Application\Services\AllocateStockService;
 use Modules\Inventory\Application\Services\ConsumeValuationLayersService;
+use Modules\Inventory\Application\Services\CreateCycleCountService;
+use Modules\Inventory\Application\Services\InventoryManagerService;
 use Modules\Inventory\Application\Services\IssueStockService;
 use Modules\Inventory\Application\Services\ReceiveStockService;
 use Modules\Inventory\Application\Services\ReconcileInventoryService;
@@ -90,6 +94,18 @@ class InventoryServiceProvider extends ServiceProvider
             new ReconcileInventoryService(
                 $app->make(InventoryCycleCountRepositoryInterface::class),
                 $app->make(InventoryLevelRepositoryInterface::class),
+            )
+        );
+        $this->app->bind(CreateCycleCountServiceInterface::class, fn($app) =>
+            new CreateCycleCountService(
+                $app->make(InventoryCycleCountRepositoryInterface::class),
+            )
+        );
+        $this->app->bind(InventoryManagerServiceInterface::class, fn($app) =>
+            new InventoryManagerService(
+                $app->make(ReceiveStockServiceInterface::class),
+                $app->make(IssueStockServiceInterface::class),
+                $app->make(AllocateStockServiceInterface::class),
             )
         );
     }

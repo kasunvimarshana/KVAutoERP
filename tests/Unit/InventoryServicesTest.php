@@ -4,9 +4,14 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Modules\Inventory\Application\Contracts\AllocateStockServiceInterface;
+use Modules\Inventory\Application\Contracts\IssueStockServiceInterface;
+use Modules\Inventory\Application\Contracts\ReceiveStockServiceInterface;
 use Modules\Inventory\Application\Services\AddValuationLayerService;
 use Modules\Inventory\Application\Services\AllocateStockService;
 use Modules\Inventory\Application\Services\ConsumeValuationLayersService;
+use Modules\Inventory\Application\Services\CreateCycleCountService;
+use Modules\Inventory\Application\Services\InventoryManagerService;
 use Modules\Inventory\Application\Services\ReserveStockService;
 use Modules\Inventory\Application\Services\ReleaseStockService;
 use Modules\Inventory\Domain\Entities\InventoryBatch;
@@ -15,6 +20,7 @@ use Modules\Inventory\Domain\Exceptions\InsufficientStockException;
 use Modules\Inventory\Domain\Entities\InventoryLevel;
 use Modules\Inventory\Domain\Entities\InventoryValuationLayer;
 use Modules\Inventory\Domain\RepositoryInterfaces\InventoryBatchRepositoryInterface;
+use Modules\Inventory\Domain\RepositoryInterfaces\InventoryCycleCountRepositoryInterface;
 use Modules\Inventory\Domain\RepositoryInterfaces\InventoryLevelRepositoryInterface;
 use Modules\Inventory\Domain\RepositoryInterfaces\InventoryValuationLayerRepositoryInterface;
 
@@ -360,5 +366,188 @@ class InventoryServicesTest extends TestCase
         $this->assertEquals(7, $count->getCountedBy());
         $this->assertNotNull($count->getStartedAt());
         $this->assertNotNull($count->getCompletedAt());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // CreateCycleCountService
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_create_cycle_count_creates_pending_record(): void
+    {
+        $expected = new InventoryCycleCount(10, 1, 2, null, 'pending', null, null, null, 'Q1 count', null, null);
+
+        /** @var InventoryCycleCountRepositoryInterface&MockObject $cycleRepo */
+        $cycleRepo = $this->createMock(InventoryCycleCountRepositoryInterface::class);
+        $cycleRepo->expects($this->once())
+            ->method('create')
+            ->with($this->callback(function (array $data): bool {
+                return $data['tenant_id'] === 1
+                    && $data['warehouse_id'] === 2
+                    && $data['status'] === 'pending'
+                    && $data['product_id'] === null
+                    && $data['notes'] === 'Q1 count';
+            }))
+            ->willReturn($expected);
+
+        $service = new CreateCycleCountService($cycleRepo);
+        $result  = $service->execute(1, 2, null, 'Q1 count');
+
+        $this->assertEquals(10, $result->getId());
+        $this->assertEquals('pending', $result->getStatus());
+        $this->assertEquals('Q1 count', $result->getNotes());
+    }
+
+    public function test_create_cycle_count_with_product_filter(): void
+    {
+        $expected = new InventoryCycleCount(11, 1, 2, 5, 'pending', null, null, null, null, null, null);
+
+        /** @var InventoryCycleCountRepositoryInterface&MockObject $cycleRepo */
+        $cycleRepo = $this->createMock(InventoryCycleCountRepositoryInterface::class);
+        $cycleRepo->expects($this->once())
+            ->method('create')
+            ->with($this->callback(function (array $data): bool {
+                return $data['product_id'] === 5;
+            }))
+            ->willReturn($expected);
+
+        $service = new CreateCycleCountService($cycleRepo);
+        $result  = $service->execute(1, 2, 5);
+
+        $this->assertEquals(5, $result->getProductId());
+    }
+
+    public function test_create_cycle_count_rejects_invalid_warehouse(): void
+    {
+        /** @var InventoryCycleCountRepositoryInterface&MockObject $cycleRepo */
+        $cycleRepo = $this->createMock(InventoryCycleCountRepositoryInterface::class);
+        $cycleRepo->expects($this->never())->method('create');
+
+        $service = new CreateCycleCountService($cycleRepo);
+        $this->expectException(\InvalidArgumentException::class);
+        $service->execute(1, 0);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // InventoryManagerService
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function test_inventory_manager_allocate_stock_delegates_to_allocate_service(): void
+    {
+        $expected = [['batch_id' => 1, 'quantity' => 30.0, 'expires_at' => null]];
+
+        /** @var AllocateStockServiceInterface&MockObject $allocateSvc */
+        $allocateSvc = $this->createMock(AllocateStockServiceInterface::class);
+        $allocateSvc->expects($this->once())
+            ->method('execute')
+            ->with(1, 2, 3, 30.0, 'fefo')
+            ->willReturn($expected);
+
+        $receiveSvc = $this->createMock(ReceiveStockServiceInterface::class);
+        $issueSvc   = $this->createMock(IssueStockServiceInterface::class);
+
+        $manager = new InventoryManagerService($receiveSvc, $issueSvc, $allocateSvc);
+        $result  = $manager->allocateStock(1, 2, 3, 30.0, 'fefo');
+
+        $this->assertSame($expected, $result);
+    }
+
+    public function test_inventory_manager_allocate_uses_fefo_by_default(): void
+    {
+        /** @var AllocateStockServiceInterface&MockObject $allocateSvc */
+        $allocateSvc = $this->createMock(AllocateStockServiceInterface::class);
+        $allocateSvc->expects($this->once())
+            ->method('execute')
+            ->with(1, 1, 1, 10.0, 'fefo')
+            ->willReturn([]);
+
+        $manager = new InventoryManagerService(
+            $this->createMock(ReceiveStockServiceInterface::class),
+            $this->createMock(IssueStockServiceInterface::class),
+            $allocateSvc,
+        );
+
+        $manager->allocateStock(1, 1, 1, 10.0);
+    }
+
+    public function test_inventory_manager_receive_stock_delegates_to_receive_service(): void
+    {
+        $level = $this->makeLevel(150.0);
+
+        /** @var ReceiveStockServiceInterface&MockObject $receiveSvc */
+        $receiveSvc = $this->createMock(ReceiveStockServiceInterface::class);
+        $receiveSvc->expects($this->once())
+            ->method('execute')
+            ->willReturn($level);
+
+        $manager = new InventoryManagerService(
+            $receiveSvc,
+            $this->createMock(IssueStockServiceInterface::class),
+            $this->createMock(AllocateStockServiceInterface::class),
+        );
+
+        $manager->receiveStock(1, 1, 1, 50.0, 10.0);
+    }
+
+    public function test_inventory_manager_issue_stock_delegates_to_issue_service(): void
+    {
+        $level = $this->makeLevel(70.0);
+
+        /** @var IssueStockServiceInterface&MockObject $issueSvc */
+        $issueSvc = $this->createMock(IssueStockServiceInterface::class);
+        $issueSvc->expects($this->once())
+            ->method('execute')
+            ->willReturn($level);
+
+        $manager = new InventoryManagerService(
+            $this->createMock(ReceiveStockServiceInterface::class),
+            $issueSvc,
+            $this->createMock(AllocateStockServiceInterface::class),
+        );
+
+        $manager->issueStock(1, 1, 1, 30.0);
+    }
+
+    public function test_inventory_manager_issue_stock_uses_fefo_by_default(): void
+    {
+        $level = $this->makeLevel(70.0);
+
+        /** @var IssueStockServiceInterface&MockObject $issueSvc */
+        $issueSvc = $this->createMock(IssueStockServiceInterface::class);
+        $issueSvc->expects($this->once())
+            ->method('execute')
+            ->with($this->callback(function ($dto): bool {
+                return $dto->allocation_strategy === 'fefo';
+            }))
+            ->willReturn($level);
+
+        $manager = new InventoryManagerService(
+            $this->createMock(ReceiveStockServiceInterface::class),
+            $issueSvc,
+            $this->createMock(AllocateStockServiceInterface::class),
+        );
+
+        $manager->issueStock(1, 1, 1, 30.0);
+    }
+
+    public function test_inventory_manager_issue_stock_accepts_custom_strategy(): void
+    {
+        $level = $this->makeLevel(70.0);
+
+        /** @var IssueStockServiceInterface&MockObject $issueSvc */
+        $issueSvc = $this->createMock(IssueStockServiceInterface::class);
+        $issueSvc->expects($this->once())
+            ->method('execute')
+            ->with($this->callback(function ($dto): bool {
+                return $dto->allocation_strategy === 'lifo';
+            }))
+            ->willReturn($level);
+
+        $manager = new InventoryManagerService(
+            $this->createMock(ReceiveStockServiceInterface::class),
+            $issueSvc,
+            $this->createMock(AllocateStockServiceInterface::class),
+        );
+
+        $manager->issueStock(1, 1, 1, 30.0, null, 'lifo');
     }
 }
