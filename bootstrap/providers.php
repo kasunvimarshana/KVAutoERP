@@ -14,4 +14,6 @@ return [
     Modules\CRM\Infrastructure\Providers\CRMServiceProvider::class,
     Modules\Product\Infrastructure\Providers\ProductServiceProvider::class,
     Modules\Pricing\Infrastructure\Providers\PricingServiceProvider::class,
+    Modules\Warehouse\Infrastructure\Providers\WarehouseServiceProvider::class,
+    Modules\Inventory\Infrastructure\Providers\InventoryServiceProvider::class,
 ];
