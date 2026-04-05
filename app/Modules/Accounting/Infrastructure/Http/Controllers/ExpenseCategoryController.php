@@ -5,7 +5,6 @@ namespace Modules\Accounting\Infrastructure\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Modules\Accounting\Domain\Exceptions\AccountNotFoundException;
 use Modules\Accounting\Domain\RepositoryInterfaces\ExpenseCategoryRepositoryInterface;
 
 class ExpenseCategoryController extends Controller
