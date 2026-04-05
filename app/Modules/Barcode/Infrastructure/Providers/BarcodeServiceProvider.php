@@ -7,12 +7,18 @@ namespace Modules\Barcode\Infrastructure\Providers;
 use Illuminate\Support\ServiceProvider;
 use Modules\Barcode\Application\Contracts\GenerateBarcodeServiceInterface;
 use Modules\Barcode\Application\Contracts\ManageBarcodeServiceInterface;
+use Modules\Barcode\Application\Contracts\ManageLabelTemplateServiceInterface;
+use Modules\Barcode\Application\Contracts\PrintBarcodeLabelServiceInterface;
 use Modules\Barcode\Application\Contracts\RecordBarcodeScanServiceInterface;
 use Modules\Barcode\Application\Services\GenerateBarcodeService;
 use Modules\Barcode\Application\Services\ManageBarcodeService;
+use Modules\Barcode\Application\Services\ManageLabelTemplateService;
+use Modules\Barcode\Application\Services\PrintBarcodeLabelService;
 use Modules\Barcode\Application\Services\RecordBarcodeScanService;
+use Modules\Barcode\Domain\RepositoryInterfaces\BarcodePrintJobRepositoryInterface;
 use Modules\Barcode\Domain\RepositoryInterfaces\BarcodeDefinitionRepositoryInterface;
 use Modules\Barcode\Domain\RepositoryInterfaces\BarcodeScanRepositoryInterface;
+use Modules\Barcode\Domain\RepositoryInterfaces\LabelTemplateRepositoryInterface;
 use Modules\Barcode\Domain\ValueObjects\BarcodeType;
 use Modules\Barcode\Infrastructure\Generators\BarcodeGeneratorDispatcher;
 use Modules\Barcode\Infrastructure\Generators\Drivers\AztecDriver;
@@ -30,10 +36,18 @@ use Modules\Barcode\Infrastructure\Generators\Drivers\Pdf417Driver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\QrCodeDriver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\UpcADriver;
 use Modules\Barcode\Infrastructure\Generators\Drivers\UpcEDriver;
+use Modules\Barcode\Infrastructure\Persistence\Eloquent\Models\BarcodePrintJobModel;
 use Modules\Barcode\Infrastructure\Persistence\Eloquent\Models\BarcodeDefinitionModel;
 use Modules\Barcode\Infrastructure\Persistence\Eloquent\Models\BarcodeScanModel;
+use Modules\Barcode\Infrastructure\Persistence\Eloquent\Models\LabelTemplateModel;
+use Modules\Barcode\Infrastructure\Persistence\Eloquent\Repositories\EloquentBarcodePrintJobRepository;
 use Modules\Barcode\Infrastructure\Persistence\Eloquent\Repositories\EloquentBarcodeDefinitionRepository;
 use Modules\Barcode\Infrastructure\Persistence\Eloquent\Repositories\EloquentBarcodeScanRepository;
+use Modules\Barcode\Infrastructure\Persistence\Eloquent\Repositories\EloquentLabelTemplateRepository;
+use Modules\Barcode\Infrastructure\Printing\BarcodePrinterDispatcher;
+use Modules\Barcode\Infrastructure\Printing\Drivers\EplPrinterDriver;
+use Modules\Barcode\Infrastructure\Printing\Drivers\SvgLabelDriver;
+use Modules\Barcode\Infrastructure\Printing\Drivers\ZplPrinterDriver;
 
 class BarcodeServiceProvider extends ServiceProvider
 {
@@ -69,6 +83,23 @@ class BarcodeServiceProvider extends ServiceProvider
             new EloquentBarcodeScanRepository($app->make(BarcodeScanModel::class))
         );
 
+        $this->app->bind(LabelTemplateRepositoryInterface::class, fn($app) =>
+            new EloquentLabelTemplateRepository($app->make(LabelTemplateModel::class))
+        );
+
+        $this->app->bind(BarcodePrintJobRepositoryInterface::class, fn($app) =>
+            new EloquentBarcodePrintJobRepository($app->make(BarcodePrintJobModel::class))
+        );
+
+        // ── Printer Dispatcher ─────────────────────────────────────────────────
+        $this->app->singleton(BarcodePrinterDispatcher::class, function ($app) {
+            $dispatcher = new BarcodePrinterDispatcher();
+            $dispatcher->addDriver(new ZplPrinterDriver());
+            $dispatcher->addDriver(new EplPrinterDriver());
+            $dispatcher->addDriver(new SvgLabelDriver($app->make(BarcodeGeneratorDispatcher::class)));
+            return $dispatcher;
+        });
+
         // ── Service Bindings ───────────────────────────────────────────────────
         $this->app->bind(ManageBarcodeServiceInterface::class, fn($app) =>
             new ManageBarcodeService($app->make(BarcodeDefinitionRepositoryInterface::class))
@@ -82,6 +113,19 @@ class BarcodeServiceProvider extends ServiceProvider
             new RecordBarcodeScanService(
                 $app->make(BarcodeScanRepositoryInterface::class),
                 $app->make(BarcodeDefinitionRepositoryInterface::class),
+            )
+        );
+
+        $this->app->bind(ManageLabelTemplateServiceInterface::class, fn($app) =>
+            new ManageLabelTemplateService($app->make(LabelTemplateRepositoryInterface::class))
+        );
+
+        $this->app->bind(PrintBarcodeLabelServiceInterface::class, fn($app) =>
+            new PrintBarcodeLabelService(
+                $app->make(BarcodePrintJobRepositoryInterface::class),
+                $app->make(BarcodeDefinitionRepositoryInterface::class),
+                $app->make(LabelTemplateRepositoryInterface::class),
+                $app->make(BarcodePrinterDispatcher::class),
             )
         );
     }
