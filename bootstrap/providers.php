@@ -8,4 +8,5 @@ return [
     Modules\UserProfile\Infrastructure\Providers\UserProfileServiceProvider::class,
     Modules\Configuration\Infrastructure\Providers\ConfigurationServiceProvider::class,
     Modules\OrgUnit\Infrastructure\Providers\OrgUnitServiceProvider::class,
+    Modules\Accounting\Infrastructure\Providers\AccountingServiceProvider::class,
 ];
