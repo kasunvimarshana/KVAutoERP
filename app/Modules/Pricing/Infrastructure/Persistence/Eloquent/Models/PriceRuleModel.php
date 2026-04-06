@@ -31,7 +31,7 @@ class PriceRuleModel extends BaseModel
         'min_qty'          => 'float',
         'price'            => 'float',
         'discount_percent' => 'float',
-        'start_date'       => 'datetime',
-        'end_date'         => 'datetime',
+        'start_date'       => 'date',
+        'end_date'         => 'date',
     ];
 }
