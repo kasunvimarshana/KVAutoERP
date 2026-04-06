@@ -16,4 +16,5 @@ return [
     Modules\Inventory\Infrastructure\Providers\InventoryServiceProvider::class,
     Modules\Order\Infrastructure\Providers\OrderServiceProvider::class,
     Modules\Transaction\Infrastructure\Providers\TransactionServiceProvider::class,
+    Modules\Returns\Infrastructure\Providers\ReturnsServiceProvider::class,
 ];
