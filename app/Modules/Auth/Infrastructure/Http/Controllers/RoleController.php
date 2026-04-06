@@ -42,6 +42,15 @@ class RoleController extends Controller
             'permissions' => 'sometimes|array',
         ]);
 
+        $guard = $data['guard'] ?? 'api';
+
+        $request->validate([
+            'name' => \Illuminate\Validation\Rule::unique('roles', 'name')
+                ->where('tenant_id', $tenantId)
+                ->where('guard', $guard)
+                ->whereNull('deleted_at'),
+        ]);
+
         $role = $this->roleService->createRole($tenantId, $data);
 
         return response()->json(new RoleResource($role), 201);
@@ -56,6 +65,18 @@ class RoleController extends Controller
             'guard'       => 'sometimes|string',
             'permissions' => 'sometimes|array',
         ]);
+
+        if (isset($data['name'])) {
+            $guard = $data['guard'] ?? 'api';
+
+            $request->validate([
+                'name' => \Illuminate\Validation\Rule::unique('roles', 'name')
+                    ->where('tenant_id', $tenantId)
+                    ->where('guard', $guard)
+                    ->ignore($id)
+                    ->whereNull('deleted_at'),
+            ]);
+        }
 
         $role = $this->roleService->updateRole($tenantId, $id, $data);
 

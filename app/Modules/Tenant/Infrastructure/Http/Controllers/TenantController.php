@@ -34,8 +34,8 @@ class TenantController extends Controller
     {
         $data = $request->validate([
             'name'     => 'required|string|max:255',
-            'domain'   => 'required|string|max:255',
-            'slug'     => 'required|string|max:255',
+            'domain'   => 'required|string|max:255|unique:tenants,domain',
+            'slug'     => 'required|string|max:255|unique:tenants,slug',
             'status'   => 'sometimes|string',
             'plan'     => 'sometimes|string',
             'settings' => 'sometimes|array',
@@ -51,8 +51,8 @@ class TenantController extends Controller
     {
         $data = $request->validate([
             'name'     => 'sometimes|string|max:255',
-            'domain'   => 'sometimes|string|max:255',
-            'slug'     => 'sometimes|string|max:255',
+            'domain'   => 'sometimes|string|max:255|unique:tenants,domain,' . $id,
+            'slug'     => 'sometimes|string|max:255|unique:tenants,slug,' . $id,
             'status'   => 'sometimes|string',
             'plan'     => 'sometimes|string',
             'settings' => 'sometimes|array',

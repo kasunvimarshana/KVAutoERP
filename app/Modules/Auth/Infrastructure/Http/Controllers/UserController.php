@@ -38,7 +38,14 @@ class UserController extends Controller
 
         $data = $request->validate([
             'name'        => 'required|string|max:255',
-            'email'       => 'required|email|max:255',
+            'email'       => [
+                'required',
+                'email',
+                'max:255',
+                \Illuminate\Validation\Rule::unique('users', 'email')
+                    ->where('tenant_id', $tenantId)
+                    ->whereNull('deleted_at'),
+            ],
             'password'    => 'required|string|min:8',
             'role'        => 'sometimes|string',
             'status'      => 'sometimes|string',
@@ -56,7 +63,15 @@ class UserController extends Controller
 
         $data = $request->validate([
             'name'        => 'sometimes|string|max:255',
-            'email'       => 'sometimes|email|max:255',
+            'email'       => [
+                'sometimes',
+                'email',
+                'max:255',
+                \Illuminate\Validation\Rule::unique('users', 'email')
+                    ->where('tenant_id', $tenantId)
+                    ->ignore($id)
+                    ->whereNull('deleted_at'),
+            ],
             'password'    => 'sometimes|string|min:8',
             'role'        => 'sometimes|string',
             'status'      => 'sometimes|string',
