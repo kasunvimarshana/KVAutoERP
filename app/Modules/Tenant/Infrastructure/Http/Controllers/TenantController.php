@@ -68,6 +68,6 @@ class TenantController extends Controller
     {
         $this->tenantService->deleteTenant($id);
 
-        return response()->json(['message' => 'Deleted'], 204);
+        return response()->json(null, 204);
     }
 }

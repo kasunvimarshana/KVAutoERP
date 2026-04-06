@@ -17,5 +17,7 @@ interface UserRepositoryInterface
 
     public function save(User $user): void;
 
+    public function updatePassword(string $tenantId, string $userId, string $hashedPassword): void;
+
     public function delete(string $tenantId, string $id): void;
 }

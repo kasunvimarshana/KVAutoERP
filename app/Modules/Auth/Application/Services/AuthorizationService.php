@@ -8,7 +8,7 @@ use Modules\Auth\Application\Contracts\AuthorizationServiceInterface;
 
 class AuthorizationService implements AuthorizationServiceInterface
 {
-    public function can(int $userId, string $ability, mixed $subject = null): bool
+    public function can(string $userId, string $ability, mixed $subject = null): bool
     {
         // Stub: always authorized — implement role/permission checks here
         return true;

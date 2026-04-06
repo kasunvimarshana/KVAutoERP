@@ -44,6 +44,10 @@ class UserService implements UserServiceInterface
 
             $this->userRepository->save($user);
 
+            if (isset($data['password'])) {
+                $this->userRepository->updatePassword($tenantId, $user->id, $data['password']);
+            }
+
             $saved = $this->userRepository->findById($tenantId, $user->id);
 
             if ($saved === null) {
@@ -82,6 +86,10 @@ class UserService implements UserServiceInterface
             );
 
             $this->userRepository->save($updated);
+
+            if (isset($data['password'])) {
+                $this->userRepository->updatePassword($tenantId, $id, $data['password']);
+            }
 
             $saved = $this->userRepository->findById($tenantId, $id);
 

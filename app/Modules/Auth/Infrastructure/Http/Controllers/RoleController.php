@@ -68,6 +68,6 @@ class RoleController extends Controller
 
         $this->roleService->deleteRole($tenantId, $id);
 
-        return response()->json(['message' => 'Deleted'], 204);
+        return response()->json(null, 204);
     }
 }

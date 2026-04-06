@@ -6,5 +6,5 @@ namespace Modules\Auth\Application\Contracts;
 
 interface AuthorizationServiceInterface
 {
-    public function can(int $userId, string $ability, mixed $subject = null): bool;
+    public function can(string $userId, string $ability, mixed $subject = null): bool;
 }

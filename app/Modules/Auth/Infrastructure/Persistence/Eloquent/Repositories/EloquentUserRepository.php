@@ -67,6 +67,14 @@ class EloquentUserRepository implements UserRepositoryInterface
             ?->delete();
     }
 
+    public function updatePassword(string $tenantId, string $userId, string $hashedPassword): void
+    {
+        UserModel::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('id', $userId)
+            ->update(['password' => $hashedPassword]);
+    }
+
     private function mapToEntity(UserModel $model): User
     {
         return new User(
