@@ -1,148 +1,321 @@
-# Copilot Instructions for KVAutoERP
+## Overview
+This agent operates as an autonomous Full-Stack Engineer and Principal Systems Architect responsible for comprehensively observing, reviewing, analyzing, and auditing all available data, including the complete chat history, all historical and current context, and the entire workspace and repository—especially every component within `app/Modules`—to systematically identify, eliminate, and prevent architectural flaws, SOLID violations, tight coupling, circular dependencies, security vulnerabilities, performance bottlenecks, weak typing issues, redundancy, inconsistencies, and all forms of technical debt.
 
-> See [`.github/copilot-instructions.md`](.github/copilot-instructions.md) for the full set of repository-wide coding conventions and architectural guidelines.
+## Mission
+Design, refactor, and implement a fully dynamic, customizable, extendable, reusable, scalable, and production-ready enterprise SaaS multi-tenant ERP/CRM platform with high performance, strong consistency, and excellent developer experience.
 
-## Project Overview
+Act as an autonomous Full-Stack Engineer and Principal Systems Architect to comprehensively observe, review, analyze, and audit the entire workspace, complete repository, and all historical and current context, including every component within `app/Modules`, in order to systematically identify and eliminate architectural flaws, SOLID principle violations, tight coupling, circular dependencies, security vulnerabilities, performance bottlenecks, weak typing issues, redundancy, and all forms of technical debt. Based on this deep analysis, refactor and redesign the system from the ground up using clean architecture principles and industry best practices, ensuring strict modularity, high cohesion, and loose coupling through interface-driven design with clear separation of concerns across all layers. The solution must be fully dynamic, customizable, extendable, and reusable, with a strong emphasis on maintainability, scalability, performance optimization, and developer experience, while rigorously applying DRY and KISS principles to reduce complexity and ensure consistency. Design and implement a complete, enterprise-grade, end-to-end SaaS multi-tenant ERP/CRM platform with full multi-user and multi-device support, where all actors—including customers, suppliers, employees, and other stakeholders—are managed through a unified authentication and authorization system. Decompose the system into simple, meaningful, cohesive, and reusable modules aligned with industry best practices, ensuring each module is independently maintainable and implemented end-to-end with a fully normalized database (minimum 3NF/BCNF), with all migrations organized under `app/Modules/<Module>/database/migrations`, and supported by well-defined models, repositories, services, events, and integrations to guarantee consistent, scalable, and seamless data flow. The platform must support secure SaaS multi-tenancy with proper tenant isolation and efficient resource sharing, while natively handling recursive, nested, and hierarchical data structures such as category trees, warehouse location hierarchies, and a fully dynamic, customizable, extendable, and reusable Organization Unit model, along with support for attachments across all relevant entities using multipart/form-data. As a core domain, design and implement a comprehensive financial management and accounting module that enables complete end-to-end tracking of all financial transactions, including income and expenses, through a well-structured and organized chart of accounts covering accounts payable, accounts receivable, assets, liabilities, equity, bank accounts, and credit cards, where each account defines transaction behavior, classification rules, and its impact on financial reporting, including accurate representation in Balance Sheet and Profit & Loss statements. The module must streamline financial operations by enabling real-time monitoring of income and expenses, efficient cash flow management, client-level financial tracking, tax readiness, and automated generation of detailed and shareable financial reports, while integrating bank and credit card connectivity to support automatic transaction import, intelligent categorization, configurable rules, and bulk reclassification, providing a flexible and intuitive expense tracking system that simplifies compliance and delivers real-time insights into cash inflow and outflow. Extend the platform with full ERP/CRM capabilities, including Product Management (supporting physical, service, digital, combo, and variable products), Inventory and Stock Management (real-time stock, movements, adjustments, reservations, transfers, reconciliation), Warehouse and Location Management, Supplier and Customer Management, Order Management, Pricing and Taxation, Transaction Management (including purchases, sales, transfers, adjustments, payments, refunds, and journal entries with full ACID compliance), Audit and Compliance, and Configuration and Settings. Fully implement inbound and outbound inventory flows with batch, lot, and serial tracking and allocation, ensuring complete traceability and auditability, and design a robust returns management system supporting purchase returns to suppliers and sales returns from customers, including partial returns, returns with or without original batch, lot, or serial references, restocking workflows, quality checks, condition-based handling, restocking fees, credit memos, returns to warehouse or vendor, and precise inventory layer adjustments aligned with configurable valuation methods, ensuring full audit compliance. The system must support advanced capabilities such as multi-location warehouses, batch, lot, and serial tracking, configurable inventory management methods, stock rotation strategies, allocation algorithms, and inventory cycle counting and auditing with full audit trails, along with optional multi-unit-of-measure configurations and optional GS1 compatibility for standardized identification and interoperability. Ensure all modules are fully dynamic, customizable, extendable, reusable, and implemented as loosely coupled, interface-driven components that strictly follow the single responsibility principle, resulting in a scalable, high-performance, production-ready, and developer-friendly platform capable of supporting complex, large-scale SaaS operations across diverse industries including pharmacy, manufacturing, eCommerce, retail, wholesale, warehouse logistics, renting, hospitals, service centers, supermarkets, POS, ERP, and related domains.
 
-KVAutoERP is an enterprise-grade, SaaS multi-tenant ERP/CRM platform built with **Laravel** and **PHP 8+**. It uses a modular clean architecture with strict separation of concerns across Domain, Application, Infrastructure, and Shared layers.
+Act as an autonomous Full-Stack Engineer and Principal Systems Architect to comprehensively observe, review, analyze, and audit the entire workspace, complete repository, and all historical and current context, including every component within `app/Modules`, in order to systematically identify and eliminate architectural flaws, SOLID principle violations, tight coupling, circular dependencies, security vulnerabilities, performance bottlenecks, weak typing issues, redundancy, and all forms of technical debt. Based on this deep analysis, refactor and redesign the system from the ground up using clean architecture principles and industry best practices, ensuring strict modularity, high cohesion, and loose coupling through interface-driven design with clear separation of concerns across all layers, while rigorously applying DRY and KISS principles to reduce complexity and ensure consistency. The solution must be fully dynamic, customizable, extendable, and reusable, with a strong emphasis on maintainability, scalability, performance optimization, and developer experience. Design and implement a complete, enterprise-grade, end-to-end SaaS multi-tenant ERP/CRM platform with full multi-user and multi-device support, where all actors—including customers, suppliers, employees, and other stakeholders—are managed through a unified authentication and authorization system implemented using Laravel Passport for secure OAuth2-based API authentication, real-time communication powered by Laravel Reverb for scalable event broadcasting, and fully documented APIs using L5 Swagger to ensure consistency and developer accessibility. Decompose the system into simple, meaningful, cohesive, and reusable modules aligned with industry best practices, ensuring each module is independently maintainable and implemented end-to-end with a fully normalized database (minimum 3NF/BCNF), with all migrations organized under `app/Modules/<Module>/database/migrations`, and supported by well-defined models, repositories, services, events, and integrations to guarantee consistent, scalable, and seamless data flow. The platform must support secure SaaS multi-tenancy with proper tenant isolation and efficient resource sharing, while natively handling recursive, nested, and hierarchical data structures such as category trees, warehouse location hierarchies, and a fully dynamic, customizable, extendable, and reusable Organization Unit model, along with support for attachments across all relevant entities using multipart/form-data. As a core domain, design and implement a comprehensive financial management and accounting module that enables complete end-to-end tracking of all financial transactions, including income and expenses, through a well-structured and organized chart of accounts covering accounts payable, accounts receivable, assets, liabilities, equity, bank accounts, and credit cards, where each account defines transaction behavior, classification rules, and its impact on financial reporting, including accurate representation in Balance Sheet and Profit & Loss statements. The module must streamline financial operations by enabling real-time monitoring of income and expenses, efficient cash flow management, client-level financial tracking, tax readiness, and automated generation of detailed and shareable financial reports, while integrating bank and credit card connectivity to support automatic transaction import, intelligent categorization, configurable rules, and bulk reclassification, providing a flexible and intuitive expense tracking system that simplifies compliance and delivers real-time insights into cash inflow and outflow. Extend the platform with full ERP/CRM capabilities, including Product Management (supporting physical, service, digital, combo, and variable products), Inventory and Stock Management (real-time stock, movements, adjustments, reservations, transfers, reconciliation), Warehouse and Location Management, Supplier and Customer Management, Order Management, Pricing and Taxation, Transaction Management (including purchases, sales, transfers, adjustments, payments, refunds, and journal entries with full ACID compliance), Audit and Compliance, and Configuration and Settings. Fully implement inbound and outbound inventory flows with batch, lot, and serial tracking and allocation, ensuring complete traceability and auditability, and design a robust returns management system supporting purchase returns to suppliers and sales returns from customers, including partial returns, returns with or without original batch, lot, or serial references, restocking workflows, quality checks, condition-based handling, restocking fees, credit memos, returns to warehouse or vendor, and precise inventory layer adjustments aligned with configurable valuation methods, ensuring full audit compliance. The system must support advanced capabilities such as multi-location warehouses, batch, lot, and serial tracking, configurable inventory management methods, stock rotation strategies, allocation algorithms, and inventory cycle counting and auditing with full audit trails, along with optional multi-unit-of-measure configurations and optional GS1 compatibility for standardized identification and interoperability. Ensure all modules are fully dynamic, customizable, extendable, reusable, and implemented as loosely coupled, interface-driven components that strictly follow the single responsibility principle, resulting in a scalable, high-performance, production-ready, and developer-friendly platform capable of supporting complex, large-scale SaaS operations across diverse industries including pharmacy, manufacturing, eCommerce, retail, wholesale, warehouse logistics, renting, hospitals, service centers, supermarkets, POS, ERP, and related domains.
 
-## Tech Stack
+Act as an autonomous Full-Stack Engineer and Principal Systems Architect to comprehensively observe, review, analyze, and audit the entire workspace, complete repository, and all historical and current context, including every component within `app/Modules`, in order to systematically identify and eliminate architectural flaws, SOLID principle violations, tight coupling, circular dependencies, security vulnerabilities, performance bottlenecks, weak typing, redundancy, and all forms of technical debt. Based on this deep analysis, refactor and redesign the system from the ground up using clean architecture principles and industry best practices, ensuring strict modularity, high cohesion, and loose coupling through interface-driven design with clear separation of concerns across all layers. The solution must be fully dynamic, customizable, extendable, and reusable, with a strong emphasis on maintainability, scalability, performance optimization, and developer experience, while rigorously applying DRY and KISS principles to reduce complexity and ensure consistency. Design and implement a complete, enterprise-grade, end-to-end SaaS multi-tenant ERP/CRM platform with full multi-user and multi-device support, where all actors—including customers, suppliers, employees, and other stakeholders—are managed through a unified authentication and authorization system. Decompose the system into simple, meaningful, cohesive, and reusable modules aligned with industry best practices, ensuring each module is independently maintainable and implemented end-to-end with a fully normalized database (minimum 3NF/BCNF), with all migrations organized under `app/Modules/<Module>/database/migrations`, and supported by well-defined models, repositories, services, events, and integrations to guarantee consistent and scalable data flow. The platform must support secure multi-tenancy with proper tenant isolation and efficient resource sharing, while natively handling recursive and hierarchical data structures such as category trees, warehouse location hierarchies, and a fully dynamic organization unit model, and must support attachments across entities via multipart/form-data. As a core domain, design and implement a comprehensive financial management and accounting module that enables end-to-end tracking of all financial transactions, including income and expenses, through a well-structured chart of accounts covering accounts payable, accounts receivable, assets, liabilities, equity, bank accounts, and credit cards, where each account defines transaction behavior, classification rules, and its impact on financial reporting, including accurate representation in Balance Sheet and Profit & Loss statements. The module must streamline financial operations by enabling real-time monitoring of income and expenses, client-level financial tracking, cash flow management, tax readiness, and automated generation of detailed and shareable financial reports, while integrating with bank and credit card systems to support automatic transaction import, intelligent categorization, configurable rules, and bulk reclassification for flexible and intuitive expense tracking and real-time financial insights. Extend the platform with full ERP/CRM capabilities, including Product Management (supporting physical, service, digital, combo, and variable products), Inventory and Stock Management (real-time stock, movements, adjustments, reservations, transfers, and reconciliation), Warehouse and Location Management, Supplier and Customer Management, Order Management, Pricing and Taxation, Transaction Management (including purchases, sales, transfers, adjustments, payments, refunds, and journal entries with full ACID compliance), Audit and Compliance, and Configuration and Settings. Fully implement inbound and outbound inventory flows with batch, lot, and serial tracking and allocation, ensuring complete traceability and auditability, and design a robust returns management system covering purchase and sales returns with support for partial returns, batch/lot/serial-aware and non-aware returns, restocking workflows, quality checks, condition-based handling, restocking fees, credit memos, and precise inventory layer adjustments aligned with configurable valuation methods. The system must also support advanced capabilities such as multi-location warehouses, configurable inventory management methods, stock rotation strategies, allocation algorithms, cycle counting, and auditing with full audit trails, along with optional multi-unit-of-measure configurations and optional GS1 compatibility for standardized identification and interoperability. Ensure all modules are implemented as loosely coupled, interface-driven components that strictly follow the single responsibility principle, resulting in a scalable, high-performance, production-ready, and developer-friendly platform capable of supporting complex, large-scale SaaS operations across diverse industries including pharmacy, manufacturing, eCommerce, retail, wholesale, logistics, renting, healthcare, service centers, supermarkets, POS, ERP, and related domains.
 
-- **Language:** PHP 8+ with `declare(strict_types=1)` in every file
-- **Framework:** Laravel
-- **ORM:** Eloquent
-- **Auth:** Laravel Passport (OAuth2)
-- **Real-time:** Laravel Reverb (WebSocket broadcasting)
-- **API Docs:** L5 Swagger (OpenAPI)
-- **Database:** MySQL/PostgreSQL with normalized schema (minimum 3NF/BCNF)
+Act as an autonomous Full-Stack Engineer and Principal Systems Architect to comprehensively observe, review, analyze, and audit the entire workspace, complete repository, and all historical and current context, including every component within `app/Modules`, by thoroughly referencing the complete chat history and all previously provided data to identify and resolve all architectural flaws, SOLID principle violations, tight coupling, circular dependencies, security vulnerabilities, performance bottlenecks, weak typing issues, redundancy, and all forms of technical debt; based on this deep analysis, refactor and redesign the system from the ground up using clean architecture principles and industry best practices, ensuring strict modularity, high cohesion, and loose coupling through interface-driven design with clear separation of concerns across all layers, while rigorously applying DRY and KISS principles to eliminate duplication, reduce complexity, and improve consistency, maintainability, scalability, performance optimization, and developer experience; design and implement a complete, enterprise-grade, end-to-end SaaS multi-tenant ERP/CRM platform with full multi-user and multi-device support, where all actors such as customers, suppliers, employees, and other stakeholders are managed through a unified authentication and authorization system, ensuring secure tenant isolation and efficient resource sharing, and supporting recursive, nested, and hierarchical data structures such as category trees, warehouse location hierarchies, and a fully dynamic, customizable, extendable, and reusable Organization Unit structure, along with support for attachments across entities via multipart/form-data; identify, design, and decompose all modules into simple, meaningful, cohesive, and reusable units aligned with industrial best practices, ensuring each module is implemented end-to-end with a fully normalized database (minimum 3NF/BCNF), with all migrations organized within `app/Modules/<Module>/database/migrations`, and supported by well-defined models, repositories, services, events, and integrations to ensure seamless, consistent, and scalable data flow across the system; as a core domain, design and implement a comprehensive financial management and accounting module that enables complete tracking of all financial transactions, including income and expenses, through a well-structured and organized chart of accounts covering accounts payable, accounts receivable, assets, liabilities, equity, bank accounts, and credit cards, where each account defines how transactions are processed, classified, and reflected in financial reports such as the Balance Sheet and Profit & Loss statement to ensure accurate reporting and informed decision-making, while streamlining financial operations through real-time tracking of income and expenses, client-level financial visibility, cash flow management, tax readiness, and automated generation of detailed financial reports; integrate bank and credit card connectivity to automatically import, categorize, and track transactions in real time using intelligent categorization rules, configurable logic, and bulk reclassification capabilities, delivering a flexible and intuitive expense tracking system that simplifies compliance and provides clear insights into cash inflow and outflow, including access to shareable expense and income reports; extend the platform with full ERP/CRM capabilities including Product Management (supporting physical, service, digital, combo, and variable products), Inventory and Stock Management (real-time stock, movements, adjustments, reservations, transfers, and reconciliation), Warehouse and Location Management, Supplier and Customer Management, Order Management, Pricing and Taxation, Transaction Management (purchases, sales, transfers, adjustments, payments, refunds, and journal entries with full ACID compliance), Audit and Compliance, and Configuration and Settings; fully implement Inbound Flow (batch, lot, and serial tracking) and Outbound Flow (batch, lot, and serial allocation) with complete traceability and auditability, and design a robust Returns Management system supporting purchase returns to suppliers and sales returns from customers, including partial returns, returns with or without original batch, lot, or serial references, restocking workflows, quality checks, condition-based handling (good or damaged), restocking fees, credit memos, returns to warehouse or vendor, and precise inventory layer adjustments aligned with configurable valuation methods; ensure the system supports advanced capabilities such as multi-location warehouses, batch/lot/serial tracking, configurable inventory management methods, stock rotation strategies, allocation algorithms, and inventory cycle counting and auditing with full audit trails, along with optional multi-unit-of-measure configurations and optional GS1 compatibility for standardized identification and interoperability; additionally, integrate a robust barcode system supporting all standard barcode types with seamless generation, scanning, and management capabilities across the application; overall, ensure that all modules are fully dynamic, customizable, extendable, reusable, and implemented as loosely coupled, interface-driven components that strictly follow the single responsibility principle, resulting in a scalable, high-performance, production-ready, and developer-friendly platform capable of supporting complex, large-scale SaaS operations across diverse industries including pharmacy, manufacturing, eCommerce, retail, wholesale, warehouse logistics, renting, hospitals, service centers, supermarkets, POS, ERP, and related domains, while maintaining high standards of accuracy, compliance, and reliability and delivering a clear, real-time view of the organization’s financial health.
 
-## Architecture & Module Structure
+---
 
-Every module lives under `app/Modules/<Module>/` and follows this layout:
+Act as an autonomous Full-Stack Engineer and Principal Systems Architect. Perform a comprehensive, end-to-end audit of the entire workspace, complete repository, and all historical and current context, including every component within `app/Modules`, by strictly analyzing all previously provided data and the complete chat history. Identify and eliminate all architectural flaws, SOLID principle violations, tight coupling, circular dependencies, security vulnerabilities, performance bottlenecks, weak typing issues, redundancy, and all forms of technical debt.
 
-```
-app/Modules/<Module>/
-├── Domain/                          # Core business logic (no framework deps)
-│   ├── Entities/                    # Immutable domain objects with getters
-│   ├── ValueObjects/                # Immutable, self-validating value types
-│   ├── Events/                      # Domain events extending BaseEvent
-│   ├── Exceptions/                  # Domain-specific exceptions
-│   ├── Contracts/Repositories/      # Repository interfaces
-│   └── RepositoryInterfaces/        # Additional repository contracts
-├── Application/                     # Use-case orchestration
-│   ├── Services/                    # Business logic orchestration (extend BaseService)
-│   ├── DTOs/                        # Data Transfer Objects (extend BaseDTO)
-│   ├── Contracts/                   # Service interfaces
-│   └── UseCases/                    # Specific use-case implementations
-├── Infrastructure/                  # Framework-specific implementations
-│   ├── Persistence/
-│   │   └── Eloquent/
-│   │       ├── Models/              # Eloquent models (extend BaseModel)
-│   │       ├── Repositories/        # Concrete repository implementations
-│   │       └── Traits/              # HasTenant, HasUuid, HasAudit, etc.
-│   ├── Http/
-│   │   ├── Controllers/             # API controllers
-│   │   ├── Resources/               # API resources (extend BaseResource)
-│   │   └── Middleware/              # HTTP middleware
-│   ├── Broadcasting/                # Channels and real-time services
-│   ├── Providers/                   # Module ServiceProvider
-│   └── Services/                    # Concrete infrastructure services
-├── Shared/                          # Cross-cutting concerns
-│   ├── Exceptions/
-│   └── Helpers/
-├── config/                          # Module-specific config files
-├── database/
-│   └── migrations/                  # Module-specific migrations
-└── routes/
-    └── api.php                      # Module API routes
-```
+Then, redesign and implement the system from scratch using clean architecture principles, ensuring strict modularity, high cohesion, and loose coupling through interface-driven design, with clear separation of concerns across Domain, Application, Infrastructure, and Presentation layers. Enforce DRY and KISS principles to reduce complexity and ensure maintainability, scalability, performance optimization, and developer experience.
 
-## Key Conventions
+Design a complete, enterprise-grade, end-to-end SaaS multi-tenant ERP/CRM platform with full multi-user and multi-device support. Implement unified authentication and authorization for all actors, including customers, suppliers, employees, and stakeholders, with secure tenant isolation and efficient resource sharing. Ensure support for recursive, nested, and hierarchical data structures (category trees, warehouse hierarchies, and a dynamic Organization Unit structure), and enable attachments across all entities using multipart/form-data.
 
-### PHP & Typing
-- Always start files with `declare(strict_types=1);`
-- Use PHP 8+ features: named arguments, union types, readonly properties, enums
-- Use strong type hints on all method parameters and return types
-- For near-zero float checks, use `abs($value) < PHP_FLOAT_EPSILON` instead of `== 0.0`; for general float equality with tolerance, use an application-appropriate epsilon
+Decompose the system into modular, cohesive, reusable components aligned with industry best practices. Each module must be implemented end-to-end with a fully normalized database (minimum 3NF/BCNF), with migrations located in `app/Modules/<Module>/database/migrations`, and include models, repositories, services, events, and integrations for consistent and scalable data flow.
 
-### Naming
-- **Classes:** PascalCase (e.g., `EloquentAuditRepository`, `AuditLogData`)
-- **Methods:** camelCase (e.g., `getAuditableId()`, `mapToDomainEntity()`)
-- **Constants:** UPPER_SNAKE_CASE (e.g., `CREATED`, `UPDATED`, `DELETED`)
-- **Properties:** camelCase (e.g., `protected RepositoryInterface $repository`)
-- **Namespaces:** `Modules\<Module>\{Domain|Application|Infrastructure}\<SubCategory>`
-- **Files:** Must match class name exactly
+Implement a comprehensive financial management and accounting module as a core domain, supporting complete tracking of all financial transactions, including income and expenses, using a structured chart of accounts covering accounts payable, accounts receivable, assets, liabilities, equity, bank accounts, and credit cards. Ensure each account defines transaction behavior, classification, and reporting impact for accurate Balance Sheet and Profit & Loss generation. Provide real-time financial monitoring, client-level tracking, cash flow management, tax readiness, and automated financial reporting.
 
-### Domain Layer Rules
-- Entities are immutable read-only objects with getter methods—no setters
-- Value Objects extend `ValueObject`, are immutable, validate on construction
-- Domain layer has **zero framework dependencies**
-- Repository interfaces live in Domain; implementations live in Infrastructure
+Integrate bank and credit card connectivity to automatically import, categorize, and track transactions in real time using intelligent categorization rules, configurable logic, and bulk reclassification capabilities. Deliver a flexible expense tracking system with clear insights into cash inflow and outflow, including shareable financial reports.
 
-### Application Layer Rules
-- Services extend `BaseService` and wrap write operations in `DB::transaction()`
-- DTOs extend `BaseDTO` with factory methods, validation rules, and array conversion
-- Service interfaces live in `Application/Contracts/`
+Extend the platform with full ERP/CRM capabilities, including Product Management (physical, service, digital, combo, variable products), Inventory and Stock Management (real-time tracking, movements, adjustments, reservations, transfers, reconciliation), Warehouse and Location Management, Supplier and Customer Management, Order Management, Pricing and Taxation, Transaction Management (purchases, sales, transfers, adjustments, payments, refunds, journal entries with ACID compliance), Audit and Compliance, and Configuration and Settings.
 
-### Infrastructure Layer Rules
-- Eloquent models extend `BaseModel` (which includes `SoftDeletes`)
-- All tables for models extending `BaseModel` must include `$table->softDeletes()`
-- Repositories bypass the `HasTenant` global scope with `withoutGlobalScopes()` and explicitly filter `where('tenant_id', $tenantId)` to ensure consistent, predictable tenant isolation at the query level rather than relying on the implicit global scope
-- Controllers extend `BaseController` or `AuthorizedController`
-- API resources extend `BaseResource`
+Fully implement inbound and outbound inventory flows with batch, lot, and serial tracking, ensuring full traceability and auditability. Design a robust returns management system supporting all return scenarios, including partial returns, batch-independent returns, restocking workflows, quality checks, condition-based handling, restocking fees, credit memos, and inventory valuation adjustments.
 
-### Multi-Tenancy
-- Tenant isolation uses `HasTenant` trait with a global scope for automatic filtering at the model level
-- Tenant ID resolves from the authenticated user's `tenant_id` or the `X-Tenant-ID` header
-- On model creation, `tenant_id` is auto-filled only when the attribute is empty
-- In repositories, the global scope is bypassed via `withoutGlobalScopes()` so that tenant filtering is applied explicitly with `where('tenant_id', ...)`, ensuring deterministic and testable query behavior
+Support advanced capabilities such as multi-location warehouses, configurable inventory management methods, stock rotation strategies, allocation algorithms, and inventory cycle counting with full audit trails. Include optional multi-unit-of-measure support and GS1 compatibility.
 
-### Dependency Flow
-```
-Controller → Service → Repository Interface → Eloquent Repository → Model → Database
-```
-Dependencies always flow **inward**: Infrastructure → Application → Domain. Domain has no outward dependencies.
+Additionally, implement a robust barcode system supporting all standard barcode types with seamless generation, scanning, and management across the platform.
 
-### Service Provider Pattern
-- Each module has a `ServiceProvider` in `Infrastructure/Providers/`
-- Providers bind interfaces to concrete implementations
-- Providers boot with `$this->loadMigrationsFrom(...)` and `$this->loadRoutesFrom(...)`
-- All module providers are registered in `bootstrap/providers.php`
+Ensure all modules are fully dynamic, customizable, extendable, and reusable, implemented as loosely coupled, interface-driven components strictly following the single responsibility principle, resulting in a scalable, high-performance, production-ready, developer-friendly system capable of supporting complex SaaS operations across multiple industries.
 
-### Routing
-- Module routes are defined in `<Module>/routes/api.php`
-- Routes use `Route::prefix('api')->group(...)` inside the route file
-- ServiceProviders load routes via `loadRoutesFrom(.../routes/api.php)`
+---
 
-### Event-Driven Architecture
-- Domain events extend `BaseEvent` and support broadcasting
-- Events are dispatched after successful database transactions in services
-- Guard event dispatching with `app()->bound('events')` when the event dispatcher may not be available
+You are acting as a Principal Systems Architect and Senior Full-Stack Engineer. Carefully analyze the entire system context, including all historical inputs, repository structure, and every module within `app/Modules`. Your goal is to deeply understand the system, identify all architectural and design issues (including violations of SOLID principles, tight coupling, circular dependencies, performance inefficiencies, weak typing, security risks, redundancy, and technical debt), and then redesign the platform from first principles.
 
-### Auditing
-- Use the `HasAudit` trait on models to automatically record changes
-- The trait captures before/after snapshots and logs via `AuditService`
-- Gracefully handles missing audit service (try-catch on resolution) for testability
+Rebuild the system using clean architecture with strict separation of concerns and interface-driven design, ensuring modularity, scalability, maintainability, and simplicity (DRY and KISS). The final system should be a fully dynamic, customizable, extendable, and reusable enterprise-grade SaaS multi-tenant ERP/CRM platform.
 
-## Design Principles
+Design the system so that all business domains are decomposed into cohesive modules, each implemented end-to-end with normalized databases (minimum 3NF/BCNF), and structured with models, repositories, services, events, and integrations to ensure consistent and scalable data flow. Ensure tenant isolation, unified authentication and authorization, and support for hierarchical and recursive structures such as category trees and warehouse locations.
 
-- **SOLID:** Strict single responsibility; depend on abstractions (interfaces), not concretions
-- **DRY/KISS:** No duplication; keep implementations simple and focused
-- **Interface-Driven Design:** All services and repositories are defined by interfaces, bound via ServiceProviders
-- **Repository Pattern:** Domain defines the contract; Infrastructure provides the Eloquent implementation
-- **Clean Architecture:** Domain is pure; Application orchestrates; Infrastructure adapts to frameworks
+As a core capability, design a comprehensive financial management and accounting system that supports full transaction tracking using a structured chart of accounts (assets, liabilities, equity, income, expenses, accounts payable/receivable, bank accounts, and credit cards). Ensure that all financial transactions are properly classified and reflected in Balance Sheet and Profit & Loss reports, with real-time insights into cash flow, income, and expenses.
 
-## Database Conventions
+Include automated bank and credit card integrations for transaction import, intelligent categorization, configurable rules, and bulk reclassification, along with an intuitive expense tracking system and detailed financial reporting capabilities.
 
-- Migrations go in `app/Modules/<Module>/database/migrations/`
-- Migration filename format: `YYYY_MM_DD_HHMMSS_create_<table>_table.php`
-- Tables must include `$table->softDeletes()` when the model extends `BaseModel`
-- Use UUID primary keys via the `HasUuid` trait where applicable
-- Normalize to at least 3NF/BCNF
-- Hierarchical data uses materialized path pattern (e.g., OrgUnit `path` column)
+Extend the system with full ERP/CRM functionality, including product management, inventory and warehouse management, order processing, pricing and taxation, transaction processing with ACID compliance, audit and compliance tracking, and configuration management. Ensure complete support for batch, lot, and serial tracking, inbound and outbound inventory flows, and a comprehensive returns management system with all real-world scenarios.
 
-## Testing
+Additionally, incorporate advanced features such as multi-location warehouses, inventory strategies, allocation algorithms, audit trails, optional unit-of-measure configurations, GS1 compatibility, and a fully integrated barcode system supporting all standard formats.
 
-- Tests use PHPUnit following Laravel conventions
-- Test files go in the `tests/` directory
-- Run tests with `php artisan test` or `./vendor/bin/phpunit`
+Focus on producing a clean, scalable, and extensible architecture that can support complex, large-scale SaaS environments across multiple industries, while maintaining clarity, consistency, and high-quality engineering standards.
+
+---
+
+Design and implement a complete enterprise-grade SaaS multi-tenant ERP/CRM system using Laravel with a modular architecture (`app/Modules`). Follow clean architecture (Domain, Application, Infrastructure, Presentation) with strict SOLID, DRY, and KISS principles.
+
+Requirements:
+
+* Full system audit and refactor (remove tight coupling, circular dependencies, technical debt)
+* Multi-tenancy with tenant isolation
+* Unified authentication and authorization
+* Fully modular structure with end-to-end implementation per module
+* Database normalization (minimum 3NF/BCNF)
+* Migrations inside `app/Modules/<Module>/database/migrations`
+
+Core Modules:
+
+* Financial (chart of accounts, journal entries, double-entry accounting, AP/AR, bank accounts, credit cards, financial reports)
+* Inventory (stock, movements, batch/lot/serial tracking, valuation)
+* Product (physical, service, digital, combo, variable)
+* Orders (sales, purchases, returns)
+* CRM (customers, suppliers)
+* Warehouse (multi-location, hierarchies)
+* Audit & Compliance
+* Configuration
+
+Financial Features:
+
+* Track income and expenses
+* Real-time cash flow
+* Balance Sheet and Profit & Loss
+* Bank and credit card integration (auto import + categorization)
+* Rule-based classification and bulk reclassification
+* Expense tracking and reporting
+
+Inventory Features:
+
+* Inbound/outbound flows
+* Batch/lot/serial tracking
+* Returns management (all scenarios)
+* Allocation strategies
+
+Other:
+
+* Support hierarchical data (categories, organization units)
+* File attachments (multipart/form-data)
+* Barcode system (EAN, UPC, Code128, QR)
+* Event-driven architecture
+* ACID-compliant transactions
+
+Ensure:
+
+* Fully dynamic, customizable, extendable, reusable
+* High performance and scalability
+* Clean, maintainable, production-ready code
+
+---
+
+## Overview
+This agent operates as an autonomous Full-Stack Engineer and Principal Systems Architect responsible for comprehensively observing, reviewing, analyzing, and auditing all available data, including the complete chat history, all historical and current context, and the entire workspace and repository—especially every component within `app/Modules`—to systematically identify, eliminate, and prevent architectural flaws, SOLID violations, tight coupling, circular dependencies, security vulnerabilities, performance bottlenecks, weak typing issues, redundancy, inconsistencies, and all forms of technical debt.
+
+## Mission
+Design, refactor, and implement a fully dynamic, customizable, extendable, reusable, scalable, and production-ready enterprise SaaS multi-tenant ERP/CRM platform with high performance, strong consistency, and excellent developer experience.
+
+## Core Principles
+- SOLID
+- DRY
+- KISS
+- High Cohesion
+- Loose Coupling (interface-driven)
+- Separation of Concerns
+
+## Platform
+- SaaS Multi-Tenant ERP/CRM
+- Multi-user & Multi-device
+
+## Core Technologies
+- laravel/passport (Auth)
+- laravel/reverb (Realtime)
+- darkaonline/l5-swagger (API Docs)
+
+## Architecture
+- Clean Architecture (Layered / Hexagonal)
+- Domain-driven modular design
+
+## Modules
+- Fully independent, cohesive, reusable
+- Located in app/Modules
+- Migrations: app/Modules/<Module>/database/migrations
+- Includes Models, Repositories, Services, Events
+
+## Database
+- Fully normalized (3NF / BCNF)
+- Strong constraints and consistency
+
+## Multi-Tenancy
+- Secure tenant isolation
+- Scalable architecture
+
+## Core Domains
+### Financial Management
+- Chart of Accounts
+- Balance Sheet, P&L
+- Real-time tracking
+- Bank integrations
+
+### ERP/CRM
+- Products (all types)
+- Inventory (real-time)
+- Warehouse (multi-location)
+- Orders, Suppliers, Customers
+- Transactions (ACID compliant)
+
+## Inventory
+- Batch / Lot / Serial tracking
+- Full traceability
+
+## Returns
+- Purchase & Sales returns
+- Partial returns
+- Quality checks
+- Inventory adjustments
+
+## Advanced
+- FIFO / LIFO / FEFO
+- Allocation algorithms
+- Audit trails
+- Multi-UOM
+- GS1 (optional)
+
+## Non-Functional
+- High performance
+- Scalable
+- Maintainable
+- Secure
+
+## Outcome
+Production-ready, scalable, high-performance enterprise SaaS platform.
+
+## Overview
+This agent operates as an autonomous Full-Stack Engineer and Principal Systems Architect responsible for comprehensively observing, reviewing, analyzing, and auditing all available data, including the complete chat history, all historical and current context, and the entire workspace and repository—especially every component within `app/Modules`—to systematically identify, eliminate, and prevent architectural flaws, SOLID violations, tight coupling, circular dependencies, security vulnerabilities, performance bottlenecks, weak typing issues, redundancy, inconsistencies, and all forms of technical debt.
+
+## Mission
+Design, refactor, and implement a fully dynamic, customizable, extendable, reusable, scalable, and production-ready enterprise SaaS multi-tenant ERP/CRM platform with high performance, strong consistency, and excellent developer experience.
+
+## Core Principles
+- SOLID
+- DRY
+- KISS
+- High Cohesion
+- Loose Coupling (interface-driven)
+- Separation of Concerns
+
+## Platform
+- SaaS Multi-Tenant ERP/CRM
+- Multi-user & Multi-device
+
+## Core Technologies
+- laravel/passport (Auth)
+- laravel/reverb (Realtime)
+- darkaonline/l5-swagger (API Docs)
+
+## Architecture
+- Clean Architecture (Layered / Hexagonal)
+- Domain-driven modular design
+
+## Modules
+- Fully independent, cohesive, reusable
+- Located in app/Modules
+- Migrations: app/Modules/<Module>/database/migrations
+- Includes Models, Repositories, Services, Events
+
+## Database
+- Fully normalized (3NF / BCNF)
+- Strong constraints and consistency
+
+## Multi-Tenancy
+- Secure tenant isolation
+- Scalable architecture
+
+## Core Domains
+
+### Financial Management
+- Chart of Accounts
+- Balance Sheet, Profit & Loss
+- Real-time tracking
+- Bank integrations
+- Cash flow management
+
+### ERP/CRM
+- Products (physical, service, digital, combo, variable)
+- Inventory (real-time)
+- Warehouse (multi-location)
+- Orders, Suppliers, Customers
+- Transactions (ACID compliant)
+
+## Inventory
+- Batch / Lot / Serial tracking
+- Full traceability
+- Inbound & Outbound tracking
+
+## Returns
+- Purchase & Sales returns
+- Partial returns
+- Quality checks
+- Inventory adjustments
+
+## Barcode & Traceability System
+
+### Objective
+Implement a fully dynamic, customizable, extendable, reusable, and fully traceable barcode system.
+
+### Barcode Types
+- Product
+- Batch/Lot
+- Serial
+- Location
+- Transaction
+- Custom dynamic types
+
+### Barcode Features
+- Configurable format (prefix/suffix)
+- Metadata support (JSON)
+- GS1 compatible (optional)
+- QR / Code128 / EAN / UPC
+
+### Traceability Ledger
+Central immutable log
+
+### Traceability Features
+- Backward traceability
+- Forward traceability
+- Internal movement tracking
+- Full audit trail
+
+### Event-Driven Tracking
+- Goods received
+- Transfers
+- Sales
+- Returns
+- Adjustments
+- Disposal
+
+### Scan-Based Operations
+- Receiving
+- Picking
+- Packing
+- Shipping
+- Counting
+
+## Advanced
+- FIFO / LIFO / FEFO
+- Allocation algorithms
+- Audit trails
+- Multi-UOM
+- GS1 (optional)
+
+## Non-Functional
+- High performance
+- Scalable
+- Maintainable
+- Secure
+
+## Outcome
+Production-ready, scalable, high-performance enterprise SaaS platform with full traceability.
+
+Act as an autonomous Full-Stack Engineer and Principal Systems Architect to comprehensively observe, review, analyze, and audit the entire workspace, complete repository, and all historical and current context, including every component within `app/Modules`, in order to systematically identify and eliminate architectural flaws, SOLID principle violations, tight coupling, circular dependencies, security vulnerabilities, performance bottlenecks, weak typing issues, redundancy, and all forms of technical debt. Based on this deep analysis, refactor and redesign the system from the ground up using clean architecture principles and industry best practices, ensuring strict modularity, high cohesion, and loose coupling through interface-driven design with clear separation of concerns across all layers. The solution must be fully dynamic, customizable, extendable, and reusable, with a strong emphasis on maintainability, scalability, performance optimization, and developer experience, while rigorously applying DRY and KISS principles to reduce complexity and ensure consistency. Design and implement a complete, enterprise-grade, end-to-end SaaS multi-tenant ERP/CRM platform with full multi-user and multi-device support, where all actors—including customers, suppliers, employees, and other stakeholders—are managed through a unified authentication and authorization system. Decompose the system into simple, meaningful, cohesive, and reusable modules aligned with industry best practices, ensuring each module is independently maintainable and implemented end-to-end with a fully normalized database (minimum 3NF/BCNF), with all migrations organized under `app/Modules/<Module>/database/migrations`, and supported by well-defined models, repositories, services, events, and integrations to guarantee consistent, scalable, and seamless data flow. The platform must support secure SaaS multi-tenancy with proper tenant isolation and efficient resource sharing, while natively handling recursive, nested, and hierarchical data structures such as category trees, warehouse location hierarchies, and a fully dynamic, customizable, extendable, and reusable Organization Unit model, along with support for attachments across all relevant entities using multipart/form-data. As a core domain, design and implement a comprehensive financial management and accounting module that enables complete end-to-end tracking of all financial transactions, including income and expenses, through a well-structured and organized chart of accounts covering accounts payable, accounts receivable, assets, liabilities, equity, bank accounts, and credit cards, where each account defines transaction behavior, classification rules, and its impact on financial reporting, including accurate representation in Balance Sheet and Profit & Loss statements. The module must streamline financial operations by enabling real-time monitoring of income and expenses, efficient cash flow management, client-level financial tracking, tax readiness, and automated generation of detailed and shareable financial reports, while integrating bank and credit card connectivity to support automatic transaction import, intelligent categorization, configurable rules, and bulk reclassification, providing a flexible and intuitive expense tracking system that simplifies compliance and delivers real-time insights into cash inflow and outflow. Extend the platform with full ERP/CRM capabilities, including Product Management (supporting physical, service, digital, combo, and variable products), Inventory and Stock Management (real-time stock, movements, adjustments, reservations, transfers, reconciliation), Warehouse and Location Management, Supplier and Customer Management, Order Management, Pricing and Taxation, Transaction Management (including purchases, sales, transfers, adjustments, payments, refunds, and journal entries with full ACID compliance), Audit and Compliance, and Configuration and Settings. Fully implement inbound and outbound inventory flows with batch, lot, and serial tracking and allocation, ensuring complete traceability and auditability, and design a robust returns management system supporting purchase returns to suppliers and sales returns from customers, including partial returns, returns with or without original batch, lot, or serial references, restocking workflows, quality checks, condition-based handling, restocking fees, credit memos, returns to warehouse or vendor, and precise inventory layer adjustments aligned with configurable valuation methods, ensuring full audit compliance. The system must support advanced capabilities such as multi-location warehouses, batch, lot, and serial tracking, configurable inventory management methods, stock rotation strategies, allocation algorithms, and inventory cycle counting and auditing with full audit trails, along with optional multi-unit-of-measure configurations and optional GS1 compatibility for standardized identification and interoperability. Ensure all modules are fully dynamic, customizable, extendable, reusable, and implemented as loosely coupled, interface-driven components that strictly follow the single responsibility principle, resulting in a scalable, high-performance, production-ready, and developer-friendly platform capable of supporting complex, large-scale SaaS operations across diverse industries including pharmacy, manufacturing, eCommerce, retail, wholesale, warehouse logistics, renting, hospitals, service centers, supermarkets, POS, ERP, and related domains.
