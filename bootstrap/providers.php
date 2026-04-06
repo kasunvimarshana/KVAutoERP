@@ -8,4 +8,8 @@ return [
     Modules\Currency\Infrastructure\Providers\CurrencyServiceProvider::class,
     Modules\Tax\Infrastructure\Providers\TaxServiceProvider::class,
     Modules\Audit\Infrastructure\Providers\AuditServiceProvider::class,
+    Modules\Pricing\Infrastructure\Providers\PricingServiceProvider::class,
+    Modules\Warehouse\Infrastructure\Providers\WarehouseServiceProvider::class,
+    Modules\Supplier\Infrastructure\Providers\SupplierServiceProvider::class,
+    Modules\Customer\Infrastructure\Providers\CustomerServiceProvider::class,
 ];
