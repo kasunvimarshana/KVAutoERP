@@ -164,4 +164,34 @@ class SalesOrderService implements SalesOrderServiceInterface
             $this->salesOrderRepository->delete($tenantId, $id);
         });
     }
+
+    public function updateSalesOrder(string $tenantId, string $id, array $data): SalesOrder
+    {
+        return DB::transaction(function () use ($tenantId, $id, $data): SalesOrder {
+            $existing = $this->getSalesOrder($tenantId, $id);
+
+            $updated = new SalesOrder(
+                id: $existing->id,
+                tenantId: $existing->tenantId,
+                customerId: $data['customer_id'] ?? $existing->customerId,
+                warehouseId: $data['warehouse_id'] ?? $existing->warehouseId,
+                reference: $data['reference'] ?? $existing->reference,
+                status: $data['status'] ?? $existing->status,
+                orderDate: isset($data['order_date'])
+                    ? new \DateTimeImmutable($data['order_date'])
+                    : $existing->orderDate,
+                expectedDate: isset($data['expected_date'])
+                    ? new \DateTimeImmutable($data['expected_date'])
+                    : $existing->expectedDate,
+                notes: array_key_exists('notes', $data) ? $data['notes'] : $existing->notes,
+                totalAmount: $existing->totalAmount,
+                createdAt: $existing->createdAt,
+                updatedAt: now(),
+            );
+
+            $this->salesOrderRepository->save($updated);
+
+            return $updated;
+        });
+    }
 }

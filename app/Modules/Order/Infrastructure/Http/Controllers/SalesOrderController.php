@@ -40,14 +40,7 @@ class SalesOrderController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $tenantId = $request->user()->tenant_id;
-        $existing = $this->salesOrderService->getSalesOrder($tenantId, $id);
-        $data = array_merge([
-            'customer_id'  => $existing->customerId,
-            'warehouse_id' => $existing->warehouseId,
-            'reference'    => $existing->reference,
-            'order_date'   => $existing->orderDate->format('Y-m-d'),
-        ], $request->all());
-        $order = $this->salesOrderService->createSalesOrder($tenantId, $data);
+        $order = $this->salesOrderService->updateSalesOrder($tenantId, $id, $request->all());
         return response()->json(new SalesOrderResource($order));
     }
 

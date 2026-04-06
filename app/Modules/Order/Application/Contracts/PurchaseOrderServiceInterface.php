@@ -19,5 +19,7 @@ interface PurchaseOrderServiceInterface
 
     public function cancelPurchaseOrder(string $tenantId, string $id): PurchaseOrder;
 
+    public function updatePurchaseOrder(string $tenantId, string $id, array $data): PurchaseOrder;
+
     public function deletePurchaseOrder(string $tenantId, string $id): void;
 }

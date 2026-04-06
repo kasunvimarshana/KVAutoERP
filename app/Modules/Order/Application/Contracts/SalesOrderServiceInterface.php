@@ -19,5 +19,7 @@ interface SalesOrderServiceInterface
 
     public function cancelSalesOrder(string $tenantId, string $id): SalesOrder;
 
+    public function updateSalesOrder(string $tenantId, string $id, array $data): SalesOrder;
+
     public function deleteSalesOrder(string $tenantId, string $id): void;
 }

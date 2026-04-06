@@ -40,14 +40,7 @@ class PurchaseOrderController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $tenantId = $request->user()->tenant_id;
-        $existing = $this->purchaseOrderService->getPurchaseOrder($tenantId, $id);
-        $data = array_merge([
-            'supplier_id'  => $existing->supplierId,
-            'warehouse_id' => $existing->warehouseId,
-            'reference'    => $existing->reference,
-            'order_date'   => $existing->orderDate->format('Y-m-d'),
-        ], $request->all());
-        $order = $this->purchaseOrderService->createPurchaseOrder($tenantId, $data);
+        $order = $this->purchaseOrderService->updatePurchaseOrder($tenantId, $id, $request->all());
         return response()->json(new PurchaseOrderResource($order));
     }
 

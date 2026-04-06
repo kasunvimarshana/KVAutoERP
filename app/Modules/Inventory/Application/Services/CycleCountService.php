@@ -135,6 +135,40 @@ class CycleCountService implements CycleCountServiceInterface
         });
     }
 
+    public function updateCycleCount(string $tenantId, string $id, array $data): CycleCount
+    {
+        return DB::transaction(function () use ($tenantId, $id, $data): CycleCount {
+            $existing = $this->getCycleCount($tenantId, $id);
+
+            $updated = new CycleCount(
+                id: $existing->id,
+                tenantId: $existing->tenantId,
+                warehouseId: $data['warehouse_id'] ?? $existing->warehouseId,
+                locationId: array_key_exists('location_id', $data) ? $data['location_id'] : $existing->locationId,
+                status: $data['status'] ?? $existing->status,
+                scheduledAt: isset($data['scheduled_at'])
+                    ? new \DateTimeImmutable($data['scheduled_at'])
+                    : $existing->scheduledAt,
+                completedAt: $existing->completedAt,
+                notes: array_key_exists('notes', $data) ? $data['notes'] : $existing->notes,
+                createdAt: $existing->createdAt,
+                updatedAt: now(),
+            );
+
+            $this->cycleCountRepository->save($updated);
+
+            return $updated;
+        });
+    }
+
+    public function deleteCycleCount(string $tenantId, string $id): void
+    {
+        DB::transaction(function () use ($tenantId, $id): void {
+            $this->getCycleCount($tenantId, $id);
+            $this->cycleCountRepository->delete($tenantId, $id);
+        });
+    }
+
     public function addCycleCountLine(string $tenantId, string $cycleCountId, array $data): CycleCountLine
     {
         return DB::transaction(function () use ($tenantId, $cycleCountId, $data): CycleCountLine {

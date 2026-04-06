@@ -164,4 +164,34 @@ class PurchaseOrderService implements PurchaseOrderServiceInterface
             $this->purchaseOrderRepository->delete($tenantId, $id);
         });
     }
+
+    public function updatePurchaseOrder(string $tenantId, string $id, array $data): PurchaseOrder
+    {
+        return DB::transaction(function () use ($tenantId, $id, $data): PurchaseOrder {
+            $existing = $this->getPurchaseOrder($tenantId, $id);
+
+            $updated = new PurchaseOrder(
+                id: $existing->id,
+                tenantId: $existing->tenantId,
+                supplierId: $data['supplier_id'] ?? $existing->supplierId,
+                warehouseId: $data['warehouse_id'] ?? $existing->warehouseId,
+                reference: $data['reference'] ?? $existing->reference,
+                status: $data['status'] ?? $existing->status,
+                orderDate: isset($data['order_date'])
+                    ? new \DateTimeImmutable($data['order_date'])
+                    : $existing->orderDate,
+                expectedDate: isset($data['expected_date'])
+                    ? new \DateTimeImmutable($data['expected_date'])
+                    : $existing->expectedDate,
+                notes: array_key_exists('notes', $data) ? $data['notes'] : $existing->notes,
+                totalAmount: $existing->totalAmount,
+                createdAt: $existing->createdAt,
+                updatedAt: now(),
+            );
+
+            $this->purchaseOrderRepository->save($updated);
+
+            return $updated;
+        });
+    }
 }

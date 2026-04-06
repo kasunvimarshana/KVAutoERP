@@ -41,21 +41,14 @@ class CycleCountController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $tenantId = $request->user()->tenant_id;
-        $existing = $this->cycleCountService->getCycleCount($tenantId, $id);
-        $count = $this->cycleCountService->createCycleCount($tenantId, array_merge([
-            'warehouse_id' => $existing->warehouseId,
-            'scheduled_at' => $existing->scheduledAt->format('Y-m-d H:i:s'),
-        ], $request->all()));
+        $count = $this->cycleCountService->updateCycleCount($tenantId, $id, $request->all());
         return response()->json(new CycleCountResource($count));
     }
 
     public function destroy(Request $request, string $id): JsonResponse
     {
         $tenantId = $request->user()->tenant_id;
-        $this->cycleCountService->getCycleCount($tenantId, $id);
-        /** @var \Modules\Inventory\Domain\RepositoryInterfaces\CycleCountRepositoryInterface $repo */
-        $repo = app(\Modules\Inventory\Domain\RepositoryInterfaces\CycleCountRepositoryInterface::class);
-        $repo->delete($tenantId, $id);
+        $this->cycleCountService->deleteCycleCount($tenantId, $id);
         return response()->json(null, 204);
     }
 

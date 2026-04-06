@@ -22,6 +22,10 @@ interface CycleCountServiceInterface
 
     public function cancelCycleCount(string $tenantId, string $id): CycleCount;
 
+    public function updateCycleCount(string $tenantId, string $id, array $data): CycleCount;
+
+    public function deleteCycleCount(string $tenantId, string $id): void;
+
     public function addCycleCountLine(string $tenantId, string $cycleCountId, array $data): CycleCountLine;
 
     public function updateCycleCountLine(string $tenantId, string $lineId, float $countedQty): CycleCountLine;
