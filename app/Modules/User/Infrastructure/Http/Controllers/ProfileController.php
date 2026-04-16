@@ -31,21 +31,6 @@ class ProfileController extends AuthorizedController
         protected UploadAvatarServiceInterface $uploadAvatarService
     ) {}
 
-    #[OA\Get(
-        path: '/api/profile',
-        summary: 'Get own profile',
-        description: 'Returns the full profile of the currently authenticated user.',
-        tags: ['Profile'],
-        security: [['bearerAuth' => []]],
-        responses: [
-            new OA\Response(response: 200, description: 'Authenticated user profile',
-                content: new OA\JsonContent(ref: '#/components/schemas/UserObject')),
-            new OA\Response(response: 401, description: 'Unauthenticated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 404, description: 'Profile unavailable',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-        ],
-    )]
     public function show(): JsonResponse
     {
         $authenticatable = $this->getAuthenticatedUser->execute();
@@ -63,35 +48,7 @@ class ProfileController extends AuthorizedController
         return response()->json(new UserResource($user));
     }
 
-    #[OA\Patch(
-        path: '/api/profile',
-        summary: 'Update own profile',
-        description: 'Updates the profile details of the currently authenticated user.',
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\JsonContent(
-                required: ['first_name', 'last_name'],
-                properties: [
-                    new OA\Property(property: 'first_name', type: 'string', maxLength: 255, example: 'John'),
-                    new OA\Property(property: 'last_name',  type: 'string', maxLength: 255, example: 'Doe'),
-                    new OA\Property(property: 'phone',      type: 'string', nullable: true, maxLength: 20, example: '+1-555-0100'),
-                    new OA\Property(property: 'address',    type: 'object', nullable: true),
-                ],
-            ),
-        ),
-        tags: ['Profile'],
-        security: [['bearerAuth' => []]],
-        responses: [
-            new OA\Response(response: 200, description: 'Updated user profile',
-                content: new OA\JsonContent(ref: '#/components/schemas/UserObject')),
-            new OA\Response(response: 401, description: 'Unauthenticated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 404, description: 'Not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 422, description: 'Validation error',
-                content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
-        ],
-    )]
+
     public function update(UpdateProfileRequest $request): JsonResponse
     {
         $authenticatable = $this->getAuthenticatedUser->execute();
@@ -107,32 +64,6 @@ class ProfileController extends AuthorizedController
         return response()->json(new UserResource($user));
     }
 
-    #[OA\Post(
-        path: '/api/profile/change-password',
-        summary: 'Change own password',
-        description: 'Changes the password of the currently authenticated user.',
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\JsonContent(
-                required: ['current_password', 'password', 'password_confirmation'],
-                properties: [
-                    new OA\Property(property: 'current_password',      type: 'string', format: 'password', example: 'oldSecret1'),
-                    new OA\Property(property: 'password',              type: 'string', format: 'password', minLength: 8, example: 'newSecret1'),
-                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', example: 'newSecret1'),
-                ],
-            ),
-        ),
-        tags: ['Profile'],
-        security: [['bearerAuth' => []]],
-        responses: [
-            new OA\Response(response: 200, description: 'Password changed successfully',
-                content: new OA\JsonContent(ref: '#/components/schemas/MessageResponse')),
-            new OA\Response(response: 401, description: 'Unauthenticated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 422, description: 'Validation or domain error',
-                content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
-        ],
-    )]
     public function changePassword(ChangePasswordRequest $request): JsonResponse
     {
         $authenticatable = $this->getAuthenticatedUser->execute();
@@ -153,25 +84,6 @@ class ProfileController extends AuthorizedController
         return response()->json(['message' => 'Password changed successfully.']);
     }
 
-    #[OA\Patch(
-        path: '/api/profile/preferences',
-        summary: 'Update own preferences',
-        description: 'Updates the preferences of the currently authenticated user.',
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\JsonContent(ref: '#/components/schemas/UserPreferencesObject'),
-        ),
-        tags: ['Profile'],
-        security: [['bearerAuth' => []]],
-        responses: [
-            new OA\Response(response: 200, description: 'Updated user profile',
-                content: new OA\JsonContent(ref: '#/components/schemas/UserObject')),
-            new OA\Response(response: 401, description: 'Unauthenticated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 404, description: 'Not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-        ],
-    )]
     public function updatePreferences(UpdatePreferencesRequest $request): JsonResponse
     {
         $authenticatable = $this->getAuthenticatedUser->execute();
@@ -187,33 +99,6 @@ class ProfileController extends AuthorizedController
         return response()->json(new UserResource($user));
     }
 
-    #[OA\Post(
-        path: '/api/profile/avatar',
-        summary: 'Upload own avatar',
-        description: 'Uploads a new avatar image for the currently authenticated user.',
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\MediaType(
-                mediaType: 'multipart/form-data',
-                schema: new OA\Schema(
-                    required: ['avatar'],
-                    properties: [
-                        new OA\Property(property: 'avatar', type: 'string', format: 'binary'),
-                    ],
-                ),
-            ),
-        ),
-        tags: ['Profile'],
-        security: [['bearerAuth' => []]],
-        responses: [
-            new OA\Response(response: 200, description: 'Avatar uploaded successfully',
-                content: new OA\JsonContent(ref: '#/components/schemas/UserObject')),
-            new OA\Response(response: 401, description: 'Unauthenticated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 422, description: 'Validation error',
-                content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
-        ],
-    )]
     public function uploadAvatar(UploadAvatarRequest $request): JsonResponse
     {
         $authenticatable = $this->getAuthenticatedUser->execute();

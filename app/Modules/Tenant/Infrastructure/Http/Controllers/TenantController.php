@@ -35,33 +35,7 @@ class TenantController extends AuthorizedController
         protected UploadTenantAttachmentServiceInterface $uploadAttachmentService
     ) {}
 
-    #[OA\Get(
-        path: '/api/tenants',
-        summary: 'List tenants',
-        tags: ['Tenants'],
-        security: [['bearerAuth' => []]],
-        parameters: [
-            new OA\Parameter(name: 'name',     in: 'query', required: false, schema: new OA\Schema(type: 'string')),
-            new OA\Parameter(name: 'domain',   in: 'query', required: false, schema: new OA\Schema(type: 'string')),
-            new OA\Parameter(name: 'active',   in: 'query', required: false, schema: new OA\Schema(type: 'boolean')),
-            new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 15)),
-            new OA\Parameter(name: 'page',     in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 1)),
-            new OA\Parameter(name: 'sort',     in: 'query', required: false, schema: new OA\Schema(type: 'string')),
-            new OA\Parameter(name: 'include',  in: 'query', required: false, schema: new OA\Schema(type: 'string')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'Paginated list of tenants',
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: 'data',  type: 'array', items: new OA\Items(ref: '#/components/schemas/TenantObject')),
-                        new OA\Property(property: 'meta',  ref: '#/components/schemas/PaginationMeta'),
-                        new OA\Property(property: 'links', ref: '#/components/schemas/PaginationLinks'),
-                    ],
-                )),
-            new OA\Response(response: 401, description: 'Unauthenticated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-        ],
-    )]
+    
     public function index(Request $request): TenantCollection
     {
         $this->authorize('viewAny', Tenant::class);
@@ -81,52 +55,7 @@ class TenantController extends AuthorizedController
         return new TenantCollection($tenants);
     }
 
-    #[OA\Post(
-        path: '/api/tenants',
-        summary: 'Create tenant',
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\JsonContent(
-                required: ['name', 'database_config'],
-                properties: [
-                    new OA\Property(property: 'name',   type: 'string',  maxLength: 255, example: 'Acme Corp'),
-                    new OA\Property(property: 'domain', type: 'string',  nullable: true, example: 'acme.example.com'),
-                    new OA\Property(
-                        property: 'database_config',
-                        type: 'object',
-                        required: ['driver', 'host', 'port', 'database', 'username', 'password'],
-                        properties: [
-                            new OA\Property(property: 'driver',   type: 'string', enum: ['mysql', 'pgsql', 'sqlite'], example: 'mysql'),
-                            new OA\Property(property: 'host',     type: 'string', example: '127.0.0.1'),
-                            new OA\Property(property: 'port',     type: 'integer', example: 3306),
-                            new OA\Property(property: 'database', type: 'string', example: 'tenant_db'),
-                            new OA\Property(property: 'username', type: 'string', example: 'db_user'),
-                            new OA\Property(property: 'password', type: 'string', example: 'secret'),
-                        ],
-                    ),
-                    new OA\Property(property: 'mail_config',   type: 'object', nullable: true, example: ['host' => 'smtp.example.com']),
-                    new OA\Property(property: 'cache_config',  type: 'object', nullable: true, example: ['driver' => 'redis']),
-                    new OA\Property(property: 'queue_config',  type: 'object', nullable: true, example: ['driver' => 'database']),
-                    new OA\Property(property: 'feature_flags', type: 'object', nullable: true, example: ['billing' => true]),
-                    new OA\Property(property: 'api_keys',      type: 'object', nullable: true, example: []),
-                    new OA\Property(property: 'active',        type: 'boolean', default: true),
-                    new OA\Property(property: 'logo',          type: 'string',  format: 'binary', nullable: true),
-                ],
-            ),
-        ),
-        tags: ['Tenants'],
-        security: [['bearerAuth' => []]],
-        responses: [
-            new OA\Response(response: 201, description: 'Tenant created',
-                content: new OA\JsonContent(ref: '#/components/schemas/TenantObject')),
-            new OA\Response(response: 401, description: 'Unauthenticated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 403, description: 'Forbidden',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 422, description: 'Validation error',
-                content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
-        ],
-    )]
+    
     public function store(StoreTenantRequest $request): JsonResponse
     {
         $this->authorize('create', Tenant::class);
@@ -146,25 +75,7 @@ class TenantController extends AuthorizedController
         return (new TenantResource($tenant))->response()->setStatusCode(201);
     }
 
-    #[OA\Get(
-        path: '/api/tenants/{id}',
-        summary: 'Get tenant',
-        tags: ['Tenants'],
-        security: [['bearerAuth' => []]],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'Tenant details',
-                content: new OA\JsonContent(ref: '#/components/schemas/TenantObject')),
-            new OA\Response(response: 401, description: 'Unauthenticated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 403, description: 'Forbidden',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 404, description: 'Not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-        ],
-    )]
+    
     public function show(int $id): TenantResource
     {
         $tenant = $this->findTenantService->find($id);
@@ -176,38 +87,7 @@ class TenantController extends AuthorizedController
         return new TenantResource($tenant);
     }
 
-    #[OA\Put(
-        path: '/api/tenants/{id}',
-        summary: 'Update tenant',
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\JsonContent(
-                properties: [
-                    new OA\Property(property: 'name',   type: 'string'),
-                    new OA\Property(property: 'domain', type: 'string'),
-                    new OA\Property(property: 'active', type: 'boolean'),
-                    new OA\Property(property: 'logo',   type: 'string', format: 'binary', nullable: true),
-                ],
-            ),
-        ),
-        tags: ['Tenants'],
-        security: [['bearerAuth' => []]],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'Updated tenant',
-                content: new OA\JsonContent(ref: '#/components/schemas/TenantObject')),
-            new OA\Response(response: 401, description: 'Unauthenticated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 403, description: 'Forbidden',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 404, description: 'Not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 422, description: 'Validation error',
-                content: new OA\JsonContent(ref: '#/components/schemas/ValidationErrorResponse')),
-        ],
-    )]
+    
     public function update(UpdateTenantRequest $request, int $id): TenantResource
     {
         $tenant = $this->findTenantService->find($id);
@@ -233,35 +113,7 @@ class TenantController extends AuthorizedController
         return new TenantResource($updated);
     }
 
-    #[OA\Patch(
-        path: '/api/tenants/{id}/config',
-        summary: 'Update tenant configuration',
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\JsonContent(
-                properties: [
-                    new OA\Property(property: 'database_config', ref: '#/components/schemas/DatabaseConfigObject'),
-                    new OA\Property(property: 'feature_flags',   type: 'object', example: ['billing' => true]),
-                    new OA\Property(property: 'api_keys',        type: 'object', example: '{}'),
-                ],
-            ),
-        ),
-        tags: ['Tenants'],
-        security: [['bearerAuth' => []]],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'Updated tenant config',
-                content: new OA\JsonContent(ref: '#/components/schemas/TenantConfigObject')),
-            new OA\Response(response: 401, description: 'Unauthenticated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 403, description: 'Forbidden',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 404, description: 'Not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-        ],
-    )]
+    
     public function updateConfig(UpdateTenantConfigRequest $request, int $id): TenantConfigResource
     {
         $tenant = $this->findTenantService->find($id);
@@ -277,25 +129,7 @@ class TenantController extends AuthorizedController
         return new TenantConfigResource($updated);
     }
 
-    #[OA\Delete(
-        path: '/api/tenants/{id}',
-        summary: 'Delete tenant',
-        tags: ['Tenants'],
-        security: [['bearerAuth' => []]],
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'Deleted',
-                content: new OA\JsonContent(ref: '#/components/schemas/MessageResponse')),
-            new OA\Response(response: 401, description: 'Unauthenticated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 403, description: 'Forbidden',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-            new OA\Response(response: 404, description: 'Not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-        ],
-    )]
+    
     public function destroy(int $id): JsonResponse
     {
         $tenant = $this->findTenantService->find($id);
@@ -308,21 +142,7 @@ class TenantController extends AuthorizedController
         return response()->json(['message' => 'Tenant deleted successfully']);
     }
 
-    #[OA\Get(
-        path: '/api/config/domain/{domain}',
-        summary: 'Get tenant config by domain',
-        description: 'Retrieve tenant configuration by domain name. This endpoint is public.',
-        tags: ['Tenants'],
-        parameters: [
-            new OA\Parameter(name: 'domain', in: 'path', required: true, schema: new OA\Schema(type: 'string', example: 'acme.example.com')),
-        ],
-        responses: [
-            new OA\Response(response: 200, description: 'Tenant config',
-                content: new OA\JsonContent(ref: '#/components/schemas/TenantConfigObject')),
-            new OA\Response(response: 404, description: 'Not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')),
-        ],
-    )]
+    
     public function configByDomain(string $domain): TenantConfigResource
     {
         $tenant = $this->findTenantService->findByDomain($domain);
