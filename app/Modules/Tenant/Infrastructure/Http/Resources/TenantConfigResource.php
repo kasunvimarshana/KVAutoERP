@@ -21,6 +21,7 @@ class TenantConfigResource extends JsonResource
                 'queue_config' => $resource->getQueueConfig()?->toArray(),
                 'feature_flags' => $resource->getFeatureFlags()->toArray(),
                 'api_keys' => $resource->getApiKeys()->toArray(),
+                'settings' => $resource->getSettings(),
                 'active' => $resource->isActive(),
                 'updated_at' => $resource->getUpdatedAt()->format('c'),
             ];

@@ -21,7 +21,12 @@ use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
  * @property array|null $feature_flags
  * @property array|null $api_keys
  * @property array|null $settings
+ * @property string $plan
+ * @property int|null $tenant_plan_id
+ * @property string $status
  * @property bool $active
+ * @property \Illuminate\Support\Carbon|null $trial_ends_at
+ * @property \Illuminate\Support\Carbon|null $subscription_ends_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */

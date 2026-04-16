@@ -17,6 +17,7 @@ use Modules\Tenant\Application\Contracts\FindTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantConfigServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
+use Modules\Tenant\Application\Factories\TenantConfigValueObjectFactory;
 use Modules\Tenant\Application\Services\BulkUploadTenantAttachmentsService;
 use Modules\Tenant\Application\Services\CreateTenantService;
 use Modules\Tenant\Application\Services\DeleteTenantAttachmentService;
@@ -36,8 +37,10 @@ use Modules\Tenant\Infrastructure\Storage\DefaultAttachmentStorageStrategy;
 
 class TenantServiceProvider extends ServiceProvider
 {
-    public function register()
+    public function register(): void
     {
+        $this->app->singleton(TenantConfigValueObjectFactory::class);
+
         // Repositories
         $this->app->bind(TenantRepositoryInterface::class, function ($app) {
             return new EloquentTenantRepository($app->make(TenantModel::class));
@@ -53,10 +56,16 @@ class TenantServiceProvider extends ServiceProvider
 
         // Core tenant services
         $this->app->bind(CreateTenantServiceInterface::class, function ($app) {
-            return new CreateTenantService($app->make(TenantRepositoryInterface::class));
+            return new CreateTenantService(
+                $app->make(TenantRepositoryInterface::class),
+                $app->make(TenantConfigValueObjectFactory::class)
+            );
         });
         $this->app->bind(UpdateTenantServiceInterface::class, function ($app) {
-            return new UpdateTenantService($app->make(TenantRepositoryInterface::class));
+            return new UpdateTenantService(
+                $app->make(TenantRepositoryInterface::class),
+                $app->make(TenantConfigValueObjectFactory::class)
+            );
         });
         $this->app->bind(DeleteTenantServiceInterface::class, function ($app) {
             return new DeleteTenantService($app->make(TenantRepositoryInterface::class));
@@ -95,7 +104,7 @@ class TenantServiceProvider extends ServiceProvider
         });
     }
 
-    public function boot()
+    public function boot(): void
     {
         Route::middleware('api')
              ->prefix('api')

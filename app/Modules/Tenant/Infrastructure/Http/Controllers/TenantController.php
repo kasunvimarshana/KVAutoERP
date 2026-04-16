@@ -14,7 +14,6 @@ use Modules\Tenant\Application\Contracts\FindTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantConfigServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
-use Modules\Tenant\Application\DTOs\TenantConfigData;
 use Modules\Tenant\Application\DTOs\TenantData;
 use Modules\Tenant\Domain\Entities\Tenant;
 use Modules\Tenant\Infrastructure\Http\Requests\StoreTenantRequest;
@@ -111,8 +110,7 @@ class TenantController extends AuthorizedController
 
         $validated = $request->validated();
         $validated['id'] = $tenant;
-        $dto = TenantConfigData::fromArray($validated);
-        $updated = $this->configService->execute($dto->toArray());
+        $updated = $this->configService->execute($validated);
 
         return new TenantConfigResource($updated);
     }

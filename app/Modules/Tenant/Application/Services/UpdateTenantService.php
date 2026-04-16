@@ -4,14 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Tenant\Application\Services;
 
-use Modules\Core\Domain\ValueObjects\ApiKeys;
-use Modules\Core\Domain\ValueObjects\CacheConfig;
-use Modules\Core\Domain\ValueObjects\DatabaseConfig;
-use Modules\Core\Domain\ValueObjects\FeatureFlags;
-use Modules\Core\Domain\ValueObjects\MailConfig;
-use Modules\Core\Domain\ValueObjects\QueueConfig;
 use Modules\Core\Application\Services\BaseService;
 use Modules\Tenant\Application\Contracts\UpdateTenantServiceInterface;
+use Modules\Tenant\Application\Factories\TenantConfigValueObjectFactory;
 use Modules\Tenant\Domain\Entities\Tenant;
 use Modules\Tenant\Domain\Events\TenantUpdated;
 use Modules\Tenant\Domain\Exceptions\TenantNotFoundException;
@@ -19,12 +14,12 @@ use Modules\Tenant\Domain\RepositoryInterfaces\TenantRepositoryInterface;
 
 class UpdateTenantService extends BaseService implements UpdateTenantServiceInterface
 {
-    private TenantRepositoryInterface $tenantRepository;
-
-    public function __construct(TenantRepositoryInterface $repository)
+    public function __construct(
+        private readonly TenantRepositoryInterface $tenantRepository,
+        private readonly TenantConfigValueObjectFactory $valueObjectFactory
+    )
     {
-        parent::__construct($repository);
-        $this->tenantRepository = $repository;
+        parent::__construct($tenantRepository);
     }
 
     protected function handle(array $data): Tenant
@@ -40,19 +35,34 @@ class UpdateTenantService extends BaseService implements UpdateTenantServiceInte
         $slug = $data['slug'] ?? $tenant->getSlug();
         $domain = array_key_exists('domain', $data) ? $data['domain'] : $tenant->getDomain();
         $logoPath = array_key_exists('logo_path', $data) ? $data['logo_path'] : $tenant->getLogoPath();
+        $settings = array_key_exists('settings', $data) ? $data['settings'] : $tenant->getSettings();
+        $plan = $data['plan'] ?? $tenant->getPlan();
+        $tenantPlanId = array_key_exists('tenant_plan_id', $data) ? $data['tenant_plan_id'] : $tenant->getTenantPlanId();
+        $status = $data['status'] ?? $tenant->getStatus();
+        $trialEndsAt = $this->resolveDateTime('trial_ends_at', $data, $tenant->getTrialEndsAt());
+        $subscriptionEndsAt = $this->resolveDateTime('subscription_ends_at', $data, $tenant->getSubscriptionEndsAt());
 
-        $databaseConfig = DatabaseConfig::fromArray($data['database_config'] ?? $tenant->getDatabaseConfig()->toArray());
-        $mailConfig = ! empty($data['mail_config'])
-            ? MailConfig::fromArray($data['mail_config'])
-            : $tenant->getMailConfig();
-        $cacheConfig = ! empty($data['cache_config'])
-            ? CacheConfig::fromArray($data['cache_config'])
-            : $tenant->getCacheConfig();
-        $queueConfig = ! empty($data['queue_config'])
-            ? QueueConfig::fromArray($data['queue_config'])
-            : $tenant->getQueueConfig();
-        $featureFlags = new FeatureFlags($data['feature_flags'] ?? $tenant->getFeatureFlags()->toArray());
-        $apiKeys = new ApiKeys($data['api_keys'] ?? $tenant->getApiKeys()->toArray());
+        $payload = [
+            'database_config' => $data['database_config'] ?? $tenant->getDatabaseConfig()->toArray(),
+            'mail_config' => array_key_exists('mail_config', $data)
+                ? $data['mail_config']
+                : $tenant->getMailConfig()?->toArray(),
+            'cache_config' => array_key_exists('cache_config', $data)
+                ? $data['cache_config']
+                : $tenant->getCacheConfig()?->toArray(),
+            'queue_config' => array_key_exists('queue_config', $data)
+                ? $data['queue_config']
+                : $tenant->getQueueConfig()?->toArray(),
+            'feature_flags' => $data['feature_flags'] ?? $tenant->getFeatureFlags()->toArray(),
+            'api_keys' => $data['api_keys'] ?? $tenant->getApiKeys()->toArray(),
+        ];
+
+        $databaseConfig = $this->valueObjectFactory->databaseConfig($payload);
+        $mailConfig = $this->valueObjectFactory->mailConfig($payload, $tenant->getMailConfig()?->toArray());
+        $cacheConfig = $this->valueObjectFactory->cacheConfig($payload, $tenant->getCacheConfig()?->toArray());
+        $queueConfig = $this->valueObjectFactory->queueConfig($payload, $tenant->getQueueConfig()?->toArray());
+        $featureFlags = $this->valueObjectFactory->featureFlags($payload);
+        $apiKeys = $this->valueObjectFactory->apiKeys($payload);
         $active = array_key_exists('active', $data) ? (bool) $data['active'] : $tenant->isActive();
 
         $tenant->update(
@@ -66,6 +76,12 @@ class UpdateTenantService extends BaseService implements UpdateTenantServiceInte
             queueConfig: $queueConfig,
             featureFlags: $featureFlags,
             apiKeys: $apiKeys,
+            settings: $settings,
+            plan: $plan,
+            tenantPlanId: $tenantPlanId,
+            status: $status,
+            trialEndsAt: $trialEndsAt,
+            subscriptionEndsAt: $subscriptionEndsAt,
             active: $active
         );
 
@@ -73,5 +89,20 @@ class UpdateTenantService extends BaseService implements UpdateTenantServiceInte
         $this->addEvent(new TenantUpdated($saved));
 
         return $saved;
+    }
+
+    private function resolveDateTime(string $key, array $data, ?\DateTimeInterface $current): ?\DateTimeInterface
+    {
+        if (! array_key_exists($key, $data)) {
+            return $current;
+        }
+
+        $value = $data[$key];
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return new \DateTimeImmutable((string) $value);
     }
 }

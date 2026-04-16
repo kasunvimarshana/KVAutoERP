@@ -30,15 +30,15 @@ Key points:
 - Uses nested snake_case config keys: `database_config`, `mail_config`, `cache_config`, `queue_config`, `feature_flags`, `api_keys`
 - Exposes `toPersistenceArray()` for explicit repository payload shaping
 
-### TenantConfigData
+### Configuration Update Flow
 
 Key points:
 
-- Supports partial configuration updates only
-- Uses snake_case config fields to match `Tenant::updateConfig()`
-- Includes helper methods:
-  - `hasAnyConfig()`
-  - `getConfigValues()`
+- Config updates now use a **request-first validated payload** in `UpdateTenantConfigRequest`
+- `UpdateTenantConfigService` receives the validated array directly and whitelists supported config keys
+- Explicit `null` values are preserved for clear-value semantics on optional blocks (`mail_config`, `cache_config`, `queue_config`, `settings`)
+- Domain mutation remains centralized in `Tenant::updateConfig()`
+- Canonical semantics are documented in `app/Modules/Tenant/CONFIG_UPDATE_SEMANTICS.md`
 
 ### TenantAttachmentData
 
@@ -79,8 +79,9 @@ This split keeps domain objects idiomatic while preserving transport/persistence
 ## Affected Files
 
 - `app/Modules/Tenant/Application/DTOs/TenantData.php`
-- `app/Modules/Tenant/Application/DTOs/TenantConfigData.php`
 - `app/Modules/Tenant/Application/DTOs/TenantAttachmentData.php`
+- `app/Modules/Tenant/Infrastructure/Http/Requests/UpdateTenantConfigRequest.php`
+- `app/Modules/Tenant/Application/Services/UpdateTenantConfigService.php`
 
 ---
 
@@ -92,9 +93,3 @@ Refactored DTOs now provide:
 - safer partial updates
 - clearer contracts between HTTP, application, domain, and persistence layers
 - lower cognitive overhead for future module changes
-
-**Quality Improvements:**
-- 🎯 Type safety increased with explicit defaults
-- 🎯 Validation coverage expanded by ~60%
-- 🎯 Documentation coverage: 100%
-- 🎯 Code reusability improved with helper methods
