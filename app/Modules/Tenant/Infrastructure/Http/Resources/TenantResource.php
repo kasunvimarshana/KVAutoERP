@@ -12,11 +12,11 @@ class TenantResource extends JsonResource
     public function toArray($request)
     {
         $storage = app(FileStorageServiceInterface::class);
-        // $resource = $this->resource;
 
         return [
             'id' => $this->getId(),
             'name' => $this->getName(),
+            'slug' => $this->getSlug(),
             'domain' => $this->getDomain(),
             'logo_url' => $this->getLogoPath() ? $storage->url($this->getLogoPath()) : null,
             'database_config' => $this->getDatabaseConfig()->toArray(),

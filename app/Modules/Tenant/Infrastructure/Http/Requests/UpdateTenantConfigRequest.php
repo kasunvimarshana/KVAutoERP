@@ -28,6 +28,7 @@ class UpdateTenantConfigRequest extends FormRequest
             'queue_config' => 'nullable|array',
             'feature_flags' => 'nullable|array',
             'api_keys' => 'nullable|array',
+            'settings' => 'nullable|array',
         ];
     }
 }

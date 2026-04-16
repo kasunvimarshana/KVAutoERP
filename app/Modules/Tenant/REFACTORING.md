@@ -7,6 +7,13 @@
 
 The Tenant module has been refactored to improve database schema design, model consistency, and code quality. All changes follow Clean Architecture and DDD principles.
 
+### Architecture Status (Updated)
+
+- ✅ Tenant application orchestration is service-driven under `Application/Services`
+- ✅ Redundant and unused `Application/UseCases` classes were removed to eliminate duplicated logic
+- ✅ DTO payload naming is standardized with snake_case request/persistence keys
+- ✅ Controller read/list paths are routed through `FindTenantServiceInterface` only
+
 ---
 
 ## 🔧 Changes Implemented

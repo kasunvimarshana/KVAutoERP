@@ -17,6 +17,7 @@ class StoreTenantRequest extends FormRequest
     {
         return [
             'name'                        => 'required|string|max:255',
+            'slug'                        => 'required|string|max:255|unique:tenants,slug',
             'domain'                      => 'nullable|string|unique:tenants,domain',
             'database_config'             => 'required|array',
             'database_config.driver'      => 'required|string|in:mysql,pgsql,sqlite',
@@ -30,6 +31,12 @@ class StoreTenantRequest extends FormRequest
             'queue_config'                => 'nullable|array',
             'feature_flags'               => 'nullable|array',
             'api_keys'                    => 'nullable|array',
+            'settings'                    => 'nullable|array',
+            'plan'                        => 'nullable|string|max:100',
+            'tenant_plan_id'              => 'nullable|exists:tenant_plans,id',
+            'status'                      => 'nullable|in:active,suspended,pending,cancelled',
+            'trial_ends_at'               => 'nullable|date',
+            'subscription_ends_at'        => 'nullable|date',
             'active'                      => 'boolean',
             // Optional logo upload
             'logo'                        => 'nullable|file|max:5120|mimes:jpg,jpeg,png,gif,webp,svg',

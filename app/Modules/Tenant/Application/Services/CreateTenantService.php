@@ -40,7 +40,9 @@ class CreateTenantService extends BaseService implements CreateTenantServiceInte
 
         $tenant = new Tenant(
             name: $dto->name,
+            slug: $dto->slug,
             domain: $dto->domain,
+            logoPath: $dto->logo_path,
             databaseConfig: $databaseConfig,
             mailConfig: $mailConfig,
             cacheConfig: $cacheConfig,

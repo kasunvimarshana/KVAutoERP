@@ -24,7 +24,7 @@ class UpdateTenantConfigService extends BaseService implements UpdateTenantConfi
 
     protected function handle(array $data): Tenant
     {
-        $id = $data['id'];
+        $id = (int) $data['id'];
         $dto = TenantConfigData::fromArray($data);
 
         $tenant = $this->tenantRepository->find($id);
@@ -32,7 +32,7 @@ class UpdateTenantConfigService extends BaseService implements UpdateTenantConfi
             throw new TenantNotFoundException($id);
         }
 
-        $tenant->updateConfig($dto->toArray());
+        $tenant->updateConfig($dto->getConfigValues());
         $saved = $this->tenantRepository->save($tenant);
         $this->addEvent(new TenantConfigChanged($saved));
 

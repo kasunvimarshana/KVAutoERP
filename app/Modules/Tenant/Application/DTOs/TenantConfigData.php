@@ -19,37 +19,37 @@ class TenantConfigData extends BaseDto
      * Database connection configuration (optional).
      * Only updated if provided.
      */
-    public ?array $databaseConfig = null;
+    public ?array $database_config = null;
 
     /**
      * Mail service configuration (optional).
      * Only updated if provided.
      */
-    public ?array $mailConfig = null;
+    public ?array $mail_config = null;
 
     /**
      * Cache store configuration (optional).
      * Only updated if provided.
      */
-    public ?array $cacheConfig = null;
+    public ?array $cache_config = null;
 
     /**
      * Queue driver configuration (optional).
      * Only updated if provided.
      */
-    public ?array $queueConfig = null;
+    public ?array $queue_config = null;
 
     /**
      * Feature flags for capability toggling (optional).
      * Only updated if provided.
      */
-    public ?array $featureFlags = null;
+    public ?array $feature_flags = null;
 
     /**
      * API keys for third-party integrations (optional).
      * Only updated if provided.
      */
-    public ?array $apiKeys = null;
+    public ?array $api_keys = null;
 
     /**
      * Miscellaneous tenant settings (optional).
@@ -68,26 +68,26 @@ class TenantConfigData extends BaseDto
     public function rules(): array
     {
         return [
-            'databaseConfig' => 'sometimes|array',
-            'databaseConfig.driver' => 'required_with:databaseConfig|string|in:mysql,pgsql,sqlite,sqlsrv',
-            'databaseConfig.host' => 'required_with:databaseConfig|string|max:255',
-            'databaseConfig.port' => 'required_with:databaseConfig|integer|min:1|max:65535',
-            'databaseConfig.database' => 'required_with:databaseConfig|string|max:255',
-            'databaseConfig.username' => 'required_with:databaseConfig|string|max:255',
-            'databaseConfig.password' => 'required_with:databaseConfig|string',
-            'mailConfig' => 'sometimes|array',
-            'mailConfig.driver' => 'required_with:mailConfig|string|in:smtp,sendmail,mailgun,ses,log,array',
-            'mailConfig.host' => 'required_with:mailConfig|string|max:255',
-            'mailConfig.port' => 'required_with:mailConfig|integer|min:1|max:65535',
-            'mailConfig.username' => 'required_with:mailConfig|string|max:255',
-            'mailConfig.password' => 'required_with:mailConfig|string',
-            'mailConfig.from' => 'required_with:mailConfig|email|max:255',
-            'cacheConfig' => 'sometimes|array',
-            'cacheConfig.driver' => 'required_with:cacheConfig|string|in:file,array,database,memcached,redis',
-            'queueConfig' => 'sometimes|array',
-            'queueConfig.driver' => 'required_with:queueConfig|string|in:database,redis,beanstalkd,sqs,fifo,null',
-            'featureFlags' => 'sometimes|array',
-            'apiKeys' => 'sometimes|array',
+            'database_config' => 'sometimes|array',
+            'database_config.driver' => 'required_with:database_config|string|in:mysql,pgsql,sqlite,sqlsrv',
+            'database_config.host' => 'required_with:database_config|string|max:255',
+            'database_config.port' => 'required_with:database_config|integer|min:1|max:65535',
+            'database_config.database' => 'required_with:database_config|string|max:255',
+            'database_config.username' => 'required_with:database_config|string|max:255',
+            'database_config.password' => 'required_with:database_config|string',
+            'mail_config' => 'sometimes|array',
+            'mail_config.driver' => 'required_with:mail_config|string|in:smtp,sendmail,mailgun,ses,log,array',
+            'mail_config.host' => 'required_with:mail_config|string|max:255',
+            'mail_config.port' => 'required_with:mail_config|integer|min:1|max:65535',
+            'mail_config.username' => 'required_with:mail_config|string|max:255',
+            'mail_config.password' => 'required_with:mail_config|string',
+            'mail_config.from' => 'required_with:mail_config|email|max:255',
+            'cache_config' => 'sometimes|array',
+            'cache_config.driver' => 'required_with:cache_config|string|in:file,array,database,memcached,redis',
+            'queue_config' => 'sometimes|array',
+            'queue_config.driver' => 'required_with:queue_config|string|in:database,redis,beanstalkd,sqs,fifo,null',
+            'feature_flags' => 'sometimes|array',
+            'api_keys' => 'sometimes|array',
             'settings' => 'sometimes|array',
         ];
     }
@@ -99,12 +99,12 @@ class TenantConfigData extends BaseDto
      */
     public function hasAnyConfig(): bool
     {
-        return $this->databaseConfig !== null
-            || $this->mailConfig !== null
-            || $this->cacheConfig !== null
-            || $this->queueConfig !== null
-            || $this->featureFlags !== null
-            || $this->apiKeys !== null
+        return $this->database_config !== null
+            || $this->mail_config !== null
+            || $this->cache_config !== null
+            || $this->queue_config !== null
+            || $this->feature_flags !== null
+            || $this->api_keys !== null
             || $this->settings !== null;
     }
 
@@ -117,12 +117,12 @@ class TenantConfigData extends BaseDto
     public function getConfigValues(): array
     {
         return array_filter([
-            'databaseConfig' => $this->databaseConfig,
-            'mailConfig' => $this->mailConfig,
-            'cacheConfig' => $this->cacheConfig,
-            'queueConfig' => $this->queueConfig,
-            'featureFlags' => $this->featureFlags,
-            'apiKeys' => $this->apiKeys,
+            'database_config' => $this->database_config,
+            'mail_config' => $this->mail_config,
+            'cache_config' => $this->cache_config,
+            'queue_config' => $this->queue_config,
+            'feature_flags' => $this->feature_flags,
+            'api_keys' => $this->api_keys,
             'settings' => $this->settings,
         ], fn ($value) => $value !== null);
     }

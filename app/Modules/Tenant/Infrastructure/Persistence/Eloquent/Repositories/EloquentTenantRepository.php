@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\Tenant\Infrastructure\Persistence\Eloquent\Repositories;
 
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Modules\Core\Domain\ValueObjects\ApiKeys;
 use Modules\Core\Domain\ValueObjects\CacheConfig;
 use Modules\Core\Domain\ValueObjects\DatabaseConfig;
@@ -35,6 +34,7 @@ class EloquentTenantRepository extends EloquentRepository implements TenantRepos
     {
         $data = [
             'name' => $tenant->getName(),
+            'slug' => $tenant->getSlug(),
             'domain' => $tenant->getDomain(),
             'logo_path' => $tenant->getLogoPath(),
             'database_config' => $tenant->getDatabaseConfig()->toArray(),
@@ -72,20 +72,11 @@ class EloquentTenantRepository extends EloquentRepository implements TenantRepos
         return parent::find($id, $columns);
     }
 
-    /**
-     * Paginate tenants and convert each row to a domain entity.
-     *
-     * {@inheritdoc}
-     */
-    public function paginate(?int $perPage = null, array $columns = ['*'], ?string $pageName = null, ?int $page = null): LengthAwarePaginator
-    {
-        return parent::paginate($perPage, $columns, $pageName, $page);
-    }
-
     private function mapModelToDomainEntity(TenantModel $model): Tenant
     {
         return new Tenant(
             name: $model->name,
+            slug: $model->slug,
             databaseConfig: DatabaseConfig::fromArray($model->database_config ?? []),
             domain: $model->domain,
             logoPath: $model->logo_path,

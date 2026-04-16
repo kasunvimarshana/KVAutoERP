@@ -17,6 +17,8 @@ class Tenant
 
     private string $name;
 
+    private string $slug;
+
     private ?string $domain;
 
     private ?string $logoPath;
@@ -41,6 +43,7 @@ class Tenant
 
     public function __construct(
         string $name,
+        string $slug,
         DatabaseConfig $databaseConfig,
         ?string $domain = null,
         ?string $logoPath = null,
@@ -56,6 +59,7 @@ class Tenant
     ) {
         $this->id = $id;
         $this->name = $name;
+        $this->slug = $slug;
         $this->domain = $domain;
         $this->logoPath = $logoPath;
         $this->databaseConfig = $databaseConfig;
@@ -78,6 +82,11 @@ class Tenant
     public function getName(): string
     {
         return $this->name;
+    }
+
+    public function getSlug(): string
+    {
+        return $this->slug;
     }
 
     public function getDomain(): ?string
@@ -164,7 +173,9 @@ class Tenant
 
     public function update(
         string $name,
+        string $slug,
         ?string $domain,
+        ?string $logoPath,
         DatabaseConfig $databaseConfig,
         ?MailConfig $mailConfig = null,
         ?CacheConfig $cacheConfig = null,
@@ -174,7 +185,9 @@ class Tenant
         bool $active = true
     ): void {
         $this->name = $name;
+        $this->slug = $slug;
         $this->domain = $domain;
+        $this->logoPath = $logoPath;
         $this->databaseConfig = $databaseConfig;
         $this->mailConfig = $mailConfig;
         $this->cacheConfig = $cacheConfig;
