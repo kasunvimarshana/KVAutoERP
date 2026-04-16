@@ -24,16 +24,16 @@ return new class extends Migration
             $table->string('plan')->default('free');
             // Foreign key is added in a later migration after tenant_plans exists.
             $table->foreignId('tenant_plan_id')->nullable();
+            $table->foreign('tenant_plan_id', 'tenants_tenant_plan_id_fk')
+                ->references('id')
+                ->on('tenant_plans')
+                ->nullOnDelete();
             $table->enum('status', ['active', 'suspended', 'pending', 'cancelled'])
                 ->default('active')
                 ->index('idx_tenants_status');
             $table->boolean('active')->default(true)->index('idx_tenants_active');
             $table->timestamp('trial_ends_at')->nullable();
             $table->timestamp('subscription_ends_at')->nullable();
-            $table->foreign('tenant_plan_id', 'tenants_tenant_plan_id_fk')
-                ->references('id')
-                ->on('tenant_plans')
-                ->nullOnDelete();
 
             $table->timestamps();
             $table->softDeletes();
