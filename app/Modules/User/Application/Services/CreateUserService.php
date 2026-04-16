@@ -46,7 +46,7 @@ class CreateUserService extends BaseService implements CreateUserServiceInterfac
             phone: $phone,
             address: $address,
             preferences: $preferences,
-            active: $dto->active
+            active: $dto->active ?? true
         );
 
         $saved = $this->userRepository->save($user);

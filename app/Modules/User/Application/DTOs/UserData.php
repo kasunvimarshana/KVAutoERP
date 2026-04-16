@@ -22,7 +22,7 @@ class UserData extends BaseDto
 
     public ?array $preferences;
 
-    public bool $active;
+    public ?bool $active;
 
     public ?array $roles; // role IDs
 

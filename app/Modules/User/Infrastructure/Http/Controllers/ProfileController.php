@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\User\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Response;
 use Modules\Auth\Application\UseCases\GetAuthenticatedUser;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\User\Application\Contracts\ChangePasswordServiceInterface;
@@ -18,7 +19,6 @@ use Modules\User\Infrastructure\Http\Requests\UpdatePreferencesRequest;
 use Modules\User\Infrastructure\Http\Requests\UpdateProfileRequest;
 use Modules\User\Infrastructure\Http\Requests\UploadAvatarRequest;
 use Modules\User\Infrastructure\Http\Resources\UserResource;
-use OpenApi\Attributes as OA;
 
 class ProfileController extends AuthorizedController
 {
@@ -33,81 +33,72 @@ class ProfileController extends AuthorizedController
 
     public function show(): JsonResponse
     {
-        $authenticatable = $this->getAuthenticatedUser->execute();
-
-        if (! $authenticatable) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+        $userId = $this->authenticatedUserId();
+        if ($userId === null) {
+            return Response::json(['message' => 'Unauthenticated'], 401);
         }
 
-        $user = $this->findService->find($authenticatable->getAuthIdentifier());
+        $user = $this->findService->find($userId);
 
         if (! $user) {
-            return response()->json(['message' => 'User profile unavailable'], 404);
+            return Response::json(['message' => 'User profile unavailable'], 404);
         }
 
-        return response()->json(new UserResource($user));
+        return Response::json(new UserResource($user));
     }
 
 
     public function update(UpdateProfileRequest $request): JsonResponse
     {
-        $authenticatable = $this->getAuthenticatedUser->execute();
-
-        if (! $authenticatable) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+        $userId = $this->authenticatedUserId();
+        if ($userId === null) {
+            return Response::json(['message' => 'Unauthenticated'], 401);
         }
 
-        $userId = (int) $authenticatable->getAuthIdentifier();
         $data = array_merge($request->validated(), ['user_id' => $userId]);
         $user = $this->updateProfileService->execute($data);
 
-        return response()->json(new UserResource($user));
+        return Response::json(new UserResource($user));
     }
 
     public function changePassword(ChangePasswordRequest $request): JsonResponse
     {
-        $authenticatable = $this->getAuthenticatedUser->execute();
-
-        if (! $authenticatable) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+        $userId = $this->authenticatedUserId();
+        if ($userId === null) {
+            return Response::json(['message' => 'Unauthenticated'], 401);
         }
 
-        $userId = (int) $authenticatable->getAuthIdentifier();
         $data = array_merge($request->validated(), ['user_id' => $userId]);
 
         try {
             $this->changePasswordService->execute($data);
         } catch (\Modules\Core\Domain\Exceptions\DomainException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return Response::json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['message' => 'Password changed successfully.']);
+        return Response::json(['message' => 'Password changed successfully.']);
     }
 
     public function updatePreferences(UpdatePreferencesRequest $request): JsonResponse
     {
-        $authenticatable = $this->getAuthenticatedUser->execute();
-
-        if (! $authenticatable) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+        $userId = $this->authenticatedUserId();
+        if ($userId === null) {
+            return Response::json(['message' => 'Unauthenticated'], 401);
         }
 
-        $userId = (int) $authenticatable->getAuthIdentifier();
         $dto = UserPreferencesData::fromArray($request->validated());
         $user = $this->updatePreferencesService->execute(['user_id' => $userId] + $dto->toArray());
 
-        return response()->json(new UserResource($user));
+        return Response::json(new UserResource($user));
     }
 
     public function uploadAvatar(UploadAvatarRequest $request): JsonResponse
     {
-        $authenticatable = $this->getAuthenticatedUser->execute();
-
-        if (! $authenticatable) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+        $userId = $this->authenticatedUserId();
+        if ($userId === null) {
+            return Response::json(['message' => 'Unauthenticated'], 401);
         }
 
-        $userId = (int) $authenticatable->getAuthIdentifier();
         $file = $request->file('avatar');
 
         $user = $this->uploadAvatarService->execute([
@@ -120,6 +111,16 @@ class ProfileController extends AuthorizedController
             ],
         ]);
 
-        return response()->json(new UserResource($user));
+        return Response::json(new UserResource($user));
+    }
+
+    private function authenticatedUserId(): ?int
+    {
+        $authenticatable = $this->getAuthenticatedUser->execute();
+        if (! $authenticatable) {
+            return null;
+        }
+
+        return (int) $authenticatable->getAuthIdentifier();
     }
 }

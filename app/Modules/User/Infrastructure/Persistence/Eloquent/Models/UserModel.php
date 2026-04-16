@@ -26,9 +26,9 @@ class UserModel extends Authenticatable implements OAuthenticatable
         'last_name',
         'phone',
         'avatar',
+        'status',
         'address',
         'preferences',
-        'active',
     ];
 
     protected $hidden = [
@@ -39,7 +39,6 @@ class UserModel extends Authenticatable implements OAuthenticatable
     protected $casts = [
         'address' => 'array',
         'preferences' => 'array',
-        'active' => 'boolean',
     ];
 
     public function roles(): BelongsToMany

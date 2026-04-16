@@ -44,7 +44,7 @@ class EloquentUserRepository extends EloquentRepository implements UserRepositor
             'phone'       => $user->getPhone()?->value(),
             'address'     => $user->getAddress()?->toArray(),
             'preferences' => $user->getPreferences()->toArray(),
-            'active'      => $user->isActive(),
+            'status'      => $user->isActive() ? 'active' : 'inactive',
             'avatar'      => $user->getAvatar(),
         ];
 
@@ -136,7 +136,7 @@ class EloquentUserRepository extends EloquentRepository implements UserRepositor
             phone: $phone,
             address: $address,
             preferences: $preferences,
-            active: $model->active,
+            active: $model->status === 'active',
             id: $model->id,
             createdAt: $model->created_at,
             updatedAt: $model->updated_at,

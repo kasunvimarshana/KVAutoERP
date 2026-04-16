@@ -8,9 +8,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class UserAttachmentResource extends JsonResource
 {
-    public function toArray($request)
+    public function toArray($request): array
     {
-        // $resource = $this->resource;
         return [
             'id' => $this->getId(),
             'uuid' => $this->getUuid(),

@@ -9,7 +9,6 @@ use Modules\Core\Domain\ValueObjects\Address;
 use Modules\Core\Domain\ValueObjects\PhoneNumber;
 use Modules\Core\Domain\ValueObjects\UserPreferences;
 use Modules\User\Application\Contracts\UpdateUserServiceInterface;
-use Modules\User\Application\DTOs\UserData;
 use Modules\User\Domain\Entities\User;
 use Modules\User\Domain\Events\UserUpdated;
 use Modules\User\Domain\Exceptions\UserNotFoundException;
@@ -28,34 +27,42 @@ class UpdateUserService extends BaseService implements UpdateUserServiceInterfac
     protected function handle(array $data): User
     {
         $id = $data['id'];
-        $dto = UserData::fromArray($data);
 
         $user = $this->userRepository->find($id);
         if (! $user) {
             throw new UserNotFoundException($id);
         }
 
-        $phone = ! empty($dto->phone) ? new PhoneNumber($dto->phone) : null;
-        $address = ! empty($dto->address) ? Address::fromArray($dto->address) : null;
-        $user->updateProfile($dto->first_name ?? $user->getFirstName(), $dto->last_name ?? $user->getLastName(), $phone, $address);
+        $firstName = array_key_exists('first_name', $data) ? (string) $data['first_name'] : $user->getFirstName();
+        $lastName = array_key_exists('last_name', $data) ? (string) $data['last_name'] : $user->getLastName();
 
-        if ($dto->preferences !== null) {
+        $phone = array_key_exists('phone', $data)
+            ? (! empty($data['phone']) ? new PhoneNumber((string) $data['phone']) : null)
+            : $user->getPhone();
+
+        $address = array_key_exists('address', $data)
+            ? (! empty($data['address']) ? Address::fromArray($data['address']) : null)
+            : $user->getAddress();
+
+        $user->updateProfile($firstName, $lastName, $phone, $address);
+
+        if (array_key_exists('preferences', $data) && is_array($data['preferences'])) {
             $preferences = new UserPreferences(
-                $dto->preferences['language'] ?? $user->getPreferences()->getLanguage(),
-                $dto->preferences['timezone'] ?? $user->getPreferences()->getTimezone(),
-                $dto->preferences['notifications'] ?? $user->getPreferences()->getNotifications()
+                $data['preferences']['language'] ?? $user->getPreferences()->getLanguage(),
+                $data['preferences']['timezone'] ?? $user->getPreferences()->getTimezone(),
+                $data['preferences']['notifications'] ?? $user->getPreferences()->getNotifications()
             );
             $user->updatePreferences($preferences);
         }
 
-        if (isset($dto->active) && $user->isActive() !== $dto->active) {
-            $dto->active ? $user->activate() : $user->deactivate();
+        if (array_key_exists('active', $data) && $user->isActive() !== (bool) $data['active']) {
+            ((bool) $data['active']) ? $user->activate() : $user->deactivate();
         }
 
         $saved = $this->userRepository->save($user);
 
-        if (isset($dto->roles)) {
-            $this->userRepository->syncRoles($saved, $dto->roles);
+        if (array_key_exists('roles', $data) && is_array($data['roles'])) {
+            $this->userRepository->syncRoles($saved, $data['roles']);
         }
 
         $this->addEvent(new UserUpdated($saved));
