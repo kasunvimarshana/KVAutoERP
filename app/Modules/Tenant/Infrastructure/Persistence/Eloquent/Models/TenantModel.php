@@ -81,4 +81,14 @@ class TenantModel extends Model
     {
         return $this->hasMany(TenantAttachmentModel::class, 'tenant_id');
     }
+
+    public function tenantPlan()
+    {
+        return $this->belongsTo(TenantPlanModel::class, 'tenant_plan_id');
+    }
+
+    public function settingsItems()
+    {
+        return $this->hasMany(TenantSettingModel::class, 'tenant_id');
+    }
 }

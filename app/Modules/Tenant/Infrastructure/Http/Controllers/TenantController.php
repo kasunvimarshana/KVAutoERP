@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Modules\Tenant\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Tenant\Application\Contracts\CreateTenantServiceInterface;
@@ -17,6 +16,7 @@ use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
 use Modules\Tenant\Application\DTOs\TenantData;
 use Modules\Tenant\Domain\Entities\Tenant;
 use Modules\Tenant\Infrastructure\Http\Requests\StoreTenantRequest;
+use Modules\Tenant\Infrastructure\Http\Requests\ListTenantRequest;
 use Modules\Tenant\Infrastructure\Http\Requests\UpdateTenantConfigRequest;
 use Modules\Tenant\Infrastructure\Http\Requests\UpdateTenantRequest;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantCollection;
@@ -35,19 +35,26 @@ class TenantController extends AuthorizedController
         protected UploadTenantAttachmentServiceInterface $uploadAttachmentService
     ) {}
 
-    public function index(Request $request): TenantCollection
+    public function index(ListTenantRequest $request): TenantCollection
     {
         $this->authorize('viewAny', Tenant::class);
-        $filters = $request->only(['name', 'slug', 'domain', 'active', 'status']);
+        $validated = $request->validated();
 
-        if ($request->has('active')) {
+        $filters = array_filter([
+            'name' => $validated['name'] ?? null,
+            'slug' => $validated['slug'] ?? null,
+            'domain' => $validated['domain'] ?? null,
+            'status' => $validated['status'] ?? null,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
+        if (array_key_exists('active', $validated)) {
             $filters['active'] = $request->boolean('active');
         }
 
-        $perPage = $request->integer('per_page', 15);
-        $page    = $request->integer('page', 1);
-        $sort    = $request->input('sort');
-        $include = $request->input('include');
+        $perPage = (int) ($validated['per_page'] ?? 15);
+        $page    = (int) ($validated['page'] ?? 1);
+        $sort    = $validated['sort'] ?? null;
+        $include = $validated['include'] ?? null;
 
         $tenants = $this->findTenantService->list($filters, $perPage, $page, $sort, $include);
 
@@ -85,10 +92,9 @@ class TenantController extends AuthorizedController
         $tenantEntity = $this->findTenantOrFail($tenant);
         $this->authorize('update', $tenantEntity);
 
-        $validated = $request->validated();
-        $validated['id'] = $tenant;
-        $dto = TenantData::fromArray($validated);
-        $updated = $this->updateService->execute($dto->toArray());
+        $payload = $request->validated();
+        $payload['id'] = $tenant;
+        $updated = $this->updateService->execute($payload);
 
         if ($request->hasFile('logo')) {
             $this->uploadAttachmentService->execute([

@@ -24,7 +24,7 @@ class FindTenantService implements FindTenantServiceInterface
     private const ALLOWED_SORTS = ['id', 'name', 'slug', 'domain', 'active', 'status', 'created_at', 'updated_at'];
 
     /** @var array<string> */
-    private const ALLOWED_INCLUDES = ['attachments'];
+    private const ALLOWED_INCLUDES = ['attachments', 'tenantPlan', 'settingsItems'];
 
     public function __construct(
         private readonly TenantRepositoryInterface $tenantRepository
@@ -67,7 +67,13 @@ class FindTenantService implements FindTenantServiceInterface
      */
     private function parseSort(?string $sort): array
     {
-        if ($sort === null || $sort === '') {
+        if ($sort === null) {
+            return [null, 'asc'];
+        }
+
+        $sort = trim($sort);
+
+        if ($sort === '') {
             return [null, 'asc'];
         }
 
@@ -86,15 +92,20 @@ class FindTenantService implements FindTenantServiceInterface
      */
     private function parseIncludes(?string $include): array
     {
-        if ($include === null || $include === '') {
+        if ($include === null) {
+            return [];
+        }
+
+        $include = trim($include);
+        if ($include === '') {
             return [];
         }
 
         $relations = array_map('trim', explode(',', $include));
 
-        return array_values(array_filter(
+        return array_values(array_unique(array_filter(
             $relations,
             fn (string $relation): bool => in_array($relation, self::ALLOWED_INCLUDES, true)
-        ));
+        )));
     }
 }

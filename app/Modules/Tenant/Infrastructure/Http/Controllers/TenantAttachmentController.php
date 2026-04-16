@@ -6,21 +6,25 @@ namespace Modules\Tenant\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Response;
 use Modules\Core\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Tenant\Application\Contracts\BulkUploadTenantAttachmentsServiceInterface;
 use Modules\Tenant\Application\Contracts\DeleteTenantAttachmentServiceInterface;
+use Modules\Tenant\Application\Contracts\FindTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\FindTenantAttachmentsServiceInterface;
 use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
 use Modules\Tenant\Domain\Entities\Tenant;
 use Modules\Tenant\Infrastructure\Http\Requests\UploadTenantAttachmentRequest;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantAttachmentResource;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class TenantAttachmentController extends AuthorizedController
 {
     public function __construct(
+        protected FindTenantServiceInterface $findTenantService,
         protected UploadTenantAttachmentServiceInterface $uploadService,
         protected BulkUploadTenantAttachmentsServiceInterface $bulkUploadService,
         protected DeleteTenantAttachmentServiceInterface $deleteService,
@@ -29,9 +33,10 @@ class TenantAttachmentController extends AuthorizedController
     ) {}
 
 
-    public function index(int $tenant, Request $request)
+    public function index(int $tenant, Request $request): AnonymousResourceCollection
     {
-        $this->authorize('viewAttachments', Tenant::class);
+        $tenantEntity = $this->findTenantOrFail($tenant);
+        $this->authorize('viewAttachments', $tenantEntity);
         $type        = $request->query('type');
         $attachments = $this->findAttachmentsService->findByTenant($tenant, $type);
 
@@ -41,7 +46,8 @@ class TenantAttachmentController extends AuthorizedController
 
     public function store(UploadTenantAttachmentRequest $request, int $tenant): TenantAttachmentResource
     {
-        $this->authorize('uploadAttachment', Tenant::class);
+        $tenantEntity = $this->findTenantOrFail($tenant);
+        $this->authorize('uploadAttachment', $tenantEntity);
 
         $attachment = $this->uploadService->execute([
             'tenant_id' => $tenant,
@@ -56,7 +62,8 @@ class TenantAttachmentController extends AuthorizedController
 
     public function storeMany(UploadTenantAttachmentRequest $request, int $tenant): JsonResponse
     {
-        $this->authorize('uploadAttachment', Tenant::class);
+        $tenantEntity = $this->findTenantOrFail($tenant);
+        $this->authorize('uploadAttachment', $tenantEntity);
 
         $attachments = $this->bulkUploadService->execute([
             'tenant_id' => $tenant,
@@ -71,12 +78,13 @@ class TenantAttachmentController extends AuthorizedController
     }
 
 
-    public function destroy(int $_tenant, int $attachment): JsonResponse
+    public function destroy(int $tenant, int $attachment): JsonResponse
     {
-        $this->authorize('deleteAttachment', Tenant::class);
+        $tenantEntity = $this->findTenantOrFail($tenant);
+        $this->authorize('deleteAttachment', $tenantEntity);
 
         $attachmentEntity = $this->findAttachmentsService->find($attachment);
-        if (! $attachmentEntity) {
+        if (! $attachmentEntity || $attachmentEntity->getTenantId() !== $tenant) {
             throw new NotFoundHttpException('Attachment not found.');
         }
 
@@ -86,7 +94,7 @@ class TenantAttachmentController extends AuthorizedController
     }
 
 
-    public function serve(string $uuid)
+    public function serve(string $uuid): StreamedResponse
     {
         $attachment = $this->findAttachmentsService->findByUuid($uuid);
         if (! $attachment) {
@@ -111,5 +119,15 @@ class TenantAttachmentController extends AuthorizedController
         $decoded = json_decode($raw, true);
 
         return is_array($decoded) ? $decoded : null;
+    }
+
+    private function findTenantOrFail(int $tenantId): Tenant
+    {
+        $tenant = $this->findTenantService->find($tenantId);
+        if (! $tenant) {
+            throw new NotFoundHttpException('Tenant not found.');
+        }
+
+        return $tenant;
     }
 }
