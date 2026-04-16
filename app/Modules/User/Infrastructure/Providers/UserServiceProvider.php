@@ -60,7 +60,7 @@ use Modules\User\Infrastructure\Persistence\Eloquent\Repositories\EloquentUserRe
 
 class UserServiceProvider extends ServiceProvider
 {
-    public function register()
+    public function register(): void
     {
         $this->app->bind(UserRepositoryInterface::class, function ($app) {
             return new EloquentUserRepository($app->make(UserModel::class));
@@ -154,7 +154,7 @@ class UserServiceProvider extends ServiceProvider
         });
     }
 
-    public function boot()
+    public function boot(): void
     {
         // $this->loadRoutesFrom(__DIR__.'/../../routes/api.php');
         Route::middleware('api')

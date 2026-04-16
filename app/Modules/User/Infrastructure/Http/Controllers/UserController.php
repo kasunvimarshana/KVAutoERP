@@ -50,7 +50,7 @@ class UserController extends AuthorizedController
         ], static fn (mixed $value): bool => $value !== null && $value !== '');
 
         if (array_key_exists('active', $validated)) {
-            $filters['status'] = $request->boolean('active') ? 'active' : 'inactive';
+            $filters['status'] = (bool) $validated['active'] ? 'active' : 'inactive';
         }
 
         $perPage = (int) ($validated['per_page'] ?? 15);
@@ -63,7 +63,6 @@ class UserController extends AuthorizedController
         return new UserCollection($users);
     }
 
-
     public function store(StoreUserRequest $request): JsonResponse
     {
         $this->authorize('create', User::class);
@@ -73,57 +72,52 @@ class UserController extends AuthorizedController
         return (new UserResource($user))->response()->setStatusCode(201);
     }
 
-    
-    public function show(int $id): UserResource
+    public function show(int $user): UserResource
     {
-        $user = $this->findUserOrFail($id);
-        $this->authorize('view', $user);
+        $userEntity = $this->findUserOrFail($user);
+        $this->authorize('view', $userEntity);
 
-        return new UserResource($user);
+        return new UserResource($userEntity);
     }
 
-    
-    public function update(UpdateUserRequest $request, int $id): UserResource
+    public function update(UpdateUserRequest $request, int $user): UserResource
     {
-        $user = $this->findUserOrFail($id);
-        $this->authorize('update', $user);
+        $userEntity = $this->findUserOrFail($user);
+        $this->authorize('update', $userEntity);
 
         $payload = $request->validated();
-        $payload['id'] = $id;
+        $payload['id'] = $user;
         $updated = $this->updateService->execute($payload);
 
         return new UserResource($updated);
     }
 
-    
-    public function destroy(int $id): JsonResponse
+    public function destroy(int $user): JsonResponse
     {
-        $user = $this->findUserOrFail($id);
-        $this->authorize('delete', $user);
-        $this->deleteService->execute(['id' => $id]);
+        $userEntity = $this->findUserOrFail($user);
+        $this->authorize('delete', $userEntity);
+        $this->deleteService->execute(['id' => $user]);
 
         return Response::json(['message' => 'User deleted successfully']);
     }
 
-
-    public function assignRole(AssignRoleRequest $request, int $id): JsonResponse
+    public function assignRole(AssignRoleRequest $request, int $user): JsonResponse
     {
-        $user = $this->findUserOrFail($id);
-        $this->authorize('assignRole', $user);
+        $userEntity = $this->findUserOrFail($user);
+        $this->authorize('assignRole', $userEntity);
         $validated = $request->validated();
-        $this->assignRoleService->execute(['user_id' => $id, 'role_id' => $validated['role_id']]);
+        $this->assignRoleService->execute(['user_id' => $user, 'role_id' => $validated['role_id']]);
 
         return Response::json(['message' => 'Role assigned successfully']);
     }
 
-
-    public function updatePreferences(UpdatePreferencesRequest $request, int $id): UserResource
+    public function updatePreferences(UpdatePreferencesRequest $request, int $user): UserResource
     {
-        $user = $this->findUserOrFail($id);
-        $this->authorize('updatePreferences', $user);
+        $userEntity = $this->findUserOrFail($user);
+        $this->authorize('updatePreferences', $userEntity);
         $validated = $request->validated();
         $dto = UserPreferencesData::fromArray($validated);
-        $updated = $this->updatePreferencesService->execute(['user_id' => $id] + $dto->toArray());
+        $updated = $this->updatePreferencesService->execute(['user_id' => $user] + $dto->toArray());
 
         return new UserResource($updated);
     }
@@ -137,6 +131,4 @@ class UserController extends AuthorizedController
 
         return $user;
     }
-
-
 }

@@ -40,12 +40,12 @@ class PermissionController extends AuthorizedController
         return new PermissionCollection($permissions);
     }
 
-    public function show(int $id): PermissionResource
+    public function show(int $permission): PermissionResource
     {
-        $permission = $this->findPermissionOrFail($id);
-        $this->authorize('view', $permission);
+        $permissionEntity = $this->findPermissionOrFail($permission);
+        $this->authorize('view', $permissionEntity);
 
-        return new PermissionResource($permission);
+        return new PermissionResource($permissionEntity);
     }
 
     public function store(StorePermissionRequest $request): JsonResponse
@@ -56,12 +56,11 @@ class PermissionController extends AuthorizedController
         return (new PermissionResource($permission))->response()->setStatusCode(201);
     }
 
-
-    public function destroy(int $id): JsonResponse
+    public function destroy(int $permission): JsonResponse
     {
-        $permission = $this->findPermissionOrFail($id);
-        $this->authorize('delete', $permission);
-        $this->deleteService->execute(['id' => $id]);
+        $permissionEntity = $this->findPermissionOrFail($permission);
+        $this->authorize('delete', $permissionEntity);
+        $this->deleteService->execute(['id' => $permission]);
 
         return Response::json(['message' => 'Permission deleted successfully']);
     }

@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Response;
 use Modules\Auth\Application\UseCases\GetAuthenticatedUser;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
+use Modules\Core\Domain\Exceptions\DomainException;
 use Modules\User\Application\Contracts\ChangePasswordServiceInterface;
 use Modules\User\Application\Contracts\FindUserServiceInterface;
 use Modules\User\Application\Contracts\UpdatePreferencesServiceInterface;
@@ -47,7 +48,6 @@ class ProfileController extends AuthorizedController
         return Response::json(new UserResource($user));
     }
 
-
     public function update(UpdateProfileRequest $request): JsonResponse
     {
         $userId = $this->authenticatedUserId();
@@ -72,7 +72,7 @@ class ProfileController extends AuthorizedController
 
         try {
             $this->changePasswordService->execute($data);
-        } catch (\Modules\Core\Domain\Exceptions\DomainException $e) {
+        } catch (DomainException $e) {
             return Response::json(['message' => $e->getMessage()], 422);
         }
 

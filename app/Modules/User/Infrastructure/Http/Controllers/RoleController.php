@@ -43,12 +43,12 @@ class RoleController extends AuthorizedController
         return new RoleCollection($roles);
     }
 
-    public function show(int $id): RoleResource
+    public function show(int $role): RoleResource
     {
-        $role = $this->findRoleOrFail($id);
-        $this->authorize('view', $role);
+        $roleEntity = $this->findRoleOrFail($role);
+        $this->authorize('view', $roleEntity);
 
-        return new RoleResource($role);
+        return new RoleResource($roleEntity);
     }
 
     public function store(StoreRoleRequest $request): JsonResponse
@@ -59,22 +59,21 @@ class RoleController extends AuthorizedController
         return (new RoleResource($role))->response()->setStatusCode(201);
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(int $role): JsonResponse
     {
-        $role = $this->findRoleOrFail($id);
-        $this->authorize('delete', $role);
-        $this->deleteService->execute(['id' => $id]);
+        $roleEntity = $this->findRoleOrFail($role);
+        $this->authorize('delete', $roleEntity);
+        $this->deleteService->execute(['id' => $role]);
 
         return Response::json(['message' => 'Role deleted successfully']);
     }
 
-    
-    public function syncPermissions(SyncRolePermissionsRequest $request, int $id): RoleResource
+    public function syncPermissions(SyncRolePermissionsRequest $request, int $role): RoleResource
     {
-        $role = $this->findRoleOrFail($id);
-        $this->authorize('syncPermissions', $role);
+        $roleEntity = $this->findRoleOrFail($role);
+        $this->authorize('syncPermissions', $roleEntity);
         $updated = $this->syncPermissionsService->execute([
-            'role_id'        => $id,
+            'role_id'        => $role,
             'permission_ids' => $request->validated()['permission_ids'],
         ]);
 

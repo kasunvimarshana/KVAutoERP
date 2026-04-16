@@ -6,10 +6,10 @@ namespace Modules\User\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Response;
-use Modules\User\Application\Contracts\FindUserServiceInterface;
 use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\User\Application\Contracts\DeleteUserAttachmentServiceInterface;
+use Modules\User\Application\Contracts\FindUserServiceInterface;
 use Modules\User\Application\Contracts\FindUserAttachmentsServiceInterface;
 use Modules\User\Application\Contracts\UploadUserAttachmentServiceInterface;
 use Modules\User\Domain\Entities\User;
@@ -31,17 +31,17 @@ class UserAttachmentController extends AuthorizedController
         protected FileStorageServiceInterface $storage
     ) {}
 
-    public function index(int $userId, ListUserAttachmentRequest $request): UserAttachmentCollection
+    public function index(int $user, ListUserAttachmentRequest $request): UserAttachmentCollection
     {
-        $user = $this->findUserOrFail($userId);
-        $this->authorize('viewAttachments', $user);
+        $userEntity = $this->findUserOrFail($user);
+        $this->authorize('viewAttachments', $userEntity);
 
         $validated = $request->validated();
         $type = $validated['type'] ?? null;
         $perPage = (int) ($validated['per_page'] ?? 15);
         $page = (int) ($validated['page'] ?? 1);
         $attachments = $this->findService->paginateByUser(
-            $userId,
+            $user,
             is_string($type) ? $type : null,
             $perPage,
             $page
@@ -50,10 +50,10 @@ class UserAttachmentController extends AuthorizedController
         return new UserAttachmentCollection($attachments);
     }
 
-    public function store(UploadUserAttachmentRequest $request, int $userId): UserAttachmentResource
+    public function store(UploadUserAttachmentRequest $request, int $user): UserAttachmentResource
     {
-        $user = $this->findUserOrFail($userId);
-        $this->authorize('uploadAttachment', $user);
+        $userEntity = $this->findUserOrFail($user);
+        $this->authorize('uploadAttachment', $userEntity);
         $file = $request->file('file');
         $fileInfo = [
             'tmp_path' => $file->getPathname(),
@@ -62,7 +62,7 @@ class UserAttachmentController extends AuthorizedController
             'size' => $file->getSize(),
         ];
         $attachment = $this->uploadService->execute([
-            'user_id' => $userId,
+            'user_id' => $user,
             'file' => $fileInfo,
             'type' => $request->input('type'),
             'metadata' => $request->input('metadata'),
@@ -71,22 +71,20 @@ class UserAttachmentController extends AuthorizedController
         return new UserAttachmentResource($attachment);
     }
 
-
-    public function destroy(int $userId, int $attachmentId): JsonResponse
+    public function destroy(int $user, int $attachment): JsonResponse
     {
-        $user = $this->findUserOrFail($userId);
-        $this->authorize('deleteAttachment', $user);
+        $userEntity = $this->findUserOrFail($user);
+        $this->authorize('deleteAttachment', $userEntity);
 
-        $attachment = $this->findAttachmentOrFail($attachmentId);
-        if ($attachment->getUserId() !== $userId) {
+        $attachmentEntity = $this->findAttachmentOrFail($attachment);
+        if ($attachmentEntity->getUserId() !== $user) {
             throw new NotFoundHttpException('Attachment not found.');
         }
 
-        $this->deleteService->execute(['attachment_id' => $attachmentId]);
+        $this->deleteService->execute(['attachment_id' => $attachment]);
 
         return Response::json(['message' => 'Attachment deleted successfully']);
     }
-
 
     public function serve(string $uuid): StreamedResponse
     {
