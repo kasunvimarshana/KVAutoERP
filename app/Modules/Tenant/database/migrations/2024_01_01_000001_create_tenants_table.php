@@ -11,10 +11,9 @@ return new class extends Migration
         Schema::create('tenants', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique();
-            $table->string('domain')->unique()->nullable();
+            $table->string('slug')->unique()->index();
+            $table->string('domain')->unique()->nullable()->index();
             $table->string('logo_path')->nullable();
-            // $table->string('database')->nullable(); // if using separate DBs
             $table->json('database_config')->nullable();
             $table->json('mail_config')->nullable();
             $table->json('cache_config')->nullable();
@@ -24,13 +23,19 @@ return new class extends Migration
             $table->json('settings')->nullable();
             $table->string('plan')->default('free');
             $table->foreignId('tenant_plan_id')->nullable()->constrained('tenant_plans')->nullOnDelete();
-            $table->enum('status', ['active', 'suspended', 'pending', 'cancelled'])->default('active');
+            $table->enum('status', ['active', 'suspended', 'pending', 'cancelled'])
+                ->default('active')
+                ->index();
+            $table->boolean('active')->default(true)->index();
             $table->timestamp('trial_ends_at')->nullable();
             $table->timestamp('subscription_ends_at')->nullable();
-            // $table->boolean('active')->default(true);
 
             $table->timestamps();
             $table->softDeletes();
+
+            // Composite indexes for common query patterns
+            $table->index(['status', 'active']);
+            $table->index(['tenant_plan_id', 'status']);
         });
     }
 

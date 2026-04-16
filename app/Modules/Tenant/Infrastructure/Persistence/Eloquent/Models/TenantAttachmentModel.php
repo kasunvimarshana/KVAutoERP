@@ -28,10 +28,26 @@ class TenantAttachmentModel extends Model
     protected $casts = [
         'metadata' => 'array',
         'size' => 'integer',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
+    /**
+     * Get the tenant that owns this attachment.
+     */
     public function tenant()
     {
-        return $this->belongsTo(TenantModel::class);
+        return $this->belongsTo(TenantModel::class, 'tenant_id');
     }
+
+    /**
+     * Scope to filter by attachment type.
+     */
+    public function scopeByType($query, ?string $type)
+    {
+        if ($type) {
+            return $query->where('type', $type);
+        }
+        return $query;
 }

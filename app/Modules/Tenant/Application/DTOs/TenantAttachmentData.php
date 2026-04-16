@@ -6,31 +6,74 @@ namespace Modules\Tenant\Application\DTOs;
 
 use Modules\Core\Application\DTOs\BaseDto;
 
+/**
+ * Data Transfer Object for tenant attachment operations.
+ *
+ * Encapsulates attachment metadata validation. Used when uploading,
+ * updating, or retrieving file attachments for tenants.
+ */
 class TenantAttachmentData extends BaseDto
 {
-    public int $tenant_id;
+    /**
+     * Attachment ID for updates; null for creation.
+     */
+    public ?int $id = null;
 
+    /**
+     * Tenant ID this attachment belongs to (required).
+     */
+    public int $tenantId;
+
+    /**
+     * Unique identifier (UUID v4).
+     */
+    public ?string $uuid = null;
+
+    /**
+     * Original filename (required).
+     */
     public string $name;
 
-    public string $file_path;
+    /**
+     * Storage path on filesystem (required).
+     */
+    public string $filePath;
 
-    public string $mime_type;
+    /**
+     * MIME type of file (required).
+     */
+    public string $mimeType;
 
-    public int $size;
+    /**
+     * File size in bytes (required).
+     */
+    public int $size = 0;
 
-    public ?string $type;
+    /**
+     * Attachment type classification (optional, e.g., 'logo', 'document').
+     */
+    public ?string $type = null;
 
-    public ?array $metadata;
+    /**
+     * Additional metadata stored as JSON (optional).
+     */
+    public ?array $metadata = null;
 
+    /**
+     * Validation rules for input data.
+     *
+     * @return array<string, string>
+     */
     public function rules(): array
     {
         return [
-            'tenant_id' => 'required|integer|exists:tenants,id',
-            'name' => 'required|string',
-            'file_path' => 'required|string',
-            'mime_type' => 'required|string',
-            'size' => 'required|integer|min:0',
-            'type' => 'nullable|string',
+            'tenantId' => 'required|integer|exists:tenants,id',
+            'uuid' => 'nullable|string|uuid|unique:tenant_attachments,uuid',
+            'name' => 'required|string|max:500',
+            'filePath' => 'required|string|max:1000',
+            'mimeType' => 'required|string|max:127',
+            'size' => 'required|integer|min:0|max:10737418240', // 10GB max
+            'type' => 'nullable|string|max:100',
             'metadata' => 'nullable|array',
         ];
     }

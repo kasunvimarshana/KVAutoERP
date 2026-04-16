@@ -14,8 +14,17 @@ class TenantModel extends Model
 
     protected $table = 'tenants';
 
+    /**
+     * Attributes that should be hidden from JSON responses.
+     */
+    protected $hidden = [
+        'api_keys',
+        'database_config',
+    ];
+
     protected $fillable = [
         'name',
+        'slug',
         'domain',
         'logo_path',
         'database_config',
@@ -24,7 +33,13 @@ class TenantModel extends Model
         'queue_config',
         'feature_flags',
         'api_keys',
+        'settings',
+        'plan',
+        'tenant_plan_id',
+        'status',
         'active',
+        'trial_ends_at',
+        'subscription_ends_at',
     ];
 
     protected $casts = [
@@ -34,7 +49,10 @@ class TenantModel extends Model
         'queue_config' => 'array',
         'feature_flags' => 'array',
         'api_keys' => 'array',
+        'settings' => 'array',
         'active' => 'boolean',
+        'trial_ends_at' => 'datetime',
+        'subscription_ends_at' => 'datetime',
     ];
 
     public function attachments()

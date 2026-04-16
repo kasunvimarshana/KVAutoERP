@@ -6,27 +6,29 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
         Schema::create('tenant_attachments', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('tenant_id');
-            $table->string('uuid')->unique();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->string('uuid', 36)->unique();
             $table->string('name');
             $table->string('file_path');
-            $table->string('mime_type');
-            $table->unsignedInteger('size');
-            $table->string('type')->nullable();
+            $table->string('mime_type', 127);
+            $table->unsignedBigInteger('size')->default(0);
+            $table->string('type')->nullable()->index();
             $table->json('metadata')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
+            // Composite indexes for common query patterns
             $table->index(['tenant_id', 'type']);
+            $table->index(['tenant_id', 'created_at']);
+            $table->index(['uuid']);
         });
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('tenant_attachments');
     }
