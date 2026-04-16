@@ -13,12 +13,12 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
             $table->string('key', 255);
             $table->json('value')->nullable();
-            $table->string('group')->default('general')->index();
-            $table->boolean('is_public')->default(false)->index();
+            $table->string('group')->default('general')->index('idx_tenant_settings_group');
+            $table->boolean('is_public')->default(false)->index('idx_tenant_settings_public');
             $table->timestamps();
 
-            $table->unique(['tenant_id', 'key']);
-            $table->index(['tenant_id', 'group']);
+            $table->unique(['tenant_id', 'key'], 'tenant_settings_tenant_key_uq');
+            $table->index(['tenant_id', 'group'], 'idx_tenant_settings_tenant_group');
         });
     }
 

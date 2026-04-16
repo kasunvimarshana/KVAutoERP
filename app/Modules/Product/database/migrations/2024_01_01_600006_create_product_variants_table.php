@@ -19,7 +19,7 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamps();
 
-            $table->unique(['product_id', 'sku']);
+            $table->unique(['product_id', 'sku'], 'uq_product_variants_product_sku');
         });
 
         // Pivot for variant attributes

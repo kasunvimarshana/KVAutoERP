@@ -23,7 +23,7 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->index(['tenant_id', 'user_id', 'type']);
+            $table->index(['tenant_id', 'user_id', 'type'], 'idx_user_attachments_tenant_user_type');
         });
     }
 

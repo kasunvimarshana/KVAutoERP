@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->timestamps();
 
-            $table->unique(['tenant_id', 'name', 'guard_name']);
+            $table->unique(['tenant_id', 'name', 'guard_name'], 'uq_roles_tenant_name_guard');
         });
 
         // Permissions
@@ -30,7 +30,7 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->timestamps();
 
-            $table->unique(['tenant_id', 'name', 'guard_name']);
+            $table->unique(['tenant_id', 'name', 'guard_name'], 'uq_permissions_tenant_name_guard');
         });
 
         // Pivot tables
