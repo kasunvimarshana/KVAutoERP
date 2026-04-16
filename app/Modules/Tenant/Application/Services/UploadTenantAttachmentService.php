@@ -6,8 +6,8 @@ namespace Modules\Tenant\Application\Services;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
+use Modules\Core\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Core\Application\Services\BaseService;
-use Modules\Tenant\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
 use Modules\Tenant\Domain\Entities\TenantAttachment;
 use Modules\Tenant\Domain\Exceptions\TenantNotFoundException;

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Modules\Tenant\Infrastructure\Storage;
 
 use Illuminate\Http\UploadedFile;
+use Modules\Core\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Core\Application\Contracts\FileStorageServiceInterface;
-use Modules\Tenant\Application\Contracts\AttachmentStorageStrategyInterface;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**

@@ -6,8 +6,8 @@ namespace Modules\Tenant\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Modules\Core\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
-use Modules\Tenant\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Tenant\Application\Contracts\BulkUploadTenantAttachmentsServiceInterface;
 use Modules\Tenant\Application\Contracts\DeleteTenantAttachmentServiceInterface;
 use Modules\Tenant\Application\Contracts\FindTenantAttachmentsServiceInterface;

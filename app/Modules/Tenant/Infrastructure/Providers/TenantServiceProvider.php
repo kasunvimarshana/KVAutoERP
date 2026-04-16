@@ -6,8 +6,8 @@ namespace Modules\Tenant\Infrastructure\Providers;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Core\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Core\Application\Contracts\FileStorageServiceInterface;
-use Modules\Tenant\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Tenant\Application\Contracts\BulkUploadTenantAttachmentsServiceInterface;
 use Modules\Tenant\Application\Contracts\CreateTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\DeleteTenantAttachmentServiceInterface;

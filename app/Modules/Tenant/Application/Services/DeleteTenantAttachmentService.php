@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\Tenant\Application\Services;
 
+use Modules\Core\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Core\Application\Services\BaseService;
-use Modules\Tenant\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Tenant\Application\Contracts\DeleteTenantAttachmentServiceInterface;
 use Modules\Tenant\Domain\Exceptions\AttachmentNotFoundException;
 use Modules\Tenant\Domain\RepositoryInterfaces\TenantAttachmentRepositoryInterface;

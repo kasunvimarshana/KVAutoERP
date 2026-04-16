@@ -8,7 +8,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Modules\Tenant\Application\Contracts\AttachmentStorageStrategyInterface;
+use Modules\Core\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Tenant\Application\Contracts\BulkUploadTenantAttachmentsServiceInterface;
 use Modules\Tenant\Domain\Entities\TenantAttachment;
 use Modules\Tenant\Domain\Exceptions\TenantNotFoundException;

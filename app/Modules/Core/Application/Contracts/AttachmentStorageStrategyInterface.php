@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\Tenant\Application\Contracts;
+namespace Modules\Core\Application\Contracts;
 
 use Illuminate\Http\UploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
