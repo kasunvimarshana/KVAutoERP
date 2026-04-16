@@ -42,7 +42,7 @@ class FindTenantService implements FindTenantServiceInterface
 
     public function list(array $filters, int $perPage, int $page, ?string $sort = null, ?string $include = null): LengthAwarePaginator
     {
-        $repository = clone $this->tenantRepository;
+        $repository = $this->tenantRepository->resetCriteria();
 
         foreach ($filters as $field => $value) {
             if (in_array($field, self::ALLOWED_FILTERS, true)) {
