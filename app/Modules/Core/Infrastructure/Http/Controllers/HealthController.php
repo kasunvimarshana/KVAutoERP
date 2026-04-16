@@ -19,26 +19,6 @@ class HealthController extends AuthorizedController
      * monitors can poll this endpoint to verify that the application process
      * is alive and able to serve requests.  No authentication is required.
      */
-    #[OA\Get(
-        path: '/api/health',
-        operationId: 'healthCheck',
-        summary: 'Application health check',
-        description: 'Returns a simple JSON payload confirming the API process is running. No authentication required. Suitable for liveness/readiness probes.',
-        tags: ['Health'],
-        responses: [
-            new OA\Response(
-                response: 200,
-                description: 'Application is healthy',
-                content: new OA\JsonContent(
-                    required: ['status'],
-                    properties: [
-                        new OA\Property(property: 'status', type: 'string', example: 'ok'),
-                    ],
-                    type: 'object',
-                ),
-            ),
-        ],
-    )]
     public function check(): JsonResponse
     {
         return response()->json(['status' => 'ok']);
