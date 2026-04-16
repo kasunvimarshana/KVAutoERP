@@ -6,7 +6,6 @@ namespace Modules\Tenant\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Response;
 use Modules\Core\Application\Contracts\AttachmentStorageStrategyInterface;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
@@ -16,7 +15,9 @@ use Modules\Tenant\Application\Contracts\FindTenantServiceInterface;
 use Modules\Tenant\Application\Contracts\FindTenantAttachmentsServiceInterface;
 use Modules\Tenant\Application\Contracts\UploadTenantAttachmentServiceInterface;
 use Modules\Tenant\Domain\Entities\Tenant;
+use Modules\Tenant\Infrastructure\Http\Requests\ListTenantAttachmentRequest;
 use Modules\Tenant\Infrastructure\Http\Requests\UploadTenantAttachmentRequest;
+use Modules\Tenant\Infrastructure\Http\Resources\TenantAttachmentCollection;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantAttachmentResource;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -33,14 +34,22 @@ class TenantAttachmentController extends AuthorizedController
     ) {}
 
 
-    public function index(int $tenant, Request $request): AnonymousResourceCollection
+    public function index(int $tenant, ListTenantAttachmentRequest $request): TenantAttachmentCollection
     {
         $tenantEntity = $this->findTenantOrFail($tenant);
         $this->authorize('viewAttachments', $tenantEntity);
-        $type        = $request->query('type');
-        $attachments = $this->findAttachmentsService->findByTenant($tenant, $type);
+        $validated = $request->validated();
+        $type = $validated['type'] ?? null;
+        $perPage = (int) ($validated['per_page'] ?? 15);
+        $page = (int) ($validated['page'] ?? 1);
+        $attachments = $this->findAttachmentsService->paginateByTenant(
+            $tenant,
+            is_string($type) ? $type : null,
+            $perPage,
+            $page
+        );
 
-        return TenantAttachmentResource::collection($attachments);
+        return new TenantAttachmentCollection($attachments);
     }
 
 

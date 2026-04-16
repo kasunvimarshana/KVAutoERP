@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Modules\Tenant\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Response;
 use Modules\Tenant\Application\Contracts\CreateTenantSettingServiceInterface;
 use Modules\Tenant\Application\Contracts\DeleteTenantSettingServiceInterface;
@@ -16,8 +14,10 @@ use Modules\Tenant\Application\Contracts\FindTenantSettingsServiceInterface;
 use Modules\Tenant\Application\Contracts\UpdateTenantSettingServiceInterface;
 use Modules\Tenant\Application\DTOs\TenantSettingData;
 use Modules\Tenant\Domain\Entities\Tenant;
+use Modules\Tenant\Infrastructure\Http\Requests\ListTenantSettingRequest;
 use Modules\Tenant\Infrastructure\Http\Requests\StoreTenantSettingRequest;
 use Modules\Tenant\Infrastructure\Http\Requests\UpdateTenantSettingRequest;
+use Modules\Tenant\Infrastructure\Http\Resources\TenantSettingCollection;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantSettingResource;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -31,21 +31,29 @@ class TenantSettingController extends AuthorizedController
         private readonly DeleteTenantSettingServiceInterface $deleteSettingService
     ) {}
 
-    public function index(int $tenant, Request $request): AnonymousResourceCollection
+    public function index(int $tenant, ListTenantSettingRequest $request): TenantSettingCollection
     {
         $tenantEntity = $this->findTenantOrFail($tenant);
         $this->authorize('view', $tenantEntity);
-        $group = $request->query('group');
-        $isPublicInput = $request->query('is_public');
-        $isPublic = $isPublicInput === null ? null : filter_var($isPublicInput, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $validated = $request->validated();
 
-        $settings = $this->findSettingsService->listByTenant(
+        $group = $validated['group'] ?? null;
+        $isPublic = array_key_exists('is_public', $validated)
+            ? $request->boolean('is_public')
+            : null;
+
+        $perPage = (int) ($validated['per_page'] ?? 15);
+        $page = (int) ($validated['page'] ?? 1);
+
+        $settings = $this->findSettingsService->paginateByTenant(
             $tenant,
             is_string($group) ? $group : null,
-            $isPublic
+            $isPublic,
+            $perPage,
+            $page
         );
 
-        return TenantSettingResource::collection($settings);
+        return new TenantSettingCollection($settings);
     }
 
     public function show(int $tenant, string $key): TenantSettingResource

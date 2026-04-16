@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Tenant\Application\Services;
 
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Modules\Tenant\Application\Contracts\FindTenantSettingsServiceInterface;
 use Modules\Tenant\Domain\Entities\TenantSetting;
@@ -28,5 +29,24 @@ class FindTenantSettingsService implements FindTenantSettingsServiceInterface
     public function listByTenant(int $tenantId, ?string $group = null, ?bool $isPublic = null): Collection
     {
         return $this->settingRepository->getByTenant($tenantId, $group, $isPublic);
+    }
+
+    public function paginateByTenant(int $tenantId, ?string $group, ?bool $isPublic, int $perPage, int $page): LengthAwarePaginator
+    {
+        $repository = $this->settingRepository
+            ->resetCriteria()
+            ->where('tenant_id', $tenantId);
+
+        if ($group !== null && $group !== '') {
+            $repository->where('group', $group);
+        }
+
+        if ($isPublic !== null) {
+            $repository->where('is_public', $isPublic);
+        }
+
+        return $repository
+            ->orderBy('key', 'asc')
+            ->paginate($perPage, ['*'], 'page', $page);
     }
 }

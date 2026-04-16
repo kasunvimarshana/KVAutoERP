@@ -9,7 +9,7 @@ use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 
 class TenantResource extends JsonResource
 {
-    public function toArray($request)
+    public function toArray($request): array
     {
         $storage = app(FileStorageServiceInterface::class);
 
