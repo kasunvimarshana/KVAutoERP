@@ -29,6 +29,7 @@ use Modules\User\Infrastructure\Http\Requests\UpdatePreferencesRequest;
 use Modules\User\Infrastructure\Http\Requests\UpdateUserRequest;
 use Modules\User\Infrastructure\Http\Resources\UserCollection;
 use Modules\User\Infrastructure\Http\Resources\UserResource;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class UserController extends AuthorizedController
@@ -116,7 +117,7 @@ class UserController extends AuthorizedController
 
         $resource = $this->buildUserResource($createdUser, $request->query('include'));
 
-        return $resource->response()->setStatusCode(201);
+        return $resource->response()->setStatusCode(HttpResponse::HTTP_CREATED);
     }
 
     public function show(Request $request, int $userId): UserResource

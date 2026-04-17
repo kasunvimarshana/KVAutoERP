@@ -17,6 +17,7 @@ use Modules\User\Infrastructure\Http\Requests\StoreRoleRequest;
 use Modules\User\Infrastructure\Http\Requests\SyncRolePermissionsRequest;
 use Modules\User\Infrastructure\Http\Resources\RoleCollection;
 use Modules\User\Infrastructure\Http\Resources\RoleResource;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class RoleController extends AuthorizedController
@@ -56,7 +57,7 @@ class RoleController extends AuthorizedController
         $this->authorize('create', Role::class);
         $role = $this->createRoleService->execute($request->validated());
 
-        return (new RoleResource($role))->response()->setStatusCode(201);
+        return (new RoleResource($role))->response()->setStatusCode(HttpResponse::HTTP_CREATED);
     }
 
     public function destroy(int $roleId): JsonResponse

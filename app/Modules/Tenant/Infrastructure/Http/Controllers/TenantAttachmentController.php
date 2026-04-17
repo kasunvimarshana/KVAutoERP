@@ -20,6 +20,7 @@ use Modules\Tenant\Infrastructure\Http\Requests\UploadTenantAttachmentRequest;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantAttachmentCollection;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantAttachmentResource;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -98,7 +99,7 @@ class TenantAttachmentController extends AuthorizedController
 
         return TenantAttachmentResource::collection($attachments)
             ->response()
-            ->setStatusCode(201);
+            ->setStatusCode(HttpResponse::HTTP_CREATED);
     }
 
 

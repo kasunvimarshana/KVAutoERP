@@ -27,6 +27,7 @@ use Modules\Tenant\Infrastructure\Http\Requests\UpdateTenantRequest;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantCollection;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantConfigResource;
 use Modules\Tenant\Infrastructure\Http\Resources\TenantResource;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class TenantController extends AuthorizedController
@@ -118,7 +119,7 @@ class TenantController extends AuthorizedController
 
         $resource = $this->buildTenantResource($tenant, $request->query('include'));
 
-        return $resource->response()->setStatusCode(201);
+        return $resource->response()->setStatusCode(HttpResponse::HTTP_CREATED);
     }
 
     public function show(Request $request, int $tenantId): TenantResource

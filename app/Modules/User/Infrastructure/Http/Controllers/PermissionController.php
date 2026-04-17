@@ -15,6 +15,7 @@ use Modules\User\Infrastructure\Http\Requests\ListPermissionRequest;
 use Modules\User\Infrastructure\Http\Requests\StorePermissionRequest;
 use Modules\User\Infrastructure\Http\Resources\PermissionCollection;
 use Modules\User\Infrastructure\Http\Resources\PermissionResource;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PermissionController extends AuthorizedController
@@ -53,7 +54,7 @@ class PermissionController extends AuthorizedController
         $this->authorize('create', Permission::class);
         $permission = $this->createPermissionService->execute($request->validated());
 
-        return (new PermissionResource($permission))->response()->setStatusCode(201);
+        return (new PermissionResource($permission))->response()->setStatusCode(HttpResponse::HTTP_CREATED);
     }
 
     public function destroy(int $permissionId): JsonResponse

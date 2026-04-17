@@ -27,6 +27,7 @@ use Modules\User\Infrastructure\Http\Requests\UploadAvatarRequest;
 use Modules\User\Infrastructure\Http\Resources\UserDeviceCollection;
 use Modules\User\Infrastructure\Http\Resources\UserDeviceResource;
 use Modules\User\Infrastructure\Http\Resources\UserResource;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class ProfileController extends AuthorizedController
 {
@@ -46,13 +47,13 @@ class ProfileController extends AuthorizedController
     {
         $userId = $this->authenticatedUserId();
         if ($userId === null) {
-            return Response::json(['message' => 'Unauthenticated'], 401);
+            return Response::json(['message' => 'Unauthenticated'], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         $user = $this->findUserService->find($userId);
 
         if (! $user) {
-            return Response::json(['message' => 'User profile unavailable'], 404);
+            return Response::json(['message' => 'User profile unavailable'], HttpResponse::HTTP_NOT_FOUND);
         }
 
         return Response::json(new UserResource($user));
@@ -62,7 +63,7 @@ class ProfileController extends AuthorizedController
     {
         $userId = $this->authenticatedUserId();
         if ($userId === null) {
-            return Response::json(['message' => 'Unauthenticated'], 401);
+            return Response::json(['message' => 'Unauthenticated'], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         $updatePayload = array_merge($request->validated(), ['user_id' => $userId]);
@@ -75,7 +76,7 @@ class ProfileController extends AuthorizedController
     {
         $userId = $this->authenticatedUserId();
         if ($userId === null) {
-            return Response::json(['message' => 'Unauthenticated'], 401);
+            return Response::json(['message' => 'Unauthenticated'], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         $passwordChangePayload = array_merge($request->validated(), ['user_id' => $userId]);
@@ -83,7 +84,7 @@ class ProfileController extends AuthorizedController
         try {
             $this->changePasswordService->execute($passwordChangePayload);
         } catch (DomainException $e) {
-            return Response::json(['message' => $e->getMessage()], 422);
+            return Response::json(['message' => $e->getMessage()], HttpResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return Response::json(['message' => 'Password changed successfully.']);
@@ -93,7 +94,7 @@ class ProfileController extends AuthorizedController
     {
         $userId = $this->authenticatedUserId();
         if ($userId === null) {
-            return Response::json(['message' => 'Unauthenticated'], 401);
+            return Response::json(['message' => 'Unauthenticated'], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         $dto = UserPreferencesData::fromArray($request->validated());
@@ -106,7 +107,7 @@ class ProfileController extends AuthorizedController
     {
         $userId = $this->authenticatedUserId();
         if ($userId === null) {
-            return Response::json(['message' => 'Unauthenticated'], 401);
+            return Response::json(['message' => 'Unauthenticated'], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         $file = $request->file('avatar');
@@ -128,7 +129,7 @@ class ProfileController extends AuthorizedController
     {
         $userId = $this->authenticatedUserId();
         if ($userId === null) {
-            return Response::json(['message' => 'Unauthenticated'], 401);
+            return Response::json(['message' => 'Unauthenticated'], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         $validated = $request->validated();
@@ -149,7 +150,7 @@ class ProfileController extends AuthorizedController
     {
         $userId = $this->authenticatedUserId();
         if ($userId === null) {
-            return Response::json(['message' => 'Unauthenticated'], 401);
+            return Response::json(['message' => 'Unauthenticated'], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         $device = $this->upsertUserDeviceService->execute([
@@ -164,7 +165,7 @@ class ProfileController extends AuthorizedController
     {
         $userId = $this->authenticatedUserId();
         if ($userId === null) {
-            return Response::json(['message' => 'Unauthenticated'], 401);
+            return Response::json(['message' => 'Unauthenticated'], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         $this->deleteUserDeviceService->execute([
