@@ -18,6 +18,7 @@ use Modules\User\Infrastructure\Http\Requests\ListUserAttachmentRequest;
 use Modules\User\Infrastructure\Http\Requests\UploadUserAttachmentRequest;
 use Modules\User\Infrastructure\Http\Resources\UserAttachmentCollection;
 use Modules\User\Infrastructure\Http\Resources\UserAttachmentResource;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -55,6 +56,12 @@ class UserAttachmentController extends AuthorizedController
         $userEntity = $this->findUserOrFail($userId);
         $this->authorize('uploadAttachment', $userEntity);
         $file = $request->file('file');
+        if ($file === null) {
+            throw ValidationException::withMessages([
+                'file' => ['A file upload is required for this endpoint.'],
+            ]);
+        }
+
         $fileInfo = [
             'tmp_path' => $file->getPathname(),
             'name' => $file->getClientOriginalName(),

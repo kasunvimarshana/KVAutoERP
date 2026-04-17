@@ -7,6 +7,7 @@ namespace Modules\User\Infrastructure\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\User\Application\Contracts\AssignRoleServiceInterface;
@@ -15,6 +16,7 @@ use Modules\User\Application\Contracts\DeleteUserServiceInterface;
 use Modules\User\Application\Contracts\FindUserAttachmentsServiceInterface;
 use Modules\User\Application\Contracts\FindUserDevicesServiceInterface;
 use Modules\User\Application\Contracts\FindUserServiceInterface;
+use Modules\User\Application\Contracts\UploadAvatarServiceInterface;
 use Modules\User\Application\Contracts\UpdatePreferencesServiceInterface;
 use Modules\User\Application\Contracts\UpdateUserServiceInterface;
 use Modules\User\Application\DTOs\UserData;
@@ -42,7 +44,8 @@ class UserController extends AuthorizedController
         protected UpdateUserServiceInterface $updateUserService,
         protected DeleteUserServiceInterface $deleteUserService,
         protected AssignRoleServiceInterface $assignRoleService,
-        protected UpdatePreferencesServiceInterface $updatePreferencesService
+        protected UpdatePreferencesServiceInterface $updatePreferencesService,
+        protected UploadAvatarServiceInterface $uploadAvatarService
     ) {}
 
     public function index(ListUserRequest $request): UserCollection
@@ -69,14 +72,48 @@ class UserController extends AuthorizedController
 
         $users = $this->findUserService->list($filters, $perPage, $page, $sort, $include);
 
+        $normalizedIncludes = $this->parseIncludes($include);
+        if ($normalizedIncludes !== []) {
+            $users->setCollection(
+                $users->getCollection()->map(
+                    fn (User $user): UserResource => $this->buildIndexedUserResource($user, $normalizedIncludes)
+                )
+            );
+        }
+
         return new UserCollection($users);
     }
 
     public function store(StoreUserRequest $request): JsonResponse
     {
         $this->authorize('create', User::class);
-        $dto = UserData::fromArray($request->validated());
-        $createdUser = $this->createUserService->execute($dto->toArray());
+        $validated = $request->validated();
+        $avatarFile = $request->file('avatar_file');
+
+        $createdUser = DB::transaction(function () use ($validated, $avatarFile): User {
+            $payload = $validated;
+            unset($payload['avatar_file']);
+
+            $dto = UserData::fromArray($payload);
+            $savedUser = $this->createUserService->execute($dto->toArray());
+
+            if ($avatarFile !== null && $savedUser->getId() !== null) {
+                $this->uploadAvatarService->execute([
+                    'user_id' => $savedUser->getId(),
+                    'file' => [
+                        'tmp_path' => $avatarFile->getPathname(),
+                        'name' => $avatarFile->getClientOriginalName(),
+                        'mime_type' => (string) $avatarFile->getMimeType(),
+                        'size' => (int) $avatarFile->getSize(),
+                    ],
+                ]);
+
+                return $this->findUserService->find($savedUser->getId()) ?? $savedUser;
+            }
+
+            return $savedUser;
+        });
+
         $resource = $this->buildUserResource($createdUser, $request->query('include'));
 
         return $resource->response()->setStatusCode(201);
@@ -95,9 +132,32 @@ class UserController extends AuthorizedController
         $userEntity = $this->findUserOrFail($userId);
         $this->authorize('update', $userEntity);
 
-        $payload = $request->validated();
-        $payload['id'] = $userId;
-        $updatedUser = $this->updateUserService->execute($payload);
+        $validated = $request->validated();
+        $avatarFile = $request->file('avatar_file');
+
+        $updatedUser = DB::transaction(function () use ($validated, $avatarFile, $userId): User {
+            $payload = $validated;
+            unset($payload['avatar_file']);
+            $payload['id'] = $userId;
+
+            $savedUser = $this->updateUserService->execute($payload);
+
+            if ($avatarFile !== null) {
+                $this->uploadAvatarService->execute([
+                    'user_id' => $userId,
+                    'file' => [
+                        'tmp_path' => $avatarFile->getPathname(),
+                        'name' => $avatarFile->getClientOriginalName(),
+                        'mime_type' => (string) $avatarFile->getMimeType(),
+                        'size' => (int) $avatarFile->getSize(),
+                    ],
+                ]);
+
+                return $this->findUserService->find($userId) ?? $savedUser;
+            }
+
+            return $savedUser;
+        });
 
         return $this->buildUserResource($updatedUser, $request->query('include'));
     }
@@ -182,6 +242,17 @@ class UserController extends AuthorizedController
             $this->findUserDevicesService
                 ->paginateByUser($userId, null, 100, 1)
                 ->items()
+        );
+    }
+
+    /**
+     * @param array<int, string> $includes
+     */
+    private function buildIndexedUserResource(User $user, array $includes): UserResource
+    {
+        return new UserResource(
+            resource: $user,
+            includePermissions: in_array('permissions', $includes, true)
         );
     }
 }
