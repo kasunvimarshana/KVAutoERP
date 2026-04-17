@@ -22,9 +22,9 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 class RoleController extends AuthorizedController
 {
     public function __construct(
-        protected FindRoleServiceInterface $findService,
-        protected CreateRoleServiceInterface $createService,
-        protected DeleteRoleServiceInterface $deleteService,
+        protected FindRoleServiceInterface $findRoleService,
+        protected CreateRoleServiceInterface $createRoleService,
+        protected DeleteRoleServiceInterface $deleteRoleService,
         protected SyncRolePermissionsServiceInterface $syncPermissionsService
     ) {}
 
@@ -38,14 +38,14 @@ class RoleController extends AuthorizedController
         }
         $perPage = (int) ($validated['per_page'] ?? 15);
         $page    = (int) ($validated['page'] ?? 1);
-        $roles   = $this->findService->list($filters, $perPage, $page);
+        $roles   = $this->findRoleService->list($filters, $perPage, $page);
 
         return new RoleCollection($roles);
     }
 
-    public function show(int $role): RoleResource
+    public function show(int $roleId): RoleResource
     {
-        $roleEntity = $this->findRoleOrFail($role);
+        $roleEntity = $this->findRoleOrFail($roleId);
         $this->authorize('view', $roleEntity);
 
         return new RoleResource($roleEntity);
@@ -54,27 +54,28 @@ class RoleController extends AuthorizedController
     public function store(StoreRoleRequest $request): JsonResponse
     {
         $this->authorize('create', Role::class);
-        $role = $this->createService->execute($request->validated());
+        $role = $this->createRoleService->execute($request->validated());
 
         return (new RoleResource($role))->response()->setStatusCode(201);
     }
 
-    public function destroy(int $role): JsonResponse
+    public function destroy(int $roleId): JsonResponse
     {
-        $roleEntity = $this->findRoleOrFail($role);
+        $roleEntity = $this->findRoleOrFail($roleId);
         $this->authorize('delete', $roleEntity);
-        $this->deleteService->execute(['id' => $role]);
+        $this->deleteRoleService->execute(['id' => $roleId]);
 
         return Response::json(['message' => 'Role deleted successfully']);
     }
 
-    public function syncPermissions(SyncRolePermissionsRequest $request, int $role): RoleResource
+    public function syncPermissions(SyncRolePermissionsRequest $request, int $roleId): RoleResource
     {
-        $roleEntity = $this->findRoleOrFail($role);
+        $roleEntity = $this->findRoleOrFail($roleId);
         $this->authorize('syncPermissions', $roleEntity);
+        $validated = $request->validated();
         $updated = $this->syncPermissionsService->execute([
-            'role_id'        => $role,
-            'permission_ids' => $request->validated()['permission_ids'],
+            'role_id'        => $roleId,
+            'permission_ids' => $validated['permission_ids'],
         ]);
 
         return new RoleResource($updated);
@@ -82,7 +83,7 @@ class RoleController extends AuthorizedController
 
     private function findRoleOrFail(int $roleId): Role
     {
-        $role = $this->findService->find($roleId);
+        $role = $this->findRoleService->find($roleId);
         if (! $role) {
             throw new NotFoundHttpException('Role not found.');
         }

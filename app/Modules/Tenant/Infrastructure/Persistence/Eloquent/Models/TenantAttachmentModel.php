@@ -49,7 +49,5 @@ class TenantAttachmentModel extends Model
         if ($type) {
             return $query->where('type', $type);
         }
-
         return $query;
-    }
 }

@@ -32,7 +32,7 @@ class ProfileController extends AuthorizedController
 {
     public function __construct(
         protected GetAuthenticatedUser $getAuthenticatedUser,
-        protected FindUserServiceInterface $findService,
+        protected FindUserServiceInterface $findUserService,
         protected FindUserDevicesServiceInterface $findUserDevicesService,
         protected UpsertUserDeviceServiceInterface $upsertUserDeviceService,
         protected DeleteUserDeviceServiceInterface $deleteUserDeviceService,
@@ -49,7 +49,7 @@ class ProfileController extends AuthorizedController
             return Response::json(['message' => 'Unauthenticated'], 401);
         }
 
-        $user = $this->findService->find($userId);
+        $user = $this->findUserService->find($userId);
 
         if (! $user) {
             return Response::json(['message' => 'User profile unavailable'], 404);
@@ -65,8 +65,8 @@ class ProfileController extends AuthorizedController
             return Response::json(['message' => 'Unauthenticated'], 401);
         }
 
-        $data = array_merge($request->validated(), ['user_id' => $userId]);
-        $user = $this->updateProfileService->execute($data);
+        $updatePayload = array_merge($request->validated(), ['user_id' => $userId]);
+        $user = $this->updateProfileService->execute($updatePayload);
 
         return Response::json(new UserResource($user));
     }
@@ -78,10 +78,10 @@ class ProfileController extends AuthorizedController
             return Response::json(['message' => 'Unauthenticated'], 401);
         }
 
-        $data = array_merge($request->validated(), ['user_id' => $userId]);
+        $passwordChangePayload = array_merge($request->validated(), ['user_id' => $userId]);
 
         try {
-            $this->changePasswordService->execute($data);
+            $this->changePasswordService->execute($passwordChangePayload);
         } catch (DomainException $e) {
             return Response::json(['message' => $e->getMessage()], 422);
         }
@@ -160,7 +160,7 @@ class ProfileController extends AuthorizedController
         return new UserDeviceResource($device);
     }
 
-    public function deleteDevice(int $device): JsonResponse
+    public function deleteDevice(int $deviceId): JsonResponse
     {
         $userId = $this->authenticatedUserId();
         if ($userId === null) {
@@ -169,7 +169,7 @@ class ProfileController extends AuthorizedController
 
         $this->deleteUserDeviceService->execute([
             'user_id' => $userId,
-            'device_id' => $device,
+            'device_id' => $deviceId,
         ]);
 
         return Response::json(['message' => 'Device deleted successfully']);

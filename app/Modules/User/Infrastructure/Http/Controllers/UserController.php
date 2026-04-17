@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Modules\User\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\User\Application\Contracts\AssignRoleServiceInterface;
 use Modules\User\Application\Contracts\CreateUserServiceInterface;
 use Modules\User\Application\Contracts\DeleteUserServiceInterface;
+use Modules\User\Application\Contracts\FindUserAttachmentsServiceInterface;
+use Modules\User\Application\Contracts\FindUserDevicesServiceInterface;
 use Modules\User\Application\Contracts\FindUserServiceInterface;
 use Modules\User\Application\Contracts\UpdatePreferencesServiceInterface;
 use Modules\User\Application\Contracts\UpdateUserServiceInterface;
@@ -27,11 +31,16 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class UserController extends AuthorizedController
 {
+    /** @var array<string> */
+    private const SUPPORTED_INCLUDES = ['attachments', 'devices', 'permissions'];
+
     public function __construct(
-        protected FindUserServiceInterface $findService,
-        protected CreateUserServiceInterface $createService,
-        protected UpdateUserServiceInterface $updateService,
-        protected DeleteUserServiceInterface $deleteService,
+        protected FindUserServiceInterface $findUserService,
+        protected FindUserAttachmentsServiceInterface $findUserAttachmentsService,
+        protected FindUserDevicesServiceInterface $findUserDevicesService,
+        protected CreateUserServiceInterface $createUserService,
+        protected UpdateUserServiceInterface $updateUserService,
+        protected DeleteUserServiceInterface $deleteUserService,
         protected AssignRoleServiceInterface $assignRoleService,
         protected UpdatePreferencesServiceInterface $updatePreferencesService
     ) {}
@@ -58,7 +67,7 @@ class UserController extends AuthorizedController
         $sort = $validated['sort'] ?? null;
         $include = $validated['include'] ?? null;
 
-        $users = $this->findService->list($filters, $perPage, $page, $sort, $include);
+        $users = $this->findUserService->list($filters, $perPage, $page, $sort, $include);
 
         return new UserCollection($users);
     }
@@ -67,68 +76,112 @@ class UserController extends AuthorizedController
     {
         $this->authorize('create', User::class);
         $dto = UserData::fromArray($request->validated());
-        $user = $this->createService->execute($dto->toArray());
+        $createdUser = $this->createUserService->execute($dto->toArray());
+        $resource = $this->buildUserResource($createdUser, $request->query('include'));
 
-        return (new UserResource($user))->response()->setStatusCode(201);
+        return $resource->response()->setStatusCode(201);
     }
 
-    public function show(int $user): UserResource
+    public function show(Request $request, int $userId): UserResource
     {
-        $userEntity = $this->findUserOrFail($user);
+        $userEntity = $this->findUserOrFail($userId);
         $this->authorize('view', $userEntity);
 
-        return new UserResource($userEntity);
+        return $this->buildUserResource($userEntity, $request->query('include'));
     }
 
-    public function update(UpdateUserRequest $request, int $user): UserResource
+    public function update(UpdateUserRequest $request, int $userId): UserResource
     {
-        $userEntity = $this->findUserOrFail($user);
+        $userEntity = $this->findUserOrFail($userId);
         $this->authorize('update', $userEntity);
 
         $payload = $request->validated();
-        $payload['id'] = $user;
-        $updated = $this->updateService->execute($payload);
+        $payload['id'] = $userId;
+        $updatedUser = $this->updateUserService->execute($payload);
 
-        return new UserResource($updated);
+        return $this->buildUserResource($updatedUser, $request->query('include'));
     }
 
-    public function destroy(int $user): JsonResponse
+    public function destroy(int $userId): JsonResponse
     {
-        $userEntity = $this->findUserOrFail($user);
+        $userEntity = $this->findUserOrFail($userId);
         $this->authorize('delete', $userEntity);
-        $this->deleteService->execute(['id' => $user]);
+        $this->deleteUserService->execute(['id' => $userId]);
 
         return Response::json(['message' => 'User deleted successfully']);
     }
 
-    public function assignRole(AssignRoleRequest $request, int $user): JsonResponse
+    public function assignRole(AssignRoleRequest $request, int $userId): JsonResponse
     {
-        $userEntity = $this->findUserOrFail($user);
+        $userEntity = $this->findUserOrFail($userId);
         $this->authorize('assignRole', $userEntity);
         $validated = $request->validated();
-        $this->assignRoleService->execute(['user_id' => $user, 'role_id' => $validated['role_id']]);
+        $this->assignRoleService->execute(['user_id' => $userId, 'role_id' => $validated['role_id']]);
 
         return Response::json(['message' => 'Role assigned successfully']);
     }
 
-    public function updatePreferences(UpdatePreferencesRequest $request, int $user): UserResource
+    public function updatePreferences(UpdatePreferencesRequest $request, int $userId): UserResource
     {
-        $userEntity = $this->findUserOrFail($user);
+        $userEntity = $this->findUserOrFail($userId);
         $this->authorize('updatePreferences', $userEntity);
         $validated = $request->validated();
         $dto = UserPreferencesData::fromArray($validated);
-        $updated = $this->updatePreferencesService->execute(['user_id' => $user] + $dto->toArray());
+        $updatedUser = $this->updatePreferencesService->execute(['user_id' => $userId] + $dto->toArray());
 
-        return new UserResource($updated);
+        return $this->buildUserResource($updatedUser, $request->query('include'));
     }
 
     private function findUserOrFail(int $userId): User
     {
-        $user = $this->findService->find($userId);
+        $user = $this->findUserService->find($userId);
         if (! $user) {
             throw new NotFoundHttpException('User not found.');
         }
 
         return $user;
+    }
+
+    private function buildUserResource(User $user, mixed $includeValue): UserResource
+    {
+        $includes = $this->parseIncludes($includeValue);
+        $userId = $user->getId();
+
+        return new UserResource(
+            resource: $user,
+            attachments: in_array('attachments', $includes, true) && $userId !== null
+                ? $this->findUserAttachmentsService->getByUser($userId)
+                : null,
+            devices: in_array('devices', $includes, true) && $userId !== null
+                ? $this->collectUserDevices($userId)
+                : null,
+            includePermissions: in_array('permissions', $includes, true)
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function parseIncludes(mixed $includeValue): array
+    {
+        if (! is_string($includeValue) || trim($includeValue) === '') {
+            return [];
+        }
+
+        $requestedIncludes = array_map('trim', explode(',', $includeValue));
+
+        return array_values(array_unique(array_filter(
+            $requestedIncludes,
+            fn (string $include): bool => in_array($include, self::SUPPORTED_INCLUDES, true)
+        )));
+    }
+
+    private function collectUserDevices(int $userId): Collection
+    {
+        return Collection::make(
+            $this->findUserDevicesService
+                ->paginateByUser($userId, null, 100, 1)
+                ->items()
+        );
     }
 }

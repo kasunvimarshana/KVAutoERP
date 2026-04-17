@@ -27,9 +27,9 @@ class UserDeviceController extends AuthorizedController
         protected DeleteUserDeviceServiceInterface $deleteUserDeviceService
     ) {}
 
-    public function index(int $user, ListUserDeviceRequest $request): UserDeviceCollection
+    public function index(int $userId, ListUserDeviceRequest $request): UserDeviceCollection
     {
-        $userEntity = $this->findUserOrFail($user);
+        $userEntity = $this->findUserOrFail($userId);
         $this->authorize('view', $userEntity);
 
         $validated = $request->validated();
@@ -37,7 +37,7 @@ class UserDeviceController extends AuthorizedController
         $perPage = (int) ($validated['per_page'] ?? 15);
         $page = (int) ($validated['page'] ?? 1);
         $devices = $this->findUserDevicesService->paginateByUser(
-            $user,
+            $userId,
             is_string($platform) ? $platform : null,
             $perPage,
             $page
@@ -46,27 +46,27 @@ class UserDeviceController extends AuthorizedController
         return new UserDeviceCollection($devices);
     }
 
-    public function store(UpsertUserDeviceRequest $request, int $user): UserDeviceResource
+    public function store(UpsertUserDeviceRequest $request, int $userId): UserDeviceResource
     {
-        $userEntity = $this->findUserOrFail($user);
+        $userEntity = $this->findUserOrFail($userId);
         $this->authorize('update', $userEntity);
 
         $device = $this->upsertUserDeviceService->execute([
-            'user_id' => $user,
+            'user_id' => $userId,
             ...$request->validated(),
         ]);
 
         return new UserDeviceResource($device);
     }
 
-    public function destroy(int $user, int $device): JsonResponse
+    public function destroy(int $userId, int $deviceId): JsonResponse
     {
-        $userEntity = $this->findUserOrFail($user);
+        $userEntity = $this->findUserOrFail($userId);
         $this->authorize('update', $userEntity);
 
         $this->deleteUserDeviceService->execute([
-            'user_id' => $user,
-            'device_id' => $device,
+            'user_id' => $userId,
+            'device_id' => $deviceId,
         ]);
 
         return Response::json(['message' => 'Device deleted successfully']);

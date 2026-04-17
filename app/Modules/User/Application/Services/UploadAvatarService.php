@@ -14,20 +14,17 @@ use Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface;
 
 class UploadAvatarService extends BaseService implements UploadAvatarServiceInterface
 {
-    private UserRepositoryInterface $userRepository;
-
     public function __construct(
-        UserRepositoryInterface $repository,
-        protected FileStorageServiceInterface $storage
+        private readonly UserRepositoryInterface $userRepository,
+        private readonly FileStorageServiceInterface $storage
     ) {
-        parent::__construct($repository);
-        $this->userRepository = $repository;
+        parent::__construct($userRepository);
     }
 
     protected function handle(array $data): User
     {
-        $userId = $data['user_id'];
-        $fileInfo = $data['file'];
+        $userId = (int) $data['user_id'];
+        $fileInfo = (array) $data['file'];
 
         $user = $this->userRepository->find($userId);
         if (! $user) {

@@ -25,23 +25,23 @@ class UserAttachmentController extends AuthorizedController
 {
     public function __construct(
         protected FindUserServiceInterface $findUserService,
-        protected UploadUserAttachmentServiceInterface $uploadService,
-        protected DeleteUserAttachmentServiceInterface $deleteService,
-        protected FindUserAttachmentsServiceInterface $findService,
+        protected UploadUserAttachmentServiceInterface $uploadAttachmentService,
+        protected DeleteUserAttachmentServiceInterface $deleteAttachmentService,
+        protected FindUserAttachmentsServiceInterface $findUserAttachmentsService,
         protected FileStorageServiceInterface $storage
     ) {}
 
-    public function index(int $user, ListUserAttachmentRequest $request): UserAttachmentCollection
+    public function index(int $userId, ListUserAttachmentRequest $request): UserAttachmentCollection
     {
-        $userEntity = $this->findUserOrFail($user);
+        $userEntity = $this->findUserOrFail($userId);
         $this->authorize('viewAttachments', $userEntity);
 
         $validated = $request->validated();
         $type = $validated['type'] ?? null;
         $perPage = (int) ($validated['per_page'] ?? 15);
         $page = (int) ($validated['page'] ?? 1);
-        $attachments = $this->findService->paginateByUser(
-            $user,
+        $attachments = $this->findUserAttachmentsService->paginateByUser(
+            $userId,
             is_string($type) ? $type : null,
             $perPage,
             $page
@@ -50,9 +50,9 @@ class UserAttachmentController extends AuthorizedController
         return new UserAttachmentCollection($attachments);
     }
 
-    public function store(UploadUserAttachmentRequest $request, int $user): UserAttachmentResource
+    public function store(UploadUserAttachmentRequest $request, int $userId): UserAttachmentResource
     {
-        $userEntity = $this->findUserOrFail($user);
+        $userEntity = $this->findUserOrFail($userId);
         $this->authorize('uploadAttachment', $userEntity);
         $file = $request->file('file');
         $fileInfo = [
@@ -61,8 +61,8 @@ class UserAttachmentController extends AuthorizedController
             'mime_type' => $file->getMimeType(),
             'size' => $file->getSize(),
         ];
-        $attachment = $this->uploadService->execute([
-            'user_id' => $user,
+        $attachment = $this->uploadAttachmentService->execute([
+            'user_id' => $userId,
             'file' => $fileInfo,
             'type' => $request->input('type'),
             'metadata' => $request->input('metadata'),
@@ -71,24 +71,24 @@ class UserAttachmentController extends AuthorizedController
         return new UserAttachmentResource($attachment);
     }
 
-    public function destroy(int $user, int $attachment): JsonResponse
+    public function destroy(int $userId, int $attachmentId): JsonResponse
     {
-        $userEntity = $this->findUserOrFail($user);
+        $userEntity = $this->findUserOrFail($userId);
         $this->authorize('deleteAttachment', $userEntity);
 
-        $attachmentEntity = $this->findAttachmentOrFail($attachment);
-        if ($attachmentEntity->getUserId() !== $user) {
+        $attachmentEntity = $this->findAttachmentOrFail($attachmentId);
+        if ($attachmentEntity->getUserId() !== $userId) {
             throw new NotFoundHttpException('Attachment not found.');
         }
 
-        $this->deleteService->execute(['attachment_id' => $attachment]);
+        $this->deleteAttachmentService->execute(['attachment_id' => $attachmentId]);
 
         return Response::json(['message' => 'Attachment deleted successfully']);
     }
 
     public function serve(string $uuid): StreamedResponse
     {
-        $attachment = $this->findService->findByUuid($uuid);
+        $attachment = $this->findUserAttachmentsService->findByUuid($uuid);
         if (! $attachment) {
             throw new NotFoundHttpException('Attachment not found.');
         }
@@ -109,7 +109,7 @@ class UserAttachmentController extends AuthorizedController
 
     private function findAttachmentOrFail(int $attachmentId): UserAttachment
     {
-        $attachment = $this->findService->find($attachmentId);
+        $attachment = $this->findUserAttachmentsService->find($attachmentId);
         if (! $attachment) {
             throw new NotFoundHttpException('Attachment not found.');
         }

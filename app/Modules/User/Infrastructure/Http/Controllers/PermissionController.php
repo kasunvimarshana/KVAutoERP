@@ -20,9 +20,9 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 class PermissionController extends AuthorizedController
 {
     public function __construct(
-        protected FindPermissionServiceInterface $findService,
-        protected CreatePermissionServiceInterface $createService,
-        protected DeletePermissionServiceInterface $deleteService
+        protected FindPermissionServiceInterface $findPermissionService,
+        protected CreatePermissionServiceInterface $createPermissionService,
+        protected DeletePermissionServiceInterface $deletePermissionService
     ) {}
 
     public function index(ListPermissionRequest $request): PermissionCollection
@@ -35,14 +35,14 @@ class PermissionController extends AuthorizedController
         }
         $perPage     = (int) ($validated['per_page'] ?? 15);
         $page        = (int) ($validated['page'] ?? 1);
-        $permissions = $this->findService->list($filters, $perPage, $page);
+        $permissions = $this->findPermissionService->list($filters, $perPage, $page);
 
         return new PermissionCollection($permissions);
     }
 
-    public function show(int $permission): PermissionResource
+    public function show(int $permissionId): PermissionResource
     {
-        $permissionEntity = $this->findPermissionOrFail($permission);
+        $permissionEntity = $this->findPermissionOrFail($permissionId);
         $this->authorize('view', $permissionEntity);
 
         return new PermissionResource($permissionEntity);
@@ -51,23 +51,23 @@ class PermissionController extends AuthorizedController
     public function store(StorePermissionRequest $request): JsonResponse
     {
         $this->authorize('create', Permission::class);
-        $permission = $this->createService->execute($request->validated());
+        $permission = $this->createPermissionService->execute($request->validated());
 
         return (new PermissionResource($permission))->response()->setStatusCode(201);
     }
 
-    public function destroy(int $permission): JsonResponse
+    public function destroy(int $permissionId): JsonResponse
     {
-        $permissionEntity = $this->findPermissionOrFail($permission);
+        $permissionEntity = $this->findPermissionOrFail($permissionId);
         $this->authorize('delete', $permissionEntity);
-        $this->deleteService->execute(['id' => $permission]);
+        $this->deletePermissionService->execute(['id' => $permissionId]);
 
         return Response::json(['message' => 'Permission deleted successfully']);
     }
 
     private function findPermissionOrFail(int $permissionId): Permission
     {
-        $permission = $this->findService->find($permissionId);
+        $permission = $this->findPermissionService->find($permissionId);
         if (! $permission) {
             throw new NotFoundHttpException('Permission not found.');
         }

@@ -25,7 +25,7 @@ class FindUserService extends BaseService implements FindUserServiceInterface
     private const ALLOWED_SORTS = ['id', 'tenant_id', 'email', 'first_name', 'last_name', 'status', 'created_at', 'updated_at'];
 
     /** @var array<string> */
-    private const ALLOWED_INCLUDES = ['roles', 'attachments'];
+    private const ALLOWED_INCLUDES = ['roles', 'permissions', 'attachments', 'devices'];
 
     public function __construct(private readonly UserRepositoryInterface $userRepository)
     {
@@ -44,7 +44,8 @@ class FindUserService extends BaseService implements FindUserServiceInterface
         }
 
         foreach ($this->parseIncludes($include) as $relation) {
-            $repository->with($relation);
+            $resolvedRelation = $relation === 'permissions' ? 'roles.permissions' : $relation;
+            $repository->with($resolvedRelation);
         }
 
         [$sortField, $sortDirection] = $this->parseSort($sort);

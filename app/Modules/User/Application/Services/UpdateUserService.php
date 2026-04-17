@@ -6,6 +6,7 @@ namespace Modules\User\Application\Services;
 
 use Modules\Core\Application\Services\BaseService;
 use Modules\Core\Domain\ValueObjects\Address;
+use Modules\Core\Domain\ValueObjects\Email;
 use Modules\Core\Domain\ValueObjects\PhoneNumber;
 use Modules\Core\Domain\ValueObjects\UserPreferences;
 use Modules\User\Application\Contracts\UpdateUserServiceInterface;
@@ -16,21 +17,22 @@ use Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface;
 
 class UpdateUserService extends BaseService implements UpdateUserServiceInterface
 {
-    private UserRepositoryInterface $userRepository;
-
-    public function __construct(UserRepositoryInterface $repository)
+    public function __construct(private readonly UserRepositoryInterface $userRepository)
     {
-        parent::__construct($repository);
-        $this->userRepository = $repository;
+        parent::__construct($userRepository);
     }
 
     protected function handle(array $data): User
     {
-        $id = $data['id'];
+        $userId = (int) $data['id'];
 
-        $user = $this->userRepository->find($id);
+        $user = $this->userRepository->find($userId);
         if (! $user) {
-            throw new UserNotFoundException($id);
+            throw new UserNotFoundException($userId);
+        }
+
+        if (array_key_exists('email', $data) && is_string($data['email']) && $data['email'] !== '') {
+            $user->changeEmail(new Email($data['email']));
         }
 
         $firstName = array_key_exists('first_name', $data) ? (string) $data['first_name'] : $user->getFirstName();
@@ -59,10 +61,21 @@ class UpdateUserService extends BaseService implements UpdateUserServiceInterfac
             ((bool) $data['active']) ? $user->activate() : $user->deactivate();
         }
 
+        if (array_key_exists('avatar', $data)) {
+            $avatarPath = is_string($data['avatar']) && $data['avatar'] !== ''
+                ? $data['avatar']
+                : null;
+            $user->changeAvatar($avatarPath);
+        }
+
         $saved = $this->userRepository->save($user);
 
         if (array_key_exists('roles', $data) && is_array($data['roles'])) {
-            $this->userRepository->syncRoles($saved, $data['roles']);
+            $roleIds = array_values(array_unique(array_filter(
+                array_map('intval', $data['roles']),
+                static fn (int $roleId): bool => $roleId > 0
+            )));
+            $this->userRepository->syncRoles($saved, $roleIds);
         }
 
         $this->addEvent(new UserUpdated($saved));

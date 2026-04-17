@@ -25,6 +25,7 @@ class UpdateUserRequest extends FormRequest
             'address'     => 'nullable|array',
             'preferences' => 'nullable|array',
             'active'      => 'boolean',
+            'avatar'      => 'nullable|string|max:2048',
             'roles'       => 'nullable|array',
             'roles.*'     => 'integer|exists:roles,id',
         ];
