@@ -10,15 +10,22 @@ use Modules\Auth\Application\UseCases\GetAuthenticatedUser;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Core\Domain\Exceptions\DomainException;
 use Modules\User\Application\Contracts\ChangePasswordServiceInterface;
+use Modules\User\Application\Contracts\DeleteUserDeviceServiceInterface;
+use Modules\User\Application\Contracts\FindUserDevicesServiceInterface;
 use Modules\User\Application\Contracts\FindUserServiceInterface;
+use Modules\User\Application\Contracts\UpsertUserDeviceServiceInterface;
 use Modules\User\Application\Contracts\UpdatePreferencesServiceInterface;
 use Modules\User\Application\Contracts\UpdateProfileServiceInterface;
 use Modules\User\Application\Contracts\UploadAvatarServiceInterface;
 use Modules\User\Application\DTOs\UserPreferencesData;
 use Modules\User\Infrastructure\Http\Requests\ChangePasswordRequest;
+use Modules\User\Infrastructure\Http\Requests\ListUserDeviceRequest;
+use Modules\User\Infrastructure\Http\Requests\UpsertUserDeviceRequest;
 use Modules\User\Infrastructure\Http\Requests\UpdatePreferencesRequest;
 use Modules\User\Infrastructure\Http\Requests\UpdateProfileRequest;
 use Modules\User\Infrastructure\Http\Requests\UploadAvatarRequest;
+use Modules\User\Infrastructure\Http\Resources\UserDeviceCollection;
+use Modules\User\Infrastructure\Http\Resources\UserDeviceResource;
 use Modules\User\Infrastructure\Http\Resources\UserResource;
 
 class ProfileController extends AuthorizedController
@@ -26,6 +33,9 @@ class ProfileController extends AuthorizedController
     public function __construct(
         protected GetAuthenticatedUser $getAuthenticatedUser,
         protected FindUserServiceInterface $findService,
+        protected FindUserDevicesServiceInterface $findUserDevicesService,
+        protected UpsertUserDeviceServiceInterface $upsertUserDeviceService,
+        protected DeleteUserDeviceServiceInterface $deleteUserDeviceService,
         protected UpdateProfileServiceInterface $updateProfileService,
         protected ChangePasswordServiceInterface $changePasswordService,
         protected UpdatePreferencesServiceInterface $updatePreferencesService,
@@ -112,6 +122,57 @@ class ProfileController extends AuthorizedController
         ]);
 
         return Response::json(new UserResource($user));
+    }
+
+    public function listDevices(ListUserDeviceRequest $request): UserDeviceCollection|JsonResponse
+    {
+        $userId = $this->authenticatedUserId();
+        if ($userId === null) {
+            return Response::json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $validated = $request->validated();
+        $platform = $validated['platform'] ?? null;
+        $perPage = (int) ($validated['per_page'] ?? 15);
+        $page = (int) ($validated['page'] ?? 1);
+        $devices = $this->findUserDevicesService->paginateByUser(
+            $userId,
+            is_string($platform) ? $platform : null,
+            $perPage,
+            $page
+        );
+
+        return new UserDeviceCollection($devices);
+    }
+
+    public function upsertDevice(UpsertUserDeviceRequest $request): UserDeviceResource|JsonResponse
+    {
+        $userId = $this->authenticatedUserId();
+        if ($userId === null) {
+            return Response::json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $device = $this->upsertUserDeviceService->execute([
+            'user_id' => $userId,
+            ...$request->validated(),
+        ]);
+
+        return new UserDeviceResource($device);
+    }
+
+    public function deleteDevice(int $device): JsonResponse
+    {
+        $userId = $this->authenticatedUserId();
+        if ($userId === null) {
+            return Response::json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $this->deleteUserDeviceService->execute([
+            'user_id' => $userId,
+            'device_id' => $device,
+        ]);
+
+        return Response::json(['message' => 'Device deleted successfully']);
     }
 
     private function authenticatedUserId(): ?int
