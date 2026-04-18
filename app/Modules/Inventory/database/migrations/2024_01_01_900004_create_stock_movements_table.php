@@ -22,6 +22,7 @@ return new class extends Migration
             $table->foreignId('to_location_id')->nullable()->constrained('warehouse_locations')->nullOnDelete();
             $table->enum('movement_type', [
                 'receipt', 'shipment', 'transfer', 'adjustment',
+                'adjustment_in', 'adjustment_out', 'opening',
                 'return_in', 'return_out', 'reservation', 'reservation_release',
                 'write_off', 'cycle_count'
             ]);

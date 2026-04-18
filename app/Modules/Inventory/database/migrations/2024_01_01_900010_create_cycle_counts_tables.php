@@ -23,8 +23,10 @@ Schema::create('cycle_count_lines', function (Blueprint $table) {
     $table->decimal('system_qty', 20, 6);
     $table->decimal('counted_qty', 20, 6);
     $table->decimal('variance_qty', 20, 6);
+    // $table->decimal('variance_qty', 20, 6)->storedAs('counted_qty - system_qty');
     $table->decimal('unit_cost', 20, 6);
     $table->decimal('variance_value', 20, 6);
+    // $table->decimal('variance_value', 20, 6)->storedAs('variance_qty * unit_cost');
     $table->foreignId('adjustment_movement_id')->nullable()->constrained('stock_movements')->nullOnDelete();
     $table->timestamps();
 });

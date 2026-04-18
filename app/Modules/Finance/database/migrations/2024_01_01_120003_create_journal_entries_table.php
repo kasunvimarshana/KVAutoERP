@@ -44,6 +44,8 @@ return new class extends Migration
             $table->decimal('exchange_rate', 15, 6)->default(1);
             $table->decimal('base_debit_amount', 15, 4)->default(0);
             $table->decimal('base_credit_amount', 15, 4)->default(0);
+            // $table->decimal('base_debit_amount', 15, 4)->storedAs('debit_amount * exchange_rate');
+            // $table->decimal('base_credit_amount', 15, 4)->storedAs('credit_amount * exchange_rate');
             $table->foreignId('cost_center_id')->nullable()->constrained('org_units')->nullOnDelete();
             $table->json('metadata')->nullable();
             $table->timestamps();
