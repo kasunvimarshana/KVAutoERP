@@ -185,5 +185,6 @@ public function register(): void
 
 ## Additional Reference Documentation
 
+- **`AGENT.md`** — Agent operational guide with behavioral workflows, decision trees, domain event catalog, and testing strategy.
 - **`SKILL.md`** — Detailed module specifications, database design standards, and implementation rules.
 - **`AGENT_KNOWLEDGEBASE.md`** — Comprehensive domain knowledge covering ERP flows, financial accounting, inventory management, and returns processing.
