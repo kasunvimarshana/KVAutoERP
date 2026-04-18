@@ -22,10 +22,8 @@ use Modules\Auth\Infrastructure\Http\Requests\LoginRequest;
 use Modules\Auth\Infrastructure\Http\Requests\RegisterRequest;
 use Modules\Auth\Infrastructure\Http\Requests\ResetPasswordRequest;
 use Modules\Auth\Infrastructure\Http\Requests\SsoRequest;
+use Modules\Auth\Infrastructure\Http\Resources\AuthenticatedUserResource;
 use Modules\Auth\Infrastructure\Http\Resources\AuthTokenResource;
-use Modules\User\Application\Contracts\FindUserServiceInterface;
-use Modules\User\Infrastructure\Http\Resources\UserResource;
-use OpenApi\Attributes as OA;
 
 class AuthController extends AuthorizedController
 {
@@ -38,7 +36,6 @@ class AuthController extends AuthorizedController
         private readonly RefreshToken $refreshToken,
         private readonly ForgotPassword $forgotPassword,
         private readonly ResetPassword $resetPassword,
-        private readonly FindUserServiceInterface $findUserService,
     ) {}
 
     public function register(RegisterRequest $request): JsonResponse
@@ -87,13 +84,7 @@ class AuthController extends AuthorizedController
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $user = $this->findUserService->find($authenticatable->getAuthIdentifier());
-
-        if (! $user) {
-            return response()->json(['message' => 'User profile unavailable'], 404);
-        }
-
-        return response()->json(new UserResource($user));
+        return response()->json(new AuthenticatedUserResource($authenticatable));
     }
 
     public function refresh(HttpRequest $request): JsonResponse

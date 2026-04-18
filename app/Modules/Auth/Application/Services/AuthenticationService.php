@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Auth\Application\Services;
 
-use Illuminate\Foundation\Auth\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Auth;
 use Modules\Auth\Application\Contracts\AuthenticationServiceInterface;
 use Modules\Auth\Application\Contracts\TokenServiceInterface;
@@ -23,7 +23,7 @@ class AuthenticationService implements AuthenticationServiceInterface
             throw new InvalidCredentialsException;
         }
 
-        /** @var User $user */
+        /** @var Authenticatable $user */
         $user = Auth::user();
 
         return $this->tokenService->issueToken($user->getAuthIdentifier());
