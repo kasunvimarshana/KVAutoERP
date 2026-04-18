@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Auth\Infrastructure\Persistence;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\Auth;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Modules\Auth\Application\Contracts\AuthUserRepositoryInterface;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
@@ -24,31 +26,31 @@ class EloquentAuthUserRepository implements AuthUserRepositoryInterface
     public function findForPassport(int $userId): ?OAuthenticatable
     {
         /** @var OAuthenticatable|null $user */
-        $user = $this->model->find($userId);
+        $user = $this->query()->find($userId);
 
         return $user;
     }
 
     public function findAuthenticatable(int $userId): ?Authenticatable
     {
-        return $this->model->find($userId);
+        return $this->query()->find($userId);
     }
 
     public function getEmailById(int $userId): ?string
     {
-        return $this->model->find($userId)?->email;
+        return $this->query()->find($userId)?->email;
     }
 
     public function getIdByEmail(string $email): ?int
     {
-        $user = $this->model->where('email', $email)->first();
+        $user = $this->query()->where('email', $email)->first();
 
         return $user?->id;
     }
 
     public function getRolesWithPermissions(int $userId): array
     {
-        $user = $this->model->with('roles.permissions')->find($userId);
+        $user = $this->query()->with('roles.permissions')->find($userId);
 
         if (! $user) {
             return [];
@@ -58,5 +60,37 @@ class EloquentAuthUserRepository implements AuthUserRepositoryInterface
             'name' => $role->name,
             'permissions' => $role->permissions->pluck('name')->toArray(),
         ])->toArray();
+    }
+
+    private function query(): Builder
+    {
+        $query = $this->model->newQuery();
+        $tenantId = $this->resolveTenantId();
+
+        if ($tenantId !== null) {
+            $query->where('tenant_id', $tenantId);
+        }
+
+        return $query;
+    }
+
+    private function resolveTenantId(): ?int
+    {
+        $authenticatedTenantId = Auth::user()?->tenant_id;
+        if (is_numeric($authenticatedTenantId) && (int) $authenticatedTenantId > 0) {
+            return (int) $authenticatedTenantId;
+        }
+
+        $headerTenantId = request()?->header('X-Tenant-ID');
+        if (is_numeric($headerTenantId) && (int) $headerTenantId > 0) {
+            return (int) $headerTenantId;
+        }
+
+        $payloadTenantId = request()?->input('tenant_id');
+        if (is_numeric($payloadTenantId) && (int) $payloadTenantId > 0) {
+            return (int) $payloadTenantId;
+        }
+
+        return null;
     }
 }
