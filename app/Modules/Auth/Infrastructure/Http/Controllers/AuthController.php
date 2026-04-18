@@ -24,6 +24,7 @@ use Modules\Auth\Infrastructure\Http\Requests\ResetPasswordRequest;
 use Modules\Auth\Infrastructure\Http\Requests\SsoRequest;
 use Modules\Auth\Infrastructure\Http\Resources\AuthenticatedUserResource;
 use Modules\Auth\Infrastructure\Http\Resources\AuthTokenResource;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class AuthController extends AuthorizedController
 {
@@ -44,7 +45,7 @@ class AuthController extends AuthorizedController
 
         return response()->json(
             (new AuthTokenResource($token))->toArray($request),
-            201,
+            HttpResponse::HTTP_CREATED,
         );
     }
 
@@ -57,7 +58,7 @@ class AuthController extends AuthorizedController
                 $validated['password'],
             );
         } catch (InvalidCredentialsException $e) {
-            return response()->json(['message' => $e->getMessage()], 401);
+            return response()->json(['message' => $e->getMessage()], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         return response()->json((new AuthTokenResource($token))->toArray($request));
@@ -68,7 +69,7 @@ class AuthController extends AuthorizedController
         $user = $this->getAuthenticatedUser->execute();
 
         if (! $user) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+            return response()->json(['message' => 'Unauthenticated'], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         $this->logoutUser->execute((int) $user->getAuthIdentifier());
@@ -81,7 +82,7 @@ class AuthController extends AuthorizedController
         $authenticatable = $this->getAuthenticatedUser->execute();
 
         if (! $authenticatable) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+            return response()->json(['message' => 'Unauthenticated'], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         return response()->json(new AuthenticatedUserResource($authenticatable));
@@ -92,7 +93,7 @@ class AuthController extends AuthorizedController
         $user = $this->getAuthenticatedUser->execute();
 
         if (! $user) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+            return response()->json(['message' => 'Unauthenticated'], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         $token = $this->refreshToken->execute((int) $user->getAuthIdentifier());
@@ -116,7 +117,7 @@ class AuthController extends AuthorizedController
         try {
             $this->resetPassword->execute($request->validated());
         } catch (AuthenticationException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return response()->json(['message' => $e->getMessage()], HttpResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return response()->json(['message' => 'Password has been reset successfully.']);
@@ -130,7 +131,7 @@ class AuthController extends AuthorizedController
                 $provider,
             );
         } catch (AuthenticationException $e) {
-            return response()->json(['message' => $e->getMessage()], 401);
+            return response()->json(['message' => $e->getMessage()], HttpResponse::HTTP_UNAUTHORIZED);
         }
 
         return response()->json((new AuthTokenResource($accessToken))->toArray($request));
