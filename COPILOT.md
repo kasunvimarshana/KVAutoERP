@@ -34,7 +34,7 @@ This is a Laravel-based modular SaaS ERP/CRM platform. All code lives in `app/Mo
 ```php
 declare(strict_types=1);
 
-namespace App\Modules\<Module>\Domain\Entities;
+namespace Modules\<Module>\Domain\Entities;
 
 class <Entity>
 {
@@ -53,7 +53,7 @@ class <Entity>
 ```php
 declare(strict_types=1);
 
-namespace App\Modules\<Module>\Domain\RepositoryInterfaces;
+namespace Modules\<Module>\Domain\RepositoryInterfaces;
 
 interface <Entity>RepositoryInterface
 {
