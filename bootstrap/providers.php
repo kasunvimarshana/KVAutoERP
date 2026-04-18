@@ -3,6 +3,7 @@
 use App\Providers\AppServiceProvider;
 use Modules\Audit\Infrastructure\Providers\AuditServiceProvider;
 use Modules\Auth\Infrastructure\Providers\AuthModuleServiceProvider;
+use Modules\Configuration\Infrastructure\Providers\ConfigurationServiceProvider;
 use Modules\Core\Infrastructure\Providers\CoreServiceProvider;
 use Modules\OrganizationUnit\Infrastructure\Providers\OrganizationUnitServiceProvider;
 use Modules\Shared\Infrastructure\Providers\SharedServiceProvider;
@@ -13,6 +14,7 @@ use Modules\User\Infrastructure\Providers\UserServiceProvider;
 return [
     AppServiceProvider::class,
     CoreServiceProvider::class,
+    ConfigurationServiceProvider::class,
     SharedServiceProvider::class,
     AuditServiceProvider::class,
     AuthModuleServiceProvider::class,
