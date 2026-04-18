@@ -114,7 +114,6 @@ class AuthModuleServiceProvider extends ServiceProvider
         $this->app->bind(LogoutServiceInterface::class, function ($app) {
             return new LogoutService(
                 $app->make(AuthenticationServiceInterface::class),
-                $app->make(AuthUserRepositoryInterface::class),
             );
         });
 

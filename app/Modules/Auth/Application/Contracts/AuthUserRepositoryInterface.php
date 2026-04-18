@@ -27,18 +27,6 @@ interface AuthUserRepositoryInterface
     public function findAuthenticatable(int $userId): ?Authenticatable;
 
     /**
-     * Get the email address of a user by their ID.
-     * Used for dispatching auth events after login/logout.
-     */
-    public function getEmailById(int $userId): ?string;
-
-    /**
-     * Get the ID of a user by their email address.
-     * Used for dispatching auth events after successful authentication.
-     */
-    public function getIdByEmail(string $email): ?int;
-
-    /**
      * Get all roles (with their permissions) assigned to a user.
      *
      * Returns an array of roles, each with:

@@ -37,18 +37,6 @@ class EloquentAuthUserRepository implements AuthUserRepositoryInterface
         return $this->query()->find($userId);
     }
 
-    public function getEmailById(int $userId): ?string
-    {
-        return $this->query()->find($userId)?->email;
-    }
-
-    public function getIdByEmail(string $email): ?int
-    {
-        $user = $this->query()->where('email', $email)->first();
-
-        return $user?->id;
-    }
-
     public function getRolesWithPermissions(int $userId): array
     {
         $user = $this->query()->with('roles.permissions')->find($userId);
