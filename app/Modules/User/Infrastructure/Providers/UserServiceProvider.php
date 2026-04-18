@@ -22,6 +22,7 @@ use Modules\User\Application\Contracts\FindPermissionServiceInterface;
 use Modules\User\Application\Contracts\FindRoleServiceInterface;
 use Modules\User\Application\Contracts\FindUserAttachmentsServiceInterface;
 use Modules\User\Application\Contracts\FindUserServiceInterface;
+use Modules\User\Application\Contracts\SetUserPasswordServiceInterface;
 use Modules\User\Application\Contracts\SyncRolePermissionsServiceInterface;
 use Modules\User\Application\Contracts\UpsertUserDeviceServiceInterface;
 use Modules\User\Application\Contracts\UpdatePreferencesServiceInterface;
@@ -44,6 +45,7 @@ use Modules\User\Application\Services\FindPermissionService;
 use Modules\User\Application\Services\FindRoleService;
 use Modules\User\Application\Services\FindUserAttachmentsService;
 use Modules\User\Application\Services\FindUserService;
+use Modules\User\Application\Services\SetUserPasswordService;
 use Modules\User\Application\Services\SyncRolePermissionsService;
 use Modules\User\Application\Services\UpsertUserDeviceService;
 use Modules\User\Application\Services\UpdatePreferencesService;
@@ -116,6 +118,9 @@ class UserServiceProvider extends ServiceProvider
         });
         $this->app->bind(ChangePasswordServiceInterface::class, function ($app) {
             return new ChangePasswordService($app->make(UserRepositoryInterface::class));
+        });
+        $this->app->bind(SetUserPasswordServiceInterface::class, function ($app) {
+            return new SetUserPasswordService($app->make(UserRepositoryInterface::class));
         });
         $this->app->bind(UploadAvatarServiceInterface::class, function ($app) {
             return new UploadAvatarService(

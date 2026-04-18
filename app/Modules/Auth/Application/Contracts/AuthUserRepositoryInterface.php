@@ -45,18 +45,4 @@ interface AuthUserRepositoryInterface
      *   [ 'name' => 'admin', 'permissions' => ['manage-users', 'view-reports'] ]
      */
     public function getRolesWithPermissions(int $userId): array;
-
-    /**
-     * Create a new user account and return the new user's ID.
-     *
-     * @param  array{
-     *     tenant_id: int,
-     *     email: string,
-     *     first_name: string,
-     *     last_name: string,
-     *     password: string,
-     *     phone?: string|null
-     * }  $data
-     */
-    public function createUser(array $data): int;
 }

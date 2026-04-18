@@ -38,6 +38,8 @@ use Modules\Auth\Application\UseCases\RefreshToken;
 use Modules\Auth\Application\UseCases\RegisterUser;
 use Modules\Auth\Application\UseCases\ResetPassword;
 use Modules\Auth\Infrastructure\Persistence\EloquentAuthUserRepository;
+use Modules\User\Application\Contracts\CreateUserServiceInterface;
+use Modules\User\Application\Contracts\SetUserPasswordServiceInterface;
 
 class AuthModuleServiceProvider extends ServiceProvider
 {
@@ -85,7 +87,8 @@ class AuthModuleServiceProvider extends ServiceProvider
         // Register / Login / Logout services
         $this->app->bind(RegisterUserServiceInterface::class, function ($app) {
             return new RegisterUserService(
-                $app->make(AuthUserRepositoryInterface::class),
+                $app->make(CreateUserServiceInterface::class),
+                $app->make(SetUserPasswordServiceInterface::class),
             );
         });
 
