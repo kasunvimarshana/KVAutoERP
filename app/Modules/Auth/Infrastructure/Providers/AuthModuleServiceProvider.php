@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Modules\Auth\Infrastructure\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Route;
 use Laravel\Passport\Passport;
 use Modules\Auth\Application\Contracts\AuthUserRepositoryInterface;
 use Modules\Auth\Application\Contracts\AuthenticationServiceInterface;
@@ -38,11 +37,14 @@ use Modules\Auth\Application\UseCases\RefreshToken;
 use Modules\Auth\Application\UseCases\RegisterUser;
 use Modules\Auth\Application\UseCases\ResetPassword;
 use Modules\Auth\Infrastructure\Persistence\EloquentAuthUserRepository;
+use Modules\Core\Infrastructure\Concerns\LoadsModuleRoutesAndMigrations;
 use Modules\User\Application\Contracts\CreateUserServiceInterface;
 use Modules\User\Application\Contracts\SetUserPasswordServiceInterface;
 
 class AuthModuleServiceProvider extends ServiceProvider
 {
+    use LoadsModuleRoutesAndMigrations;
+
     public function register(): void
     {
         // Auth user repository: decouples auth services from UserModel
@@ -167,14 +169,10 @@ class AuthModuleServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // $this->loadRoutesFrom(__DIR__.'/../../routes/api.php');
-        Route::middleware('api')
-             ->prefix('api')
-             ->group(function () {
-                 $this->loadRoutesFrom(__DIR__.'/../../routes/api.php');
-             });
-
-        $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
+        $this->bootModule(
+            __DIR__.'/../../routes/api.php',
+            __DIR__.'/../../database/migrations',
+        );
 
         // Configure Passport token lifetime
         Passport::tokensExpireIn(now()->addDays(
