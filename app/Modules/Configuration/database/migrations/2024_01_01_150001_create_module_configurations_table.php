@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,13 +12,13 @@ return new class extends Migration
     {
         Schema::create('module_configurations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('tenant_id')->constrained(null, 'id', 'module_configurations_tenant_id_fk')->cascadeOnDelete();
             $table->string('module_name');
             $table->string('config_key');
             $table->json('config_value');
             $table->timestamps();
 
-            $table->unique(['tenant_id', 'module_name', 'config_key'], 'uq_module_configurations_tenant_module_key');
+            $table->unique(['tenant_id', 'module_name', 'config_key'], 'module_configurations_tenant_module_key_uk');
         });
     }
 
