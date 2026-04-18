@@ -5,6 +5,7 @@ use Modules\Audit\Infrastructure\Providers\AuditServiceProvider;
 use Modules\Auth\Infrastructure\Providers\AuthModuleServiceProvider;
 use Modules\Core\Infrastructure\Providers\CoreServiceProvider;
 use Modules\OrganizationUnit\Infrastructure\Providers\OrganizationUnitServiceProvider;
+use Modules\Shared\Infrastructure\Providers\SharedServiceProvider;
 use Modules\Tenant\Infrastructure\Providers\TenantConfigServiceProvider;
 use Modules\Tenant\Infrastructure\Providers\TenantServiceProvider;
 use Modules\User\Infrastructure\Providers\UserServiceProvider;
@@ -12,6 +13,7 @@ use Modules\User\Infrastructure\Providers\UserServiceProvider;
 return [
     AppServiceProvider::class,
     CoreServiceProvider::class,
+    SharedServiceProvider::class,
     AuditServiceProvider::class,
     AuthModuleServiceProvider::class,
     TenantServiceProvider::class,
