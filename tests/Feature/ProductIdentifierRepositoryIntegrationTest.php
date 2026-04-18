@@ -21,6 +21,7 @@ class ProductIdentifierRepositoryIntegrationTest extends TestCase
         parent::setUp();
 
         $this->ensureAccountsTableExists();
+        $this->ensureBatchesAndSerialsTablesExist();
         $this->seedReferenceData();
     }
 
@@ -242,5 +243,22 @@ class ProductIdentifierRepositoryIntegrationTest extends TestCase
             $table->id();
             $table->timestamps();
         });
+    }
+
+    private function ensureBatchesAndSerialsTablesExist(): void
+    {
+        if (! Schema::hasTable('batches')) {
+            Schema::create('batches', function (Blueprint $table): void {
+                $table->id();
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('serials')) {
+            Schema::create('serials', function (Blueprint $table): void {
+                $table->id();
+                $table->timestamps();
+            });
+        }
     }
 }
