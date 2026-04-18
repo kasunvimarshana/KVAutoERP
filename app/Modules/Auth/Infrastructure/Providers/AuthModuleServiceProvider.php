@@ -16,6 +16,7 @@ use Modules\Auth\Application\Contracts\RefreshTokenServiceInterface;
 use Modules\Auth\Application\Contracts\RegisterUserServiceInterface;
 use Modules\Auth\Application\Contracts\ResetPasswordServiceInterface;
 use Modules\Auth\Application\Contracts\SsoServiceInterface;
+use Modules\Auth\Application\Contracts\TenantContextResolverInterface;
 use Modules\Auth\Application\Contracts\TokenServiceInterface;
 use Modules\Auth\Application\Services\AbacAuthorizationStrategy;
 use Modules\Auth\Application\Services\AuthenticationService;
@@ -37,9 +38,11 @@ use Modules\Auth\Application\UseCases\RefreshToken;
 use Modules\Auth\Application\UseCases\RegisterUser;
 use Modules\Auth\Application\UseCases\ResetPassword;
 use Modules\Auth\Infrastructure\Persistence\EloquentAuthUserRepository;
+use Modules\Auth\Infrastructure\Services\TenantContextResolver;
 use Modules\Core\Infrastructure\Concerns\LoadsModuleRoutesAndMigrations;
 use Modules\User\Application\Contracts\CreateUserServiceInterface;
 use Modules\User\Application\Contracts\SetUserPasswordServiceInterface;
+use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
 
 class AuthModuleServiceProvider extends ServiceProvider
 {
@@ -47,8 +50,15 @@ class AuthModuleServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        $this->app->singleton(TenantContextResolverInterface::class, TenantContextResolver::class);
+
         // Auth user repository: decouples auth services from UserModel
-        $this->app->bind(AuthUserRepositoryInterface::class, EloquentAuthUserRepository::class);
+        $this->app->bind(AuthUserRepositoryInterface::class, function ($app) {
+            return new EloquentAuthUserRepository(
+                $app->make(UserModel::class),
+                $app->make(TenantContextResolverInterface::class),
+            );
+        });
 
         // Authorization strategies (RBAC + ABAC) — resolved via interface for DIP compliance
         $this->app->bind(RbacAuthorizationStrategy::class, function ($app) {
@@ -83,6 +93,7 @@ class AuthModuleServiceProvider extends ServiceProvider
         $this->app->bind(AuthenticationServiceInterface::class, function ($app) {
             return new AuthenticationService(
                 $app->make(TokenServiceInterface::class),
+                $app->make(TenantContextResolverInterface::class),
             );
         });
 
@@ -97,7 +108,6 @@ class AuthModuleServiceProvider extends ServiceProvider
         $this->app->bind(LoginServiceInterface::class, function ($app) {
             return new LoginService(
                 $app->make(AuthenticationServiceInterface::class),
-                $app->make(AuthUserRepositoryInterface::class),
             );
         });
 

@@ -45,4 +45,14 @@ interface AuthUserRepositoryInterface
      *   [ 'name' => 'admin', 'permissions' => ['manage-users', 'view-reports'] ]
      */
     public function getRolesWithPermissions(int $userId): array;
+
+    /**
+     * Determine if a user has the given role.
+     */
+    public function hasRole(int $userId, string $role): bool;
+
+    /**
+     * Determine if a user has the given permission through assigned roles.
+     */
+    public function hasPermission(int $userId, string $permission): bool;
 }

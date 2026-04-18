@@ -6,9 +6,9 @@ namespace Modules\Auth\Infrastructure\Persistence;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Facades\Auth;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Modules\Auth\Application\Contracts\AuthUserRepositoryInterface;
+use Modules\Auth\Application\Contracts\TenantContextResolverInterface;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
 
 /**
@@ -21,6 +21,7 @@ class EloquentAuthUserRepository implements AuthUserRepositoryInterface
 {
     public function __construct(
         private readonly UserModel $model,
+        private readonly TenantContextResolverInterface $tenantContextResolver,
     ) {}
 
     public function findForPassport(int $userId): ?OAuthenticatable
@@ -62,10 +63,41 @@ class EloquentAuthUserRepository implements AuthUserRepositoryInterface
         ])->toArray();
     }
 
+    public function hasRole(int $userId, string $role): bool
+    {
+        $roles = $this->getRolesWithPermissions($userId);
+        $normalizedRole = $this->normalize($role);
+
+        foreach ($roles as $entry) {
+            if ($this->normalize((string) ($entry['name'] ?? '')) === $normalizedRole) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function hasPermission(int $userId, string $permission): bool
+    {
+        $roles = $this->getRolesWithPermissions($userId);
+        $normalizedPermission = $this->normalize($permission);
+
+        foreach ($roles as $entry) {
+            $permissions = is_array($entry['permissions'] ?? null) ? $entry['permissions'] : [];
+            foreach ($permissions as $rolePermission) {
+                if ($this->normalize((string) $rolePermission) === $normalizedPermission) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private function query(): Builder
     {
         $query = $this->model->newQuery();
-        $tenantId = $this->resolveTenantId();
+        $tenantId = $this->tenantContextResolver->resolveTenantId();
 
         if ($tenantId !== null) {
             $query->where('tenant_id', $tenantId);
@@ -74,23 +106,8 @@ class EloquentAuthUserRepository implements AuthUserRepositoryInterface
         return $query;
     }
 
-    private function resolveTenantId(): ?int
+    private function normalize(string $value): string
     {
-        $authenticatedTenantId = Auth::user()?->tenant_id;
-        if (is_numeric($authenticatedTenantId) && (int) $authenticatedTenantId > 0) {
-            return (int) $authenticatedTenantId;
-        }
-
-        $headerTenantId = request()?->header('X-Tenant-ID');
-        if (is_numeric($headerTenantId) && (int) $headerTenantId > 0) {
-            return (int) $headerTenantId;
-        }
-
-        $payloadTenantId = request()?->input('tenant_id');
-        if (is_numeric($payloadTenantId) && (int) $payloadTenantId > 0) {
-            return (int) $payloadTenantId;
-        }
-
-        return null;
+        return strtolower(trim($value));
     }
 }
