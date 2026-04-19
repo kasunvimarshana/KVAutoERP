@@ -3,14 +3,18 @@
 declare(strict_types=1);
 
 namespace Modules\OrganizationUnit\Infrastructure\Persistence\Eloquent\Models;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
 
-use Illuminate\Database\Eloquent\Model;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
+
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
 
-class OrganizationUnitUserModel extends Model
+class OrganizationUnitUserModel extends BaseModel
 {
+
+    use HasTenant;
     use HasAudit;
 
     protected $table = 'org_unit_users';

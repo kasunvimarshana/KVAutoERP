@@ -19,6 +19,7 @@ class Product
     private string $type;
 
     private string $name;
+    private ?string $imagePath;
 
     private string $slug;
 
@@ -68,6 +69,7 @@ class Product
         int $tenantId,
         string $type,
         string $name,
+        ?string $imagePath = null,
         string $slug,
         int $baseUomId,
         ?int $categoryId = null,
@@ -100,6 +102,7 @@ class Product
         $this->orgUnitId = $orgUnitId;
         $this->type = $type;
         $this->name = $name;
+        $this->imagePath = $imagePath;
         $this->slug = $slug;
         $this->sku = $sku;
         $this->description = $description;
@@ -156,6 +159,8 @@ class Product
     {
         return $this->name;
     }
+
+    public function getImagePath(): ?string { return $this->imagePath; }
 
     public function getSlug(): string
     {
@@ -266,6 +271,7 @@ class Product
     public function update(
         string $type,
         string $name,
+        ?string $imagePath = null,
         string $slug,
         int $baseUomId,
         ?int $categoryId,
@@ -290,6 +296,7 @@ class Product
     ): void {
         $this->type = $type;
         $this->name = $name;
+        $this->imagePath = $imagePath;
         $this->slug = $slug;
         $this->baseUomId = $baseUomId;
         $this->categoryId = $categoryId;

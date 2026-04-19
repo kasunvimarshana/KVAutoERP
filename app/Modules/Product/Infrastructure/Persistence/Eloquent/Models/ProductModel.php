@@ -3,13 +3,17 @@
 declare(strict_types=1);
 
 namespace Modules\Product\Infrastructure\Persistence\Eloquent\Models;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
 
-use Illuminate\Database\Eloquent\Model;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
+
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 
-class ProductModel extends Model
+class ProductModel extends BaseModel
 {
+    use HasTenant;
+
     use HasAudit;
     use SoftDeletes;
 

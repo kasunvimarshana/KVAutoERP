@@ -26,6 +26,7 @@ class EloquentProductRepository extends EloquentRepository implements ProductRep
             'org_unit_id' => $product->getOrgUnitId(),
             'type' => $product->getType(),
             'name' => $product->getName(),
+            'image_path' => $product->getImagePath(),
             'slug' => $product->getSlug(),
             'sku' => $product->getSku(),
             'description' => $product->getDescription(),

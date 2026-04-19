@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 namespace Modules\Tenant\Infrastructure\Persistence\Eloquent\Models;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
+
+use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
@@ -33,8 +35,10 @@ use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
-class TenantModel extends Model
+class TenantModel extends BaseModel
 {
+
+    use HasTenant;
     use HasAudit, SoftDeletes;
 
     protected $table = 'tenants';

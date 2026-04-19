@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Modules\Shared\Infrastructure\Persistence\Eloquent\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
+
 use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 
-class CurrencyModel extends Model
+class CurrencyModel extends BaseModel
 {
     use HasAudit;
 
