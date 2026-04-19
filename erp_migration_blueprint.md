@@ -27,7 +27,7 @@ The schema is designed for:
 ## Global schema rules
 - Every tenant-scoped table includes `tenant_id`
 - Every document table includes: `document_number`, `document_date`, `status`, `currency_id`, `exchange_rate`, `notes`, `metadata`
-- Monetary values use `DECIMAL(20,6)` — never `float`
+- Monetary values use `DECIMAL(20,6)`
 - Quantity values use `DECIMAL(20,6)`
 - Use `softDeletes()` only where business rules allow recovery (8 models currently use it)
 - Use immutable posted financial records

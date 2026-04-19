@@ -119,7 +119,7 @@ All module code uses `Modules\<Module>\...` (not `App\Modules\...`).
 - Strong typing on all method parameters and return types
 - Services wrap writes in DB transactions
 - Controllers delegate to services (thin controllers)
-- `DECIMAL(20,6)` for monetary values — never `float`
+- `DECIMAL(20,6)` for monetary values
 - `abs($value) < PHP_FLOAT_EPSILON` for float-zero comparisons
 
 ## API Routes
@@ -182,7 +182,6 @@ Migration naming convention: `{table}_{column(s)}_{type}` with suffixes `_pk`, `
 - Do not import Infrastructure classes in the Domain layer.
 - Do not bypass the repository pattern for database access.
 - Do not hardcode tenant IDs — always derive from auth context or request headers.
-- Do not use `float` for monetary or quantity fields — use `DECIMAL(20,6)`.
 
 ## License
 

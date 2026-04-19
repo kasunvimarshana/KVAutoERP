@@ -25,6 +25,6 @@ All unique, structured knowledge has been preserved in **SKILL.md** (system spec
 - **Multi-tenancy**: `ResolveTenant` middleware with `X-Tenant-ID` header; repositories filter `tenant_id` explicitly
 - **Models**: All extend `Illuminate\Database\Eloquent\Model` directly (BaseModel exists but is unused)
 - **PKs**: Integer auto-increment (`BIGINT UNSIGNED`); HasUuid trait exists but is unused
-- **Monetary values**: `DECIMAL(20,6)` — never `float`
+- **Monetary values**: `DECIMAL(20,6)`
 - **12 registered ServiceProviders** in `bootstrap/providers.php`
 - **66 module migrations** + 3 framework migrations; cross-module FKs deferred to `add_remaining_foreign_keys.php`

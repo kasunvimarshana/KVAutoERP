@@ -1130,7 +1130,7 @@ Broadcast::channel('warehouse.{warehouseId}', function (User $user, string $ware
 
 **Migration:**
 - [ ] All foreign keys have explicit `->constrained()` or `->references()->on()` with `onDelete()` strategy
-- [ ] All monetary/quantity fields are `DECIMAL(20,6)` (not float, not integer)
+- [ ] All monetary/quantity fields are `DECIMAL(20,6)`
 - [ ] All percentage fields are `DECIMAL(10,6)`
 - [ ] All exchange rate fields are `DECIMAL(20,10)`
 - [ ] All tenant-scoped tables have `tenant_id` as the first FK after `id`

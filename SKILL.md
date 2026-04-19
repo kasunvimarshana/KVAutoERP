@@ -240,7 +240,7 @@ The platform natively supports recursive/nested data using adjacency list + mate
 ### Precision Standards *(Corrected — unified)*
 | Field Type | Precision |
 |---|---|
-| Monetary values | `DECIMAL(20,6)` — never FLOAT |
+| Monetary values | `DECIMAL(20,6)` |
 | Quantities (UoM, stock) | `DECIMAL(20,6)` — supports fractional units |
 | Exchange rates | `DECIMAL(20,10)` |
 | Percentages | `DECIMAL(10,6)` |
@@ -1431,7 +1431,7 @@ These rules apply to every code generation and architecture decision:
 6. **No raw SQL for business logic.** Use Eloquent with relationships; raw SQL only for performance-critical reporting queries.
 7. **Every financial event = journal entry.** No stock or order operation may affect financial state without a corresponding balanced, posted journal entry.
 8. **Migrations are forward-only in production.** The `down()` method must exist but production rollbacks require a new migration.
-9. **DECIMAL(20,6) for all monetary and quantity values.** Never use float.
+9. **DECIMAL(20,6) for all monetary and quantity values.**.
 10. **Soft deletes on all master data.** Products, customers, suppliers, employees, accounts, warehouses — use `deleted_at`, not hard deletes.
 11. **Audit everything.** All create, update, delete, approve, reject, post, void actions must write to `audit_logs`.
 12. **Events over direct calls.** When an order is confirmed, fire `OrderConfirmed` event — let Inventory, Finance, and Notification listeners react independently.

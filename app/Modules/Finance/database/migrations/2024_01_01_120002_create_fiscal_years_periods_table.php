@@ -18,6 +18,7 @@ return new class extends Migration
             $table->date('end_date');
             $table->enum('status', ['open', 'closed'])->default('open');
             $table->timestamps();
+            $table->softDeletes();
 
             $table->unique(['tenant_id', 'name'], 'fiscal_years_tenant_name_uk');
         });
@@ -32,6 +33,7 @@ return new class extends Migration
             $table->date('end_date');
             $table->enum('status', ['open', 'closed'])->default('open');
             $table->timestamps();
+            $table->softDeletes();
 
             $table->unique(['tenant_id', 'fiscal_year_id', 'period_number'], 'fiscal_periods_tenant_year_number_uk');
         });

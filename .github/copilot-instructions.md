@@ -99,7 +99,7 @@ app/Modules/<Module>/
 - **Repositories**: Interface in `Domain/RepositoryInterfaces/`, implementation in `Infrastructure/Persistence/Eloquent/Repositories/`.
 - **Services**: Contract in `Application/Contracts/`, implementation in `Application/Services/`. Wrap writes in DB transactions.
 - **Controllers**: Stay thin — delegate to services.
-- **Monetary values**: `DECIMAL(20,6)` — never `float`.
+- **Monetary values**: `DECIMAL(20,6)`.
 - **Float comparison**: `abs($value) < PHP_FLOAT_EPSILON` instead of `== 0.0`.
 
 ## Registered Providers (bootstrap/providers.php)
@@ -123,7 +123,6 @@ AppServiceProvider, CoreServiceProvider, ConfigurationServiceProvider, SharedSer
 - Do not bypass the repository pattern for database access.
 - Do not hardcode tenant IDs — derive from auth context or request headers.
 - Do not modify Core module traits without considering impact on all modules.
-- Do not use `float` for monetary or quantity fields — use `DECIMAL(20,6)`.
 
 ## Key Dependencies
 

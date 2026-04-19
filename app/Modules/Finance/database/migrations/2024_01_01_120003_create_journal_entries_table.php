@@ -27,6 +27,7 @@ return new class extends Migration
             $table->foreignId('posted_by')->nullable();
             $table->timestamp('posted_at')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             $table->unique(['tenant_id', 'entry_number'], 'journal_entries_tenant_number_uk');
             $table->index(['tenant_id', 'fiscal_period_id', 'status'], 'journal_entries_tenant_period_status_idx');
