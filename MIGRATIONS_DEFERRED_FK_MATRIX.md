@@ -1,7 +1,7 @@
 # Deferred FK Matrix
 
 This document maps cross-module foreign keys that were moved out of early module migrations into the late shared migration:
-`app/Modules/Shared/database/migrations/2024_01_01_999999_add_remaining_foreign_keys.php`.
+`database/migrations/2024_01_01_999999_add_remaining_foreign_keys.php`.
 
 ## Why This Exists
 

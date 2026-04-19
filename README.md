@@ -28,25 +28,25 @@ npm install --ignore-scripts && npm run build   # Frontend assets (optional)
 
 The platform has 19 modules in various stages of implementation:
 
-### Fully Implemented (8 modules — 635 PHP files)
+### Fully Implemented (8 modules — 660 PHP files)
 
 | Module | Files | Description |
 |--------|-------|-------------|
-| **Product** | 142 | Catalog, variants, categories, brands, UoM, identifiers |
-| **User** | 129 | Users, profiles, roles, permissions, devices, attachments |
-| **Tenant** | 113 | Multi-tenant management, plans, settings, attachments, config |
-| **Finance** | 91 | Double-entry accounting, chart of accounts, fiscal years/periods, journal entries |
-| **Auth** | 54 | OAuth2 login/register, SSO, composite RBAC+ABAC authorization |
+| **Product** | 151 | Catalog, variants, categories, brands, UoM, identifiers |
+| **User** | 133 | Users, profiles, roles, permissions, devices, attachments |
+| **Tenant** | 117 | Multi-tenant management, plans, settings, attachments, config |
+| **Finance** | 98 | Double-entry accounting, chart of accounts, fiscal years/periods, journal entries |
+| **Auth** | 55 | OAuth2 login/register, SSO, composite RBAC+ABAC authorization |
 | **Core** | 46 | Shared kernel: traits, base classes, repository abstractions |
-| **OrganizationUnit** | 39 | Hierarchical org structures (materialized path), attachments |
-| **Audit** | 17 | Immutable audit log with change tracking |
+| **OrganizationUnit** | 42 | Hierarchical org structures (materialized path), attachments |
+| **Audit** | 18 | Immutable audit log with change tracking |
 
 ### Infrastructure-Only (2 modules)
 
 | Module | Description |
 |--------|-------------|
-| **Configuration** | ServiceProvider registered; no domain code yet |
-| **Shared** | Global reference tables (countries, currencies, languages, timezones) |
+| **Configuration** | ServiceProvider + routes file (no domain code) |
+| **Shared** | ServiceProvider + routes file + global reference table migration (countries, currencies, languages, timezones) |
 
 ### Migration-Only Stubs (9 modules — schema defined, no application code)
 

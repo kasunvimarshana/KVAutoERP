@@ -1,7 +1,7 @@
 # AGENT SKILL — Enterprise SaaS Multi-Tenant ERP/CRM Platform
 **Role:** Autonomous Full-Stack Engineer & Principal Systems Architect  
 **Version:** 2.0 (Enhanced — Audited, De-duplicated, Corrected)  
-**Last Reviewed:** 2026-04-18
+**Last Reviewed:** 2026-04-19
 
 ---
 
@@ -154,7 +154,7 @@ app/Modules/<Module>/
 ```
 
 ### Layer Dependency Rules
-- **Domain** — zero external dependencies (no Laravel, no Eloquent)
+- **Domain** — minimal external dependencies; target is zero framework coupling (note: `Core/Domain/Events/BaseEvent.php` currently uses Illuminate broadcasting)
 - **Application** — depends only on Domain contracts
 - **Infrastructure** — implements Domain contracts using Eloquent / 3rd-party adapters
 - **Cross-module communication** — via Events only; never direct class imports between modules
@@ -168,15 +168,15 @@ app/Modules/<Module>/
 | Module | Status | Files | Description |
 |--------|--------|-------|-------------|
 | Core | ✅ Implemented | 46 | Shared kernel: HasAudit trait, base classes, repository abstractions |
-| Auth | ✅ Implemented | 54 | OAuth2 login/token/SSO flows via Laravel Passport |
-| Tenant | ✅ Implemented | 113 | Multi-tenancy management, plans, settings, config |
-| User | ✅ Implemented | 129 | User CRUD, profiles, roles, permissions, devices |
-| OrganizationUnit | ✅ Implemented | 39 | Hierarchical org structures (materialized path) |
-| Product | ✅ Implemented | 142 | Product catalog, variants, categories, brands, UoM |
-| Finance | ✅ Implemented | 91 | Double-entry accounting, chart of accounts, journal entries |
-| Audit | ✅ Implemented | 17 | Immutable audit logs, compliance trails |
+| Auth | ✅ Implemented | 55 | OAuth2 login/token/SSO flows via Laravel Passport |
+| Tenant | ✅ Implemented | 117 | Multi-tenancy management, plans, settings, config |
+| User | ✅ Implemented | 133 | User CRUD, profiles, roles, permissions, devices |
+| OrganizationUnit | ✅ Implemented | 42 | Hierarchical org structures (materialized path) |
+| Product | ✅ Implemented | 151 | Product catalog, variants, categories, brands, UoM |
+| Finance | ✅ Implemented | 98 | Double-entry accounting, chart of accounts, journal entries |
+| Audit | ✅ Implemented | 18 | Immutable audit logs, compliance trails |
 | Configuration | ⚙️ Infrastructure | 2 | ServiceProvider only |
-| Shared | ⚙️ Infrastructure | 2 | ServiceProvider + reference table migrations |
+| Shared | ⚙️ Infrastructure | 3 | ServiceProvider + routes file + reference table migration |
 | Customer | 📋 Migration-only | — | Schema defined, no application code |
 | Employee | 📋 Migration-only | — | Schema defined, no application code |
 | Supplier | 📋 Migration-only | — | Schema defined, no application code |
@@ -1038,7 +1038,7 @@ Every transactional event generates a balanced journal entry automatically via e
 
 Responsibility: Global reference tables and infrastructure bootstrap.
 
-**Current implementation** (2 files): `SharedServiceProvider` that loads migrations for global reference tables (currencies, countries, timezones, languages).
+**Current implementation** (3 files): `SharedServiceProvider` that loads migrations for global reference tables (currencies, countries, timezones, languages), plus a routes file (no endpoints) and the migration file itself.
 
 **Planned expansion** (not yet implemented):
 - Cross-module contracts, base DTOs, domain events
