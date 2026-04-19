@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('return_order_id')->nullable(); // polymorphic to purchase_return or sales_return
             $table->string('return_order_type')->nullable();
             $table->string('credit_memo_number');
-            $table->decimal('amount', 15, 4);
+            $table->decimal('amount', 20, 6);
             $table->enum('status', ['draft', 'issued', 'applied', 'voided'])->default('draft');
             $table->date('issued_date');
             $table->foreignId('applied_to_invoice_id')->nullable(); // reference to purchase_invoice or sales_invoice

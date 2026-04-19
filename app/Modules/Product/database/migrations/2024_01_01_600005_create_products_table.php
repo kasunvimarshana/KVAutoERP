@@ -29,7 +29,7 @@ return new class extends Migration
             $table->boolean('is_lot_tracked')->default(false);
             $table->boolean('is_serial_tracked')->default(false);
             $table->enum('valuation_method', ['fifo', 'lifo', 'fefo', 'weighted_average', 'standard'])->default('fifo');
-            $table->decimal('standard_cost', 15, 4)->nullable();
+            $table->decimal('standard_cost', 20, 6)->nullable();
             // Products account references
             $table->foreignId('income_account_id')->nullable(); // will reference accounts later
             $table->foreignId('cogs_account_id')->nullable();
