@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('slug');
             $table->string('sku')->nullable();
             $table->text('description')->nullable();
+            $table->string('image_path')->nullable();
             $table->foreignId('base_uom_id')->constrained('units_of_measure', 'id', 'products_base_uom_id_fk');
             $table->foreignId('purchase_uom_id')->nullable()->constrained('units_of_measure', 'id', 'products_purchase_uom_id_fk');
             $table->foreignId('sales_uom_id')->nullable()->constrained('units_of_measure', 'id', 'products_sales_uom_id_fk');
