@@ -329,7 +329,9 @@ org_units:       id, tenant_id, type_id (FK → org_unit_types),
                  depth (int), manager_user_id (FK → users, nullable),
                  is_active, metadata(JSON), timestamps
 
-org_unit_users:  id, org_unit_id, user_id, role_in_unit, assigned_at
+org_unit_attachments: id, tenant_id, org_unit_id, uuid, name, file_path,
+                 mime_type, size, type, metadata(JSON),
+                 timestamps, deleted_at
 ```
 
 Key Features:
@@ -361,6 +363,10 @@ permission_user:   permission_id, user_id          -- direct overrides
 
 user_devices:      id, user_id, device_token, platform (ios|android|web),
                    push_token (nullable), last_active_at
+
+user_attachments:  id, tenant_id, user_id, uuid, name, file_path,
+                   mime_type, size, type, metadata(JSON),
+                   timestamps, deleted_at
 
 -- OAuth2 tables managed by laravel/passport:
 oauth_clients, oauth_access_tokens, oauth_refresh_tokens, oauth_personal_access_clients
@@ -408,32 +414,25 @@ Key Features:
 
 ---
 
-### 8.6 Employee *(Added — was missing)*
+### 8.6 Employee
 
-Responsibility: Employee master data, payroll readiness, org-unit assignment, HR linkage.
+Responsibility: Employee master data, org-unit assignment, HR linkage.
 
 ```sql
-employees:           id, tenant_id, user_id (nullable, FK → users),
+employees:           id, tenant_id,
+                     user_id (FK → users, unique per tenant),
+                     employee_code (unique per tenant, nullable),
                      org_unit_id (FK → org_units, nullable),
-                     code (unique per tenant), first_name, last_name,
-                     date_of_birth, hire_date, termination_date (nullable),
-                     employment_type (full_time|part_time|contract|intern),
-                     job_title, department,
-                     status (active|inactive|terminated),
-                     notes, metadata(JSON), timestamps, deleted_at
-
-employee_addresses:  id, employee_id, type (home|emergency), label,
-                     address_line1, address_line2, city, state,
-                     postal_code, country_id, is_default
-
-employee_contacts:   id, employee_id, name, relationship, phone, email, is_emergency
+                     job_title, hire_date, termination_date (nullable),
+                     metadata(JSON), timestamps
 ```
 
+> **Note:** The actual migration creates only the `employees` table. The `employee_addresses` and `employee_contacts` tables described in earlier design documents have not been implemented.
+
 Key Features:
-- Linked to `users` for system access (optional — contract workers may not have logins)
+- Linked to `users` for system access (1:1 relationship via unique `user_id`)
 - Org-unit assignment for cost center reporting
 - Foundation for future Payroll module
-- Soft-deleted on termination (historical records preserved)
 
 ---
 
@@ -721,6 +720,32 @@ stock_reservations:    id, tenant_id, product_id, variant_id (nullable),
                        uom_id, quantity DECIMAL(20,6),
                        reference_type, reference_id,          -- linked to SO line, etc.
                        reserved_at, expires_at (nullable), status (active|released|consumed)
+
+-- Stock Adjustments
+stock_adjustments:     id, tenant_id, reference_number,
+                       warehouse_id, location_id (nullable),
+                       type (cycle_count|physical_inventory|write_off),
+                       status (draft|in_progress|completed|approved|cancelled),
+                       counted_by, counted_at, approved_by, approved_at,
+                       reason, timestamps
+
+stock_adjustment_lines: id, stock_adjustment_id, product_id,
+                       variant_id (nullable), batch_id (nullable), serial_id (nullable),
+                       location_id,
+                       system_qty DECIMAL(15,4), counted_qty DECIMAL(15,4),
+                       variance_qty DECIMAL(15,4) (computed),
+                       unit_cost DECIMAL(15,4), variance_value DECIMAL(15,4) (computed)
+
+-- Stock Transfers
+stock_transfers:       id, tenant_id, reference_number,
+                       from_location_id, to_location_id,
+                       status (draft|pending|in_transit|completed|cancelled),
+                       requested_by, approved_by (nullable),
+                       transferred_at (nullable), notes, timestamps
+
+stock_transfer_lines:  id, stock_transfer_id, product_id,
+                       variant_id (nullable), batch_id (nullable), serial_id (nullable),
+                       quantity DECIMAL(15,4), uom_id
 ```
 
 Key Features:
@@ -898,14 +923,9 @@ sales_return_lines:    id, return_id, original_so_line_id (nullable),
                        disposition (restock|scrap|quarantine),
                        quality_check_status (pending|passed|failed),
                        restocking_fee DECIMAL(20,6), quality_check_notes
-
-credit_memos:          id, tenant_id, return_order_type (purchase_return|sales_return),
-                       return_order_id, reference_number (unique per tenant),
-                       party_id (customer or supplier polymorphic),
-                       amount DECIMAL(20,6),
-                       status (draft|issued|partially_applied|applied|voided|refunded),
-                       issued_date, notes, timestamps
 ```
+
+> **Note:** Credit memos are managed in the Finance module (`credit_memos` table), not the Sales module.
 
 ---
 
@@ -978,6 +998,10 @@ tax_rules:             id, tenant_id, product_category_id (nullable),
                        tax_class_id, priority (int)
 
 -- ── Payments ────────────────────────────────────────────────────
+payment_methods:       id, tenant_id, name,
+                       type (cash|bank_transfer|card|cheque|other),
+                       account_id (nullable), is_active
+
 payments:              id, tenant_id,
                        type (customer_payment|supplier_payment|refund),
                        party_type, party_id,
@@ -1016,6 +1040,31 @@ bank_reconciliations:  id, tenant_id, bank_account_id,
                        opening_balance DECIMAL(20,6), closing_balance DECIMAL(20,6),
                        status (draft|completed),
                        completed_by_user_id, completed_at
+
+-- ── AR/AP Transactions ─────────────────────────────────────────
+ar_transactions:       id, tenant_id, customer_id, account_id,
+                       transaction_type (invoice|payment|credit_memo|adjustment),
+                       reference_type, reference_id (polymorphic),
+                       amount DECIMAL(15,4), balance_after DECIMAL(15,4),
+                       transaction_date, due_date (nullable),
+                       currency_id, is_reconciled (bool)
+
+ap_transactions:       id, tenant_id, supplier_id, account_id,
+                       transaction_type (bill|payment|debit_note|adjustment),
+                       reference_type, reference_id (polymorphic),
+                       amount DECIMAL(15,4), balance_after DECIMAL(15,4),
+                       transaction_date, due_date (nullable),
+                       currency_id, is_reconciled (bool)
+
+-- ── Credit Memos ───────────────────────────────────────────────
+credit_memos:          id, tenant_id, party_id, party_type,
+                       return_order_id (nullable), return_order_type (nullable),
+                       credit_memo_number (unique per tenant),
+                       amount DECIMAL(15,4),
+                       status (draft|issued|applied|voided),
+                       issued_date,
+                       applied_to_invoice_id (nullable), applied_to_invoice_type (nullable),
+                       journal_entry_id (nullable), notes, timestamps
 ```
 
 #### Automatic Journal Entry Generation
