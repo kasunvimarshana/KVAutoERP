@@ -42,20 +42,18 @@ Tenant module refactoring is now service-centric, with request validation and pe
 
 ## Migration and Schema Updates
 
-> **Note:** Migration filenames were renamed during the subsequent naming refactor (April 18, 2026). The current filenames are listed below.
+- `2024_01_01_000001_create_tenants_table.php`
+    - Retains plan/status/subscription fields and indexes
+    - Defers tenant plan FK creation for correct migration order
 
-- `2024_01_01_000001_create_tenant_plans_table.php`
+- `2024_01_01_100001_create_tenant_plans_table.php`
     - Removed redundant standalone slug index where unique already provides indexing
 
-- `2024_01_01_000002_create_tenants_table.php`
-    - Retains plan/status/subscription fields and indexes
-    - Tenant plan FK is inline (the previously separate FK migration was consolidated)
+- `2024_01_01_100002_add_tenant_plan_foreign_key_to_tenants_table.php`
+    - Adds tenant plan foreign key after plans table exists
 
-- `2024_01_01_000003_create_tenant_attachments_table.php`
+- `2024_01_01_000002_create_tenant_attachments_table.php`
     - Removed redundant standalone uuid index because unique key already indexes it
-
-- `2024_01_01_000004_create_tenant_settings_table.php`
-    - Key-value tenant configuration store
 
 ## Notes on Documentation Alignment
 

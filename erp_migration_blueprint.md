@@ -1,22 +1,15 @@
 # ERP Migration Blueprint
 
-> **Status:** This is an early design document from the initial planning phase. The actual schema
-> has been implemented across 66 module-scoped migrations in `app/Modules/<Module>/database/migrations/`.
-> For the authoritative module specifications, see [SKILL.md](SKILL.md).
-> For the actual table index, see [AGENT.md Section 5](AGENT.md#5-complete-module-table-index).
-> For cross-module FKs, see [MIGRATIONS_DEFERRED_FK_MATRIX.md](MIGRATIONS_DEFERRED_FK_MATRIX.md).
+> **Status:** This is an early design document. The actual schema has been implemented across
+> 66 module-scoped migrations in `app/Modules/<Module>/database/migrations/`.
+> For the authoritative specification, see [SKILL.md](SKILL.md) (module schemas)
+> and [MIGRATIONS_DEFERRED_FK_MATRIX.md](MIGRATIONS_DEFERRED_FK_MATRIX.md) (cross-module FKs).
 >
-> **Key differences from this blueprint vs. actual implementation:**
+> **Key differences from this blueprint:**
 > - The "Party" module was replaced by separate `Customer`, `Employee`, and `Supplier` modules
 > - Monetary/quantity values use `DECIMAL(20,6)` (not `decimal(18,4)`)
 > - OrgUnit uses materialized path hierarchy (not closure table)
 > - Constraint naming follows `{table}_{column(s)}_{type}` with `_pk`, `_uk`, `_idx`, `_fk` suffixes
-> - The Tax module uses `tax_classes` (not `tax_groups` as described here)
-> - The Configuration module has no migrations (ServiceProvider and routes only)
-> - The Employee module has only an `employees` table (no addresses/contacts tables)
-> - The `tenant_domains` table was not implemented; `domain` is a column on the `tenants` table
-> - The `product_brands` table was added (not in this blueprint)
-> - Several table names in this blueprint differ from actual migration file names
 
 ## Scope
 A normalized, tenant-aware, modular migration design for a full ERP/CRM platform. Migrations are organized under:
