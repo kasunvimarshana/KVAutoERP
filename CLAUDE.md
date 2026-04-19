@@ -100,4 +100,3 @@ AppServiceProvider, CoreServiceProvider, ConfigurationServiceProvider, SharedSer
 - **laravel/passport** — OAuth2 API authentication
 - **laravel/reverb** — Real-time WebSocket broadcasting
 - **darkaonline/l5-swagger** — OpenAPI/Swagger API documentation
-- Do not modify Core module traits without considering impact on all modules.
