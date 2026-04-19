@@ -18,10 +18,6 @@ use Modules\Shared\Domain\RepositoryInterfaces\CountryRepositoryInterface;
 use Modules\Shared\Domain\RepositoryInterfaces\CurrencyRepositoryInterface;
 use Modules\Shared\Domain\RepositoryInterfaces\LanguageRepositoryInterface;
 use Modules\Shared\Domain\RepositoryInterfaces\TimezoneRepositoryInterface;
-use Modules\Shared\Infrastructure\Persistence\Eloquent\Models\CountryModel;
-use Modules\Shared\Infrastructure\Persistence\Eloquent\Models\CurrencyModel;
-use Modules\Shared\Infrastructure\Persistence\Eloquent\Models\LanguageModel;
-use Modules\Shared\Infrastructure\Persistence\Eloquent\Models\TimezoneModel;
 use Modules\Shared\Infrastructure\Persistence\Eloquent\Repositories\EloquentCountryRepository;
 use Modules\Shared\Infrastructure\Persistence\Eloquent\Repositories\EloquentCurrencyRepository;
 use Modules\Shared\Infrastructure\Persistence\Eloquent\Repositories\EloquentLanguageRepository;
@@ -33,11 +29,16 @@ class SharedServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        // Repositories
-        $this->app->bind(CountryRepositoryInterface::class, fn ($app) => new EloquentCountryRepository($app->make(CountryModel::class)));
-        $this->app->bind(CurrencyRepositoryInterface::class, fn ($app) => new EloquentCurrencyRepository($app->make(CurrencyModel::class)));
-        $this->app->bind(LanguageRepositoryInterface::class, fn ($app) => new EloquentLanguageRepository($app->make(LanguageModel::class)));
-        $this->app->bind(TimezoneRepositoryInterface::class, fn ($app) => new EloquentTimezoneRepository($app->make(TimezoneModel::class)));
+        $repositoryBindings = [
+            CountryRepositoryInterface::class => EloquentCountryRepository::class,
+            CurrencyRepositoryInterface::class => EloquentCurrencyRepository::class,
+            LanguageRepositoryInterface::class => EloquentLanguageRepository::class,
+            TimezoneRepositoryInterface::class => EloquentTimezoneRepository::class,
+        ];
+
+        foreach ($repositoryBindings as $contract => $implementation) {
+            $this->app->bind($contract, $implementation);
+        }
 
         // Services
         $this->app->bind(FindCountriesServiceInterface::class, FindCountriesService::class);

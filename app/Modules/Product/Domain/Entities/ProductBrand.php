@@ -46,8 +46,8 @@ class ProductBrand
     public function __construct(
         int $tenantId,
         string $name,
-        ?string $imagePath = null,
         string $slug,
+        ?string $imagePath = null,
         ?int $parentId = null,
         ?string $code = null,
         ?string $path = null,
@@ -168,8 +168,8 @@ class ProductBrand
      */
     public function update(
         string $name,
-        ?string $imagePath = null,
         string $slug,
+        ?string $imagePath = null,
         ?int $parentId,
         ?string $code,
         ?string $path,

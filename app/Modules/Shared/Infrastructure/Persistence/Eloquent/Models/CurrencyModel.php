@@ -6,7 +6,7 @@ namespace Modules\Shared\Infrastructure\Persistence\Eloquent\Models;
 
 use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
 
-use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 
 class CurrencyModel extends BaseModel
 {

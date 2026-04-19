@@ -10,8 +10,7 @@ use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
-use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 
 class OrganizationUnitModel extends BaseModel
 {
@@ -74,7 +73,10 @@ class OrganizationUnitModel extends BaseModel
 
     public function manager(): BelongsTo
     {
-        return $this->belongsTo(UserModel::class, 'manager_user_id');
+        return $this->belongsTo(
+            (string) config('auth.providers.users.model'),
+            'manager_user_id'
+        );
     }
 
     public function organizationUnitUsers(): HasMany

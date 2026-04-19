@@ -33,6 +33,8 @@ class Product
 
     private ?int $salesUomId;
 
+    private ?int $taxGroupId;
+
     private string $uomConversionFactor;
 
     private bool $isBatchTracked;
@@ -69,9 +71,10 @@ class Product
         int $tenantId,
         string $type,
         string $name,
-        ?string $imagePath = null,
         string $slug,
         int $baseUomId,
+        ?string $imagePath = null,
+        ?int $taxGroupId = null,
         ?int $categoryId = null,
         ?int $brandId = null,
         ?int $orgUnitId = null,
@@ -109,6 +112,7 @@ class Product
         $this->baseUomId = $baseUomId;
         $this->purchaseUomId = $purchaseUomId;
         $this->salesUomId = $salesUomId;
+        $this->taxGroupId = $taxGroupId;
         $this->uomConversionFactor = $uomConversionFactor;
         $this->isBatchTracked = $isBatchTracked;
         $this->isLotTracked = $isLotTracked;
@@ -192,6 +196,11 @@ class Product
         return $this->salesUomId;
     }
 
+    public function getTaxGroupId(): ?int
+    {
+        return $this->taxGroupId;
+    }
+
     public function getUomConversionFactor(): string
     {
         return $this->uomConversionFactor;
@@ -271,9 +280,10 @@ class Product
     public function update(
         string $type,
         string $name,
-        ?string $imagePath = null,
         string $slug,
         int $baseUomId,
+        ?string $imagePath = null,
+        ?int $taxGroupId = null,
         ?int $categoryId,
         ?int $brandId,
         ?int $orgUnitId,
@@ -306,6 +316,7 @@ class Product
         $this->description = $description;
         $this->purchaseUomId = $purchaseUomId;
         $this->salesUomId = $salesUomId;
+        $this->taxGroupId = $taxGroupId;
         $this->uomConversionFactor = $uomConversionFactor;
         $this->isBatchTracked = $isBatchTracked;
         $this->isLotTracked = $isLotTracked;

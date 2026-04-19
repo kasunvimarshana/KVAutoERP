@@ -10,8 +10,7 @@ use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
-use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 
 /**
  * @property int $id
@@ -106,6 +105,9 @@ class TenantModel extends BaseModel
 
     public function users(): HasMany
     {
-        return $this->hasMany(UserModel::class, 'tenant_id');
+        return $this->hasMany(
+            (string) config('auth.providers.users.model'),
+            'tenant_id'
+        );
     }
 }

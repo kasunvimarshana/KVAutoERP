@@ -7,7 +7,7 @@ use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
 
 use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
 
-use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 
 class ProductIdentifierModel extends BaseModel
 {

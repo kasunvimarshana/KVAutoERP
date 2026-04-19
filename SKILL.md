@@ -495,7 +495,7 @@ products:            id, tenant_id, category_id, type (physical|service|digital|
                      name, code (SKU, unique per tenant), description,
                      base_uom_id, purchase_uom_id (nullable), sales_uom_id (nullable),
                      uom_conversion_factor DECIMAL(20,6),
-                     tax_class_id (FK → tax_groups),
+                     tax_group_id (FK → tax_groups),
                      is_active,
                      is_batch_tracked (bool), is_lot_tracked (bool), is_serial_tracked (bool),
                      valuation_method (fifo|lifo|fefo|weighted_avg|specific|tenant_default),
@@ -743,7 +743,7 @@ purchase_order_lines:  id, po_id, line_number (int),
                        product_id, variant_id (nullable), description,
                        uom_id, ordered_qty DECIMAL(20,6), received_qty DECIMAL(20,6),
                        unit_price DECIMAL(20,6), discount_pct DECIMAL(10,6),
-                       tax_class_id, tax_amount DECIMAL(20,6), line_total DECIMAL(20,6),
+                       tax_group_id, tax_amount DECIMAL(20,6), line_total DECIMAL(20,6),
                        account_id (expense or asset account)
 
 grn_headers:           id, tenant_id, supplier_id, warehouse_id,
@@ -829,7 +829,7 @@ sales_order_lines:     id, so_id, line_number (int),
                        uom_id, ordered_qty DECIMAL(20,6),
                        shipped_qty DECIMAL(20,6), invoiced_qty DECIMAL(20,6),
                        unit_price DECIMAL(20,6), discount_pct DECIMAL(10,6),
-                       tax_class_id, tax_amount DECIMAL(20,6), line_total DECIMAL(20,6),
+                       tax_group_id, tax_amount DECIMAL(20,6), line_total DECIMAL(20,6),
                        account_id (income account)
 
 shipments:             id, tenant_id, customer_id,

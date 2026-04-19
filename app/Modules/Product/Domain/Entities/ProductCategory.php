@@ -44,8 +44,8 @@ class ProductCategory
     public function __construct(
         int $tenantId,
         string $name,
-        ?string $imagePath = null,
         string $slug,
+        ?string $imagePath = null,
         ?int $parentId = null,
         ?string $code = null,
         ?string $path = null,
@@ -159,8 +159,8 @@ class ProductCategory
      */
     public function update(
         string $name,
-        ?string $imagePath = null,
         string $slug,
+        ?string $imagePath = null,
         ?int $parentId,
         ?string $code,
         ?string $path,
