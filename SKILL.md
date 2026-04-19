@@ -287,23 +287,31 @@ languages:       id, code (ISO 639-1), name, native_name, is_active
 
 ### 8.2 Tenant
 
-Responsibility: Manage tenant lifecycle, plan/subscription, configuration, and custom domains.
+Responsibility: Manage tenant lifecycle, plan/subscription, configuration, and attachments.
 
 ```sql
-tenants:         id, name, slug, plan_id, status (active|suspended|trial|cancelled),
-                 settings(JSON), created_at, updated_at
+tenant_plans:       id, name, features(JSON), limits(JSON), price, billing_period
 
-tenant_plans:    id, name, features(JSON), limits(JSON), price, billing_period
+tenants:            id, name, slug, domain (nullable, unique),
+                    logo_path, database_config(JSON), mail_config(JSON),
+                    cache_config(JSON), queue_config(JSON),
+                    feature_flags(JSON), api_keys(JSON), settings(JSON),
+                    plan, tenant_plan_id (FK → tenant_plans, nullable),
+                    status (active|suspended|pending|cancelled),
+                    active (bool), trial_ends_at, subscription_ends_at,
+                    timestamps, deleted_at
 
-tenant_domains:  id, tenant_id, domain, is_primary, verified_at
+tenant_attachments: id, tenant_id, uuid, name, file_path, mime_type,
+                    size, type, metadata(JSON), timestamps, deleted_at
 
-tenant_settings: id, tenant_id, key, value, type (string|integer|boolean|json), group
+tenant_settings:    id, tenant_id, key, value, type (string|integer|boolean|json), group
 ```
 
 Key Features:
 - Tenant registration, activation, suspension
 - Per-tenant feature flags and limits
-- Custom domain support
+- Domain stored directly on the `tenants` table (no separate domains table)
+- JSON-based per-tenant configuration (database, mail, cache, queue)
 - Configurable per tenant: default currency, timezone, date format, inventory valuation method, enabled optional modules, default warehouse, default accounts, approval workflows, numbering sequences
 
 ---
@@ -484,6 +492,11 @@ product_categories:  id, tenant_id, parent_id (self-ref, nullable),
                      name, code, path (materialized), depth,
                      is_active, timestamps
 
+product_brands:      id, tenant_id, parent_id (self-ref, nullable),
+                     name, slug, code, path, depth,
+                     is_active, website, description,
+                     attributes(JSON), metadata(JSON), timestamps
+
 attribute_groups:    id, tenant_id, name
 
 attributes:          id, tenant_id, group_id, name,
@@ -495,7 +508,7 @@ products:            id, tenant_id, category_id, type (physical|service|digital|
                      name, code (SKU, unique per tenant), description,
                      base_uom_id, purchase_uom_id (nullable), sales_uom_id (nullable),
                      uom_conversion_factor DECIMAL(20,6),
-                     tax_class_id (FK → tax_groups),
+                     tax_class_id (FK → tax_classes),
                      is_active,
                      is_batch_tracked (bool), is_lot_tracked (bool), is_serial_tracked (bool),
                      valuation_method (fifo|lifo|fefo|weighted_avg|specific|tenant_default),
@@ -508,7 +521,7 @@ products:            id, tenant_id, category_id, type (physical|service|digital|
 product_variants:    id, product_id, sku (unique per tenant), name,
                      is_default, is_active, metadata(JSON), timestamps, deleted_at
 
-variant_attributes:  id, variant_id, attribute_id, attribute_value_id
+variant_attribute_values: id, variant_id, attribute_id, attribute_value_id
 
 combo_items:         id, combo_product_id, component_product_id,
                      component_variant_id (nullable),
@@ -952,17 +965,17 @@ journal_entry_lines:   id, journal_entry_id, line_number (int),
                        -- CONSTRAINT: debit >= 0 AND credit >= 0
                        -- CONSTRAINT: debit > 0 XOR credit > 0
 
--- ── Tax ─────────────────────────────────────────────────────────
-tax_groups:            id, tenant_id, name, description
+-- ── Tax (Tax Module) ─────────────────────────────────────────
+tax_classes:           id, tenant_id, name, description
 
-tax_rates:             id, tenant_id, tax_group_id, name,
-                       rate DECIMAL(10,6), type (percentage|fixed),
-                       applies_to (purchase|sales|both),
-                       valid_from, valid_to, is_active
+tax_rates:             id, tenant_id, tax_class_id, name,
+                       rate DECIMAL(7,4), type (percentage|fixed),
+                       account_id (nullable), is_compound (bool),
+                       is_active, valid_from, valid_to
 
 tax_rules:             id, tenant_id, product_category_id (nullable),
                        party_type (nullable), region (nullable),
-                       tax_group_id, priority (int)
+                       tax_class_id, priority (int)
 
 -- ── Payments ────────────────────────────────────────────────────
 payments:              id, tenant_id,

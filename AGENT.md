@@ -253,16 +253,14 @@ Is the entity master data?
 
 ---
 
-### 4.1 Tax Naming Unification — `tax_class_id` → `tax_group_id`
+### 4.1 Tax Naming — `tax_class_id`
 
-**Issue:** The original knowledge base used `tax_class_id` in `products` and order line tables but the tax module defines `tax_groups`. This is an inconsistency that would cause runtime FK failures.
+**Current state:** The Tax module defines `tax_classes` (not `tax_groups`). All references use `tax_class_id` (FK → `tax_classes.id`) in:
+- `products.tax_class_id` (via deferred FK)
+- `purchase_order_lines.tax_class_id`
+- `sales_order_lines.tax_class_id`
 
-**Fix:** Use `tax_group_id` (FK → `tax_groups.id`) everywhere. Apply to:
-- `products.tax_group_id`
-- `purchase_order_lines.tax_group_id`
-- `purchase_invoice_lines.tax_group_id`
-- `sales_order_lines.tax_group_id`
-- `sales_invoice_lines.tax_group_id`
+> **Note:** An earlier design doc proposed renaming to `tax_group_id`, but the actual migrations use `tax_class_id` throughout. The codebase is internally consistent on this naming.
 
 ---
 
@@ -420,56 +418,65 @@ payment_terms:  id, tenant_id,
 
 ## 5. COMPLETE MODULE TABLE INDEX
 
-*Every table in the system, organized by module. Use this as a quick lookup to avoid re-defining or duplicating tables.*
+*Every table in the system, organized by module. Tables listed are those defined in actual module migrations under `app/Modules/<Module>/database/migrations/`.*
 
 ### Core Module
-`currencies` · `countries` · `timezones` · `languages` · `attachments`
+*(No migration-managed tables. Core provides shared traits, base classes, and repository abstractions.)*
+
+### Shared Module
+`currencies` · `countries` · `timezones` · `languages`
 
 ### Tenant Module
-`tenants` · `tenant_plans` · `tenant_domains` · `tenant_settings`
+`tenant_plans` · `tenants` · `tenant_attachments` · `tenant_settings`
 
 ### OrganizationUnit Module
-`org_unit_types` · `org_units` · `org_unit_users`
+`org_unit_types` · `org_units` · `org_unit_attachments`
 
 ### User Module
-`users` · `roles` · `permissions` · `role_user` · `permission_role` · `permission_user` · `user_devices`
+`users` · `roles` · `permissions` · `role_user` · `permission_role` · `permission_user` · `user_devices` · `user_attachments`
 *(+ Laravel Passport tables: `oauth_clients`, `oauth_access_tokens`, `oauth_refresh_tokens`, `oauth_personal_access_clients`)*
+
+### Auth Module
+*(No dedicated migration file. Uses `add_auth_columns_to_users_table` migration to extend the User module's `users` table.)*
+
+### Audit Module
+`audit_logs`
 
 ### Customer Module
 `customers` · `customer_addresses` · `customer_contacts`
 
 ### Employee Module
-`employees` · `employee_addresses` · `employee_contacts`
+`employees`
 
 ### Supplier Module
 `suppliers` · `supplier_addresses` · `supplier_contacts` · `supplier_products`
 
 ### Product Module
-`product_categories` · `attribute_groups` · `attributes` · `attribute_values` · `products` · `product_variants` · `variant_attributes` · `combo_items` · `units_of_measure` · `uom_conversions` · `product_identifiers`
+`product_categories` · `product_brands` · `attribute_groups` · `attributes` · `attribute_values` · `products` · `product_variants` · `variant_attribute_values` · `combo_items` · `units_of_measure` · `uom_conversions` · `product_identifiers`
 
 ### Pricing Module
 `price_lists` · `price_list_items` · `customer_price_lists` · `supplier_price_lists`
+
+### Tax Module
+`tax_classes` · `tax_rates` · `tax_rules` · `transaction_taxes`
 
 ### Warehouse Module
 `warehouses` · `warehouse_locations`
 
 ### Inventory Module
-`stock_levels` · `batches` · `serials` · `stock_movements` · `stock_reservations` · `inventory_cost_layers` · `cycle_count_headers` · `cycle_count_lines` · `trace_logs`
+`stock_levels` · `batches` · `serials` · `stock_movements` · `stock_reservations` · `inventory_cost_layers` · `stock_adjustments` · `stock_adjustment_lines` · `stock_transfers` · `stock_transfer_lines` · `cycle_count_headers` · `cycle_count_lines` · `trace_logs`
 
 ### Purchase Module
 `purchase_orders` · `purchase_order_lines` · `grn_headers` · `grn_lines` · `purchase_invoices` · `purchase_invoice_lines` · `purchase_returns` · `purchase_return_lines`
 
 ### Sales Module
-`sales_orders` · `sales_order_lines` · `shipments` · `shipment_lines` · `sales_invoices` · `sales_invoice_lines` · `sales_returns` · `sales_return_lines` · `credit_memos`
-
-### Transfer Module *(clarified — part of Inventory or Warehouse)*
-`transfer_orders` · `transfer_order_lines`
+`sales_orders` · `sales_order_lines` · `shipments` · `shipment_lines` · `sales_invoices` · `sales_invoice_lines` · `sales_returns` · `sales_return_lines`
 
 ### Finance Module
-`fiscal_years` · `fiscal_periods` · `accounts` · `journal_entries` · `journal_entry_lines` · `tax_groups` · `tax_rates` · `tax_rules` · `payments` · `payment_allocations` · `bank_accounts` · `bank_transactions` · `bank_category_rules` · `bank_reconciliations`
+`accounts` · `fiscal_years` · `fiscal_periods` · `journal_entries` · `journal_entry_lines` · `payment_methods` · `payments` · `payment_allocations` · `ar_transactions` · `ap_transactions` · `credit_memos` · `bank_accounts` · `bank_category_rules` · `bank_transactions` · `bank_reconciliations`
 
-### Shared / Cross-Cutting
-`payment_terms` · `numbering_sequences` · `approval_workflow_configs` · `approval_requests` · `audit_logs`
+### Framework-Level (database/migrations/)
+`cache` · `cache_locks` · `jobs` · `job_batches` · `failed_jobs` · *(deferred cross-module foreign keys)*
 
 ---
 
