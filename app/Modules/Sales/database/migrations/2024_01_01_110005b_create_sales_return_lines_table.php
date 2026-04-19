@@ -12,6 +12,7 @@ return new class extends Migration
     {
         Schema::create('sales_return_lines', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id');
             $table->foreignId('sales_return_id')->constrained(null, 'id', 'sales_return_lines_sales_return_id_fk')->cascadeOnDelete();
             $table->foreignId('original_sales_order_line_id')->nullable()->constrained('sales_order_lines', 'id', 'sales_return_lines_original_sales_order_line_id_fk')->nullOnDelete();
             $table->foreignId('product_id');

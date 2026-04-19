@@ -17,7 +17,7 @@ class AuthorizedController extends Controller
         authorize as protected laravelAuthorize;
     }
 
-    public function authorize($ability, $arguments = [])
+    public function authorize(string $ability, mixed $arguments = []): mixed
     {
         // return $this->laravelAuthorize($ability, $arguments);
         $user = auth()->guard()->user();

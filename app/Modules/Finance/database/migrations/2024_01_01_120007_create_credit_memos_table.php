@@ -14,7 +14,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->constrained(null, 'id', 'credit_memos_tenant_id_fk')->cascadeOnDelete();
             $table->foreignId('party_id'); // customer or supplier
-            $table->string('party_type'); // customer, supplier
+            $table->enum('party_type', ['customer', 'supplier']); // customer, supplier
             $table->foreignId('return_order_id')->nullable(); // polymorphic to purchase_return or sales_return
             $table->string('return_order_type')->nullable();
             $table->string('credit_memo_number');

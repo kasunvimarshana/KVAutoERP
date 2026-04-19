@@ -117,6 +117,16 @@ return new class extends Migration
         // Subledger party relationships
         $this->addForeignIfPossible('ar_transactions', 'customer_id', 'customers', 'cascade');
         $this->addForeignIfPossible('ap_transactions', 'supplier_id', 'suppliers', 'cascade');
+
+        // Tenant FK on Purchase/Sales line tables
+        $this->addForeignIfPossible('purchase_order_lines', 'tenant_id', 'tenants', 'cascade');
+        $this->addForeignIfPossible('grn_lines', 'tenant_id', 'tenants', 'cascade');
+        $this->addForeignIfPossible('purchase_invoice_lines', 'tenant_id', 'tenants', 'cascade');
+        $this->addForeignIfPossible('purchase_return_lines', 'tenant_id', 'tenants', 'cascade');
+        $this->addForeignIfPossible('sales_order_lines', 'tenant_id', 'tenants', 'cascade');
+        $this->addForeignIfPossible('shipment_lines', 'tenant_id', 'tenants', 'cascade');
+        $this->addForeignIfPossible('sales_invoice_lines', 'tenant_id', 'tenants', 'cascade');
+        $this->addForeignIfPossible('sales_return_lines', 'tenant_id', 'tenants', 'cascade');
     }
 
     public function down(): void
