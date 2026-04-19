@@ -37,7 +37,7 @@ The platform has 19 modules in various stages of implementation:
 | **Tenant** | 117 | Multi-tenant management, plans, settings, attachments, config |
 | **Finance** | 98 | Double-entry accounting, chart of accounts, fiscal years/periods, journal entries |
 | **Auth** | 55 | OAuth2 login/register, SSO, composite RBAC+ABAC authorization |
-| **Core** | 46 | Shared kernel: traits, base classes, repository abstractions |
+| **Core** | 44 | Shared kernel: base classes, framework abstractions, repository foundations |
 | **OrganizationUnit** | 42 | Hierarchical org structures (materialized path), attachments |
 | **Audit** | 18 | Immutable audit log with change tracking |
 
@@ -45,8 +45,8 @@ The platform has 19 modules in various stages of implementation:
 
 | Module | Description |
 |--------|-------------|
-| **Configuration** | ServiceProvider + routes file (no domain code) |
-| **Shared** | ServiceProvider + routes file + global reference table migration (countries, currencies, languages, timezones) |
+| **Configuration** | Owns global reference data (countries, currencies, languages, timezones) with Domain/Application/Infrastructure layers |
+| **Shared** | Minimal module shell (provider + empty route surface; no domain-owned runtime logic) |
 
 ### Migration-Only Stubs (9 modules — schema defined, no application code)
 
@@ -100,10 +100,10 @@ app/Modules/<Module>/
 
 All 26 Eloquent models extend `Illuminate\Database\Eloquent\Model` directly (not `BaseModel`). The `BaseModel` abstract class exists in Core but is currently unused.
 
-- **`HasAudit`**: Used by 20 models for automatic change tracking via the Audit module.
+- **`HasAudit`**: Defined in Audit (`Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit`) and used by 20 models for change tracking.
 - **`SoftDeletes`**: Used by 8 models (AccountModel, OrgUnitModel, OrgUnitAttachmentModel, ProductModel, TenantModel, TenantAttachmentModel, UserModel, UserAttachmentModel).
 - **`HasUuid`**: Defined in Core but currently unused — all models use integer auto-increment primary keys.
-- **`HasTenant`**: Defined in Core but currently unused — tenant isolation is handled via middleware and explicit repository filtering.
+- **`HasTenant`**: Defined in Tenant (`Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant`) and used by tenant-scoped models.
 
 ### Multi-Tenancy
 
@@ -155,8 +155,8 @@ OrganizationUnitServiceProvider, ProductServiceProvider, FinanceServiceProvider
 | Product | 7 service tests | 14 route/repo/endpoint tests, UoM consistency |
 | Audit | Controller, Resource, Service | Routes, endpoints, repository |
 | Architecture | Module boundaries, timestamps, guardrails | — |
-| Shared | — | Migration smoke test |
-| Configuration | — | Migration smoke test |
+| Shared | — | Thin-module guardrails + migration smoke test |
+| Configuration | — | Reference-data migration and architecture guardrails |
 
 ## Migrations
 

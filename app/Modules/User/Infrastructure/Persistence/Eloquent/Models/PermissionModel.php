@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 namespace Modules\User\Infrastructure\Persistence\Eloquent\Models;
-use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
+use Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
 
 use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
 
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
+use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 
 class PermissionModel extends BaseModel
 {

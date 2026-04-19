@@ -3,14 +3,14 @@
 declare(strict_types=1);
 
 namespace Modules\Tenant\Infrastructure\Persistence\Eloquent\Models;
-use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
+use Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
 
 use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
+use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
 
 class TenantAttachmentModel extends BaseModel
 {

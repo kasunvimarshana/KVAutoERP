@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 namespace Modules\Finance\Infrastructure\Persistence\Eloquent\Models;
-use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
+use Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
 
 use Modules\Core\Infrastructure\Persistence\Eloquent\Models\BaseModel;
 

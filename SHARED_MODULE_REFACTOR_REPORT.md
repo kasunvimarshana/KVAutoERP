@@ -41,18 +41,24 @@ Deleted global attachments migration from Shared because it duplicates attachmen
 
 - Deleted: app/Modules/Shared/database/migrations/2024_01_01_140001_create_attachments_table.php
 
-### 4) Preserve genuinely shared reference data
+### 4) Relocate reference data ownership to Configuration
 
-Retained reference-table migration consumed across modules.
+Moved global reference-data domain/application/infrastructure + migrations from Shared to Configuration to improve cohesion and align ownership with configuration semantics.
 
-- app/Modules/Shared/database/migrations/2024_01_01_000002_create_global_reference_tables.php
+- Moved from `app/Modules/Shared/*` to `app/Modules/Configuration/*`:
+  - `Application/Contracts` + `Application/Services`
+  - `Domain/Entities` + `Domain/RepositoryInterfaces`
+  - `Infrastructure/Persistence/Eloquent/{Models,Repositories}`
+  - `database/migrations/2024_01_01_000002[a-d]_create_*`
+
+Shared now remains a thin shell (`SharedServiceProvider` + empty `routes/api.php`), with no module-owned runtime domain logic.
 
 ## SOLID / DRY / Clean Code Outcomes
 
-- Single Responsibility: Shared now focuses on globally shared reference data only.
+- Single Responsibility: Configuration owns reference-data concerns; Shared stays minimal.
 - Open/Closed: Shared boundaries are protected by tests rather than ad hoc conventions.
 - Dependency clarity: Module bootstrapping is explicit through provider registration.
-- DRY: Removed duplicate/global attachment schema that overlapped with module-owned implementations.
+- DRY: Removed duplicate/global attachment schema and avoided split ownership of reference data.
 - Clean structure: Shared now follows the same provider/route/migration lifecycle as other modules.
 
 ## Regression and Guardrail Tests
@@ -61,8 +67,13 @@ Retained reference-table migration consumed across modules.
 
 - tests/Unit/Architecture/SharedModuleGuardrailsTest.php
   - Shared provider registration is enforced.
-  - Shared migration scope is enforced (global reference migration only).
+  - Shared migration scope is enforced (no runtime migrations).
   - Shared route file must define no endpoints.
+
+- tests/Unit/Architecture/ConfigurationModuleGuardrailsTest.php
+  - Configuration provider registration is enforced.
+  - Configuration migration scope includes reference-data migrations.
+  - Configuration route file remains endpoint-free.
 
 - tests/Feature/SharedModuleMigrationSmokeTest.php
   - Verifies shared reference tables exist after migrations.

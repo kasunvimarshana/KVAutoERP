@@ -19,7 +19,9 @@ cp .env.example .env && php artisan key:generate  # First-time setup
 **Fully implemented** (have Domain/Application/Infrastructure code):
 Core (46 files), Audit (17), Auth (54), Finance (91), OrganizationUnit (39), Product (142), Tenant (113), User (129)
 
-**Infrastructure-only**: Configuration (2 files), Shared (2 files)
+**Configuration-owned reference data**: countries, currencies, languages, and timezones now live in the Configuration module (Domain/Application/Infrastructure + migrations).
+
+**Minimal Shared shell**: Shared is intentionally thin (provider + route surface only) and should not contain domain-owned runtime logic.
 
 **Migration-only stubs** (schema defined, no application code):
 Customer, Employee, Supplier, Pricing, Tax, Warehouse, Inventory, Purchase, Sales
@@ -58,10 +60,10 @@ app/Modules/<Module>/
 - **`declare(strict_types=1);`** in every PHP file. Strong typing on all parameters/returns.
 - **Namespaces**: `Modules\<Module>\...` (not `App\Modules\...`).
 - **Models**: Extend `Illuminate\Database\Eloquent\Model` directly. `BaseModel` exists in Core but is unused.
-- **`HasAudit` trait**: Used by 20 models for automatic change tracking.
+- **`HasAudit` trait**: Owned by Audit module and used by 20 models for automatic change tracking.
 - **`SoftDeletes`**: Used by 8 models (Account, OrgUnit, OrgUnitAttachment, Product, Tenant, TenantAttachment, User, UserAttachment).
 - **`HasUuid` trait**: Defined in Core but currently unused. All models use integer auto-increment PKs.
-- **`HasTenant` trait**: Defined in Core but currently unused. Tenant isolation uses `resolve.tenant` middleware with `X-Tenant-ID` header.
+- **`HasTenant` trait**: Owned by Tenant module and used by tenant-scoped models. Tenant isolation still uses `resolve.tenant` middleware with `X-Tenant-ID` header.
 - **Multi-tenancy**: `ResolveTenant` middleware reads `X-Tenant-ID` from request headers. Repositories filter `tenant_id` explicitly.
 - **Repositories**: Interface in `Domain/RepositoryInterfaces/`, implementation in `Infrastructure/Persistence/Eloquent/Repositories/`.
 - **Services**: Contract in `Application/Contracts/`, implementation in `Application/Services/`. Wrap writes in DB transactions.
