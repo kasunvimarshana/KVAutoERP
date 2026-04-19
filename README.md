@@ -1,111 +1,170 @@
 # KVAutoERP
 
-An enterprise-grade SaaS multi-tenant ERP/CRM platform built with Laravel, following Clean Architecture and Domain-Driven Design principles.
-KVAutoERP is an enterprise-grade SaaS multi-tenant ERP/CRM platform built with **Laravel 13** and **PHP 8.3+**. It uses Clean Architecture with DDD, organized as independent modules under `app/Modules/`. The platform supports procurement, sales, inventory, finance (double-entry accounting), product management, warehouse management, pricing, and more.
+A modular SaaS multi-tenant ERP/CRM platform built with **Laravel 13** and **PHP 8.3+**, following Clean Architecture principles. The system is organized as independent modules under `app/Modules/`.
 
-## Build & Test Commands
-
-Always run these commands from the repository root.
+## Quick Start
 
 ```bash
-# Install PHP dependencies (always run first)
 composer install
-
-# Install JS dependencies
-npm install --ignore-scripts
-
-# Build frontend assets
-npm run build
-
-# Run all tests (uses SQLite :memory: by default via phpunit.xml)
-./vendor/bin/phpunit
-
-# Run tests for a specific module
-./vendor/bin/phpunit --filter=<ModuleName>
-
-# Lint PHP code
-./vendor/bin/pint
-
-# Generate .env if missing
 cp .env.example .env && php artisan key:generate
+./vendor/bin/phpunit          # Tests use SQLite :memory: — no DB setup needed
+./vendor/bin/pint             # Lint
+npm install --ignore-scripts && npm run build   # Frontend assets (optional)
 ```
 
-**Important**: Always run `composer install` before running tests or any artisan command. Tests use SQLite in-memory database — no external DB is needed.
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Framework | Laravel 13 |
+| PHP | 8.3+ |
+| Auth | Laravel Passport (OAuth2) |
+| Real-time | Laravel Reverb (WebSockets) |
+| API Docs | L5 Swagger (OpenAPI) |
+| Testing | PHPUnit (SQLite :memory:) |
+| Autoload | PSR-4: `Modules\\` → `app/Modules/` |
+
+## Module Status
+
+The platform has 19 modules in various stages of implementation:
+
+### Fully Implemented (8 modules — 635 PHP files)
+
+| Module | Files | Description |
+|--------|-------|-------------|
+| **Product** | 142 | Catalog, variants, categories, brands, UoM, identifiers |
+| **User** | 129 | Users, profiles, roles, permissions, devices, attachments |
+| **Tenant** | 113 | Multi-tenant management, plans, settings, attachments, config |
+| **Finance** | 91 | Double-entry accounting, chart of accounts, fiscal years/periods, journal entries |
+| **Auth** | 54 | OAuth2 login/register, SSO, composite RBAC+ABAC authorization |
+| **Core** | 46 | Shared kernel: traits, base classes, repository abstractions |
+| **OrganizationUnit** | 39 | Hierarchical org structures (materialized path), attachments |
+| **Audit** | 17 | Immutable audit log with change tracking |
+
+### Infrastructure-Only (2 modules)
+
+| Module | Description |
+|--------|-------------|
+| **Configuration** | ServiceProvider registered; no domain code yet |
+| **Shared** | Global reference tables (countries, currencies, languages, timezones) |
+
+### Migration-Only Stubs (9 modules — schema defined, no application code)
+
+Customer, Employee, Supplier, Pricing, Tax, Warehouse, Inventory, Purchase, Sales
 
 ## Project Layout
 
 ```
-app/Modules/           # All business modules (19 modules)
-├── Core/              # Shared kernel: BaseModel, HasUuid/HasTenant/HasAudit traits
-├── Tenant/            # Multi-tenancy management
-├── OrganizationUnit/  # Hierarchical org structures (materialized path)
-├── User/              # Authentication, authorization, profiles
-├── Auth/              # OAuth2 (Laravel Passport) login/token flows
-├── Customer/          # Customer master data, AR linkage
-├── Supplier/          # Supplier master data, AP linkage
-├── Employee/          # Employee management
-├── Product/           # Product catalog, variants, categories, UoM
-├── Pricing/           # Price lists, tiered pricing, modifiers
-├── Warehouse/         # Warehouses and location hierarchies
-├── Inventory/         # Stock levels, movements, batch/lot/serial tracking
-├── Purchase/          # Procurement: POs, GRNs, purchase invoices, returns
-├── Sales/             # Order-to-cash: SOs, shipments, invoices, returns
-├── Finance/           # Double-entry accounting, chart of accounts, journal entries
-├── Tax/               # Tax groups, rates, rules
-├── Audit/             # Audit logs, compliance trails
-├── Configuration/     # System settings, org-unit config
-└── Shared/            # Cross-module contracts, DTOs, events
-bootstrap/providers.php  # All module ServiceProviders registered here
-composer.json            # PSR-4: "Modules\\" => "app/Modules/"
+app/Modules/           # 19 business modules
+bootstrap/providers.php  # 12 ServiceProviders registered
+composer.json            # PSR-4 autoload config
 phpunit.xml              # Test config (SQLite :memory:)
+database/migrations/     # Framework migrations + deferred cross-module FKs
+tests/                   # 54 test files (52 tests + 2 framework examples)
 ```
 
 ## Module Architecture
 
-Each module follows a strict layered structure:
+Fully implemented modules follow this layered structure:
 
 ```
 app/Modules/<Module>/
-├── Domain/                  # Entities, RepositoryInterfaces, Events, Exceptions, ValueObjects
-├── Application/             # Contracts (service interfaces), Services, DTOs, UseCases
+├── Domain/
+│   ├── Entities/            # Pure PHP domain objects
+│   ├── RepositoryInterfaces/  # Persistence contracts
+│   ├── Events/              # Domain events
+│   ├── Exceptions/          # Domain-specific exceptions
+│   └── ValueObjects/        # Immutable value types
+├── Application/
+│   ├── Contracts/           # Service interfaces
+│   ├── Services/            # Service implementations
+│   └── DTOs/                # Data transfer objects
 ├── Infrastructure/
 │   ├── Persistence/Eloquent/
-│   │   ├── Models/          # Eloquent models (extend BaseModel)
-│   │   ├── Repositories/    # Implements Domain interfaces
-│   │   └── Traits/
+│   │   ├── Models/          # Eloquent models (extend Model directly)
+│   │   └── Repositories/    # Implements Domain repository interfaces
 │   ├── Http/
-│   │   ├── Controllers/     # Thin controllers, delegate to services
-│   │   └── Resources/       # API resources
-│   └── Providers/           # ServiceProvider: binds interfaces, loads migrations/routes
+│   │   ├── Controllers/     # Thin controllers delegating to services
+│   │   ├── Resources/       # API resources
+│   │   ├── Requests/        # Form request validation
+│   │   └── Middleware/       # Module-specific middleware
+│   ├── Providers/           # ServiceProvider (bindings, migrations, routes)
+│   └── Broadcasting/        # Channel definitions (where applicable)
 ├── database/migrations/     # Module-scoped migrations
-├── routes/api.php           # Module API routes
-└── config/
+└── routes/api.php           # Module API routes
 ```
-
-**Layer rules**: Domain has no framework imports. Application depends only on Domain. Infrastructure implements Domain interfaces. Cross-module communication uses events only.
 
 ## Key Conventions
 
-- **PHP**: `declare(strict_types=1);` in every file. Strong typing on all parameters/returns.
-- **Namespaces**: `Modules\<Module>\...` (not `App\Modules\...`).
-- **Primary keys**: UUID via `HasUuid` trait (non-incrementing string PKs).
-- **Multi-tenancy**: `HasTenant` trait applies global scope. Repositories call `withoutGlobalScopes()` and filter `tenant_id` explicitly.
-- **Auditing**: `HasAudit` trait for automatic change tracking.
-- **Models**: Extend `BaseModel`, use `HasUuid`, `HasTenant`, `HasAudit` traits.
-- **Repositories**: Interface in `Domain/RepositoryInterfaces/`, Eloquent impl in `Infrastructure/Persistence/Eloquent/Repositories/`.
-- **Services**: Contract in `Application/Contracts/`, implementation in `Application/Services/`. Wrap writes in DB transactions.
-- **Controllers**: Extend `BaseController`; stay thin — delegate to services.
-- **ServiceProviders**: Bind interfaces in `register()`. In `boot()`, load migrations from `__DIR__.'/../../database/migrations'` and routes from `__DIR__.'/../../routes/api.php'`.
-- **Float comparison**: Use `abs($value) < PHP_FLOAT_EPSILON` instead of `== 0.0`.
-- **Monetary values**: `DECIMAL(20,6)` — never `FLOAT`.
+### Models & Traits
 
-## Creating a New Module
+All 26 Eloquent models extend `Illuminate\Database\Eloquent\Model` directly (not `BaseModel`). The `BaseModel` abstract class exists in Core but is currently unused.
 
-1. Create directory structure under `app/Modules/<ModuleName>/` following the layout above.
-2. Create `<ModuleName>ServiceProvider` in `Infrastructure/Providers/`:
-   - Bind repository interfaces → Eloquent implementations in `register()`.
-   - Load migrations and routes in `boot()`.
-3. Register the provider in `bootstrap/providers.php`.
+- **`HasAudit`**: Used by 20 models for automatic change tracking via the Audit module.
+- **`SoftDeletes`**: Used by 8 models (AccountModel, OrgUnitModel, OrgUnitAttachmentModel, ProductModel, TenantModel, TenantAttachmentModel, UserModel, UserAttachmentModel).
+- **`HasUuid`**: Defined in Core but currently unused — all models use integer auto-increment primary keys.
+- **`HasTenant`**: Defined in Core but currently unused — tenant isolation is handled via middleware and explicit repository filtering.
+
+### Multi-Tenancy
+
+Tenant isolation uses the `resolve.tenant` middleware (`ResolveTenant`) which reads `X-Tenant-ID` from request headers and binds the tenant to the request context. Repositories filter by `tenant_id` explicitly. There is no global scope-based tenant isolation.
+
+### Namespaces
+
+All module code uses `Modules\<Module>\...` (not `App\Modules\...`).
+
+### Coding Standards
+
+- `declare(strict_types=1);` in every PHP file
+- Strong typing on all method parameters and return types
+- Services wrap writes in DB transactions
+- Controllers delegate to services (thin controllers)
+- `DECIMAL(20,6)` for monetary values — never `float`
+- `abs($value) < PHP_FLOAT_EPSILON` for float-zero comparisons
+
+## API Routes
+
+All authenticated routes require `auth:api` and `resolve.tenant` middleware (except Auth endpoints).
+
+| Module | Prefix | Key Endpoints |
+|--------|--------|---------------|
+| Auth | `/auth` | register, login, logout, me, refresh, SSO, forgot/reset password |
+| Tenant | `/tenants` | CRUD, config update, attachments, plans, settings |
+| User | `/users` | CRUD, roles, permissions, profile, devices, attachments |
+| OrganizationUnit | `/organization-units` | CRUD, attachments |
+| Product | `/products` | CRUD + variants, brands, categories, identifiers, UoM, conversions |
+| Finance | `/accounts`, `/fiscal-years`, `/fiscal-periods`, `/journal-entries` | CRUD, journal posting |
+| Audit | `/audit-logs` | Read-only (index, show) |
+
+## Registered Providers
+
+```
+AppServiceProvider, CoreServiceProvider, ConfigurationServiceProvider,
+SharedServiceProvider, AuditServiceProvider, AuthModuleServiceProvider,
+TenantServiceProvider, TenantConfigServiceProvider, UserServiceProvider,
+OrganizationUnitServiceProvider, ProductServiceProvider, FinanceServiceProvider
+```
+
+## Testing
+
+54 test files covering 6 modules:
+
+| Module | Unit Tests | Feature Tests |
+|--------|-----------|--------------|
+| Finance | AccountService, FiscalYear/Period/JournalEntry services, exception | Routes, endpoints |
+| Product | 7 service tests | 14 route/repo/endpoint tests, UoM consistency |
+| Audit | Controller, Resource, Service | Routes, endpoints, repository |
+| Architecture | Module boundaries, timestamps, guardrails | — |
+| Shared | — | Migration smoke test |
+| Configuration | — | Migration smoke test |
+
+## Migrations
+
+66 module-scoped migrations + 3 framework migrations in `database/migrations/`.
+
+Cross-module foreign keys are deferred to `database/migrations/2024_01_01_999999_add_remaining_foreign_keys.php`.
+
+Migration naming convention: `{table}_{column(s)}_{type}` with suffixes `_pk`, `_uk`, `_idx`, `_fk`.
 
 ## File Naming
 
@@ -116,7 +175,6 @@ app/Modules/<Module>/
 | Repository | `Eloquent<Name>Repository.php` | `EloquentProductRepository.php` |
 | Service | `<Name>Service.php` | `ProductService.php` |
 | Controller | `<Name>Controller.php` | `ProductController.php` |
-| Migration | `YYYY_MM_DD_NNNNNN_create_<table>_table.php` | `2026_04_01_000001_create_products_table.php` |
 
 ## What to Avoid
 
@@ -124,118 +182,7 @@ app/Modules/<Module>/
 - Do not import Infrastructure classes in the Domain layer.
 - Do not bypass the repository pattern for database access.
 - Do not hardcode tenant IDs — always derive from auth context or request headers.
-- Do not modify Core module traits without considering impact on all modules.
-- Do not use `float` for monetary or quantity fields — use `DECIMAL`.
-
-## Common Code Patterns
-
-### Domain Entity
-
-```php
-declare(strict_types=1);
-
-namespace Modules\<Module>\Domain\Entities;
-
-class <Entity>
-{
-    public function __construct(
-        public readonly string $id,
-        public readonly string $tenantId,
-        // ... domain properties
-    ) {}
-
-    // Domain logic methods here
-}
-```
-
-### Repository Interface
-
-```php
-declare(strict_types=1);
-
-namespace Modules\<Module>\Domain\RepositoryInterfaces;
-
-interface <Entity>RepositoryInterface
-{
-    public function findById(string $tenantId, string $id): ?<Entity>;
-    public function findAll(string $tenantId): array;
-    public function save(<Entity> $entity): void;
-    public function delete(string $tenantId, string $id): void;
-}
-```
-
-### Service Provider Binding
-
-```php
-public function register(): void
-{
-    $this->app->bind(
-        <Entity>RepositoryInterface::class,
-        Eloquent<Entity>Repository::class
-    );
-}
-```
-
-## Key Dependencies
-
-- **laravel/passport** — OAuth2 API authentication
-- **laravel/reverb** — Real-time WebSocket broadcasting
-- **darkaonline/l5-swagger** — OpenAPI/Swagger API documentation
-
-## Additional Reference Documentation
-
-- **`AGENT.md`** — Agent operational guide with behavioral workflows, decision trees, domain event catalog, and testing strategy.
-- **`SKILL.md`** — Detailed module specifications, database design standards, and implementation rules.
-- **`AGENT_KNOWLEDGEBASE.md`** — Comprehensive domain knowledge covering ERP flows, financial accounting, inventory management, and returns processing.
-
-## Architecture Rules
-
-- Each module has four layers: Domain, Application, Infrastructure, and optional Shared.
-- Domain layer contains pure PHP classes with no framework imports.
-- Application layer defines service contracts and orchestrates domain logic.
-- Infrastructure layer implements persistence (Eloquent), HTTP (controllers/resources), and providers.
-- Migrations live in `app/Modules/<Module>/database/migrations/`.
-- Routes live in `app/Modules/<Module>/routes/api.php`.
-
-## Coding Standards
-
-- Always add `declare(strict_types=1);` to every PHP file.
-- Use strong typing for all method parameters and return types.
-- Models extend `BaseModel` and use `HasUuid`, `HasTenant`, `HasAudit` traits.
-- Repositories use `withoutGlobalScopes()` and filter `tenant_id` explicitly.
-- Services wrap writes in transactions and dispatch domain events on success.
-- Controllers stay thin — delegate to services.
-- Use `abs($value) < PHP_FLOAT_EPSILON` for float-zero comparisons.
-
-## Module Structure
-
-```
-app/Modules/<Module>/
-├── Domain/{Entities,RepositoryInterfaces,Events,Exceptions,ValueObjects}
-├── Application/{Contracts,Services,DTOs,UseCases}
-├── Infrastructure/{Persistence/Eloquent/{Models,Repositories,Traits},Http/{Controllers,Resources,Middleware},Providers,Broadcasting,Services}
-├── database/migrations/
-├── routes/api.php
-└── config/
-```
-
-## Key Technologies
-
-- Laravel Passport for OAuth2 authentication.
-- Laravel Reverb for real-time WebSocket broadcasting.
-- L5 Swagger for API documentation.
-
-## Multi-Tenancy
-
-Tenant isolation uses `HasTenant` trait with a global scope. Repositories bypass this scope via `withoutGlobalScopes()` and apply `where('tenant_id', $tenantId)` explicitly. The trait auto-fills `tenant_id` on creating if not already set.
-
-## What to Avoid
-
-- Do not create circular dependencies between modules.
-- Do not import Infrastructure classes in the Domain layer.
-- Do not bypass the repository pattern for database access.
-- Do not hardcode tenant IDs — always derive from auth context or request headers.
-- Do not modify Core module traits without considering impact on all modules.
+- Do not use `float` for monetary or quantity fields — use `DECIMAL(20,6)`.
 
 ## License
 

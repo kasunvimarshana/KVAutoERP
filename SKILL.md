@@ -124,67 +124,70 @@ Before writing any code, systematically identify and eliminate:
 
 ## 4. CLEAN ARCHITECTURE
 
-Every module follows a strict four-layer clean architecture:
+Each fully implemented module follows this layered structure:
 
 ```
 app/Modules/<Module>/
-├── Domain/               # Entities, Value Objects, Domain Events, Interfaces, Business Rules
-│   ├── Models/
-│   ├── Events/
-│   ├── Exceptions/
-│   └── Contracts/        # Repository and Service interfaces (zero external dependencies)
-├── Application/          # Use Cases, Commands, Queries, DTOs, Handlers
-│   ├── Commands/
-│   ├── Queries/
-│   ├── DTOs/
-│   └── Services/
-├── Infrastructure/       # Eloquent implementations, external adapters, repositories
-│   ├── Repositories/
-│   ├── Adapters/
-│   └── Listeners/
-├── Presentation/         # Controllers, Requests, Resources, Routes
-│   ├── Controllers/
-│   ├── Requests/
-│   ├── Resources/
-│   └── routes/
-└── database/
-    ├── migrations/
-    ├── seeders/
-    └── factories/
+├── Domain/
+│   ├── Entities/              # Pure PHP domain objects
+│   ├── RepositoryInterfaces/  # Persistence contracts
+│   ├── Events/                # Domain events
+│   ├── Exceptions/            # Domain-specific exceptions
+│   └── ValueObjects/          # Immutable value types
+├── Application/
+│   ├── Contracts/             # Service interfaces
+│   ├── Services/              # Service implementations
+│   └── DTOs/                  # Data transfer objects
+├── Infrastructure/
+│   ├── Persistence/Eloquent/
+│   │   ├── Models/            # Eloquent models (extend Model directly)
+│   │   └── Repositories/     # Implements Domain repository interfaces
+│   ├── Http/
+│   │   ├── Controllers/       # Thin controllers delegating to services
+│   │   ├── Resources/         # API resources
+│   │   ├── Requests/          # Form request validation
+│   │   └── Middleware/        # Module-specific middleware
+│   ├── Providers/             # ServiceProvider (bindings, migrations, routes)
+│   └── Broadcasting/         # Channel definitions (where applicable)
+├── database/migrations/
+└── routes/api.php
 ```
 
 ### Layer Dependency Rules
 - **Domain** — zero external dependencies (no Laravel, no Eloquent)
 - **Application** — depends only on Domain contracts
 - **Infrastructure** — implements Domain contracts using Eloquent / 3rd-party adapters
-- **Presentation** — depends only on Application DTOs and Services
 - **Cross-module communication** — via Events only; never direct class imports between modules
 
 ---
 
 ## 5. MODULE STRUCTURE
 
-```
-app/
-└── Modules/
-    ├── Core/              # Shared kernel, base classes, global utilities
-    ├── Tenant/            # Multi-tenancy management
-    ├── OrganizationUnit/  # Hierarchical organizational structures
-    ├── User/              # Authentication, authorization, user profiles
-    ├── Customer/          # Customer master data, AR account, addresses
-    ├── Employee/          # Employee master data, HR linkage
-    ├── Supplier/          # Supplier master data, AP account, addresses
-    ├── Product/           # Product catalog, variants, categories, UoM
-    ├── Pricing/           # Purchase & sales price lists, tiered pricing, modifiers
-    ├── Warehouse/         # Physical warehouses and location hierarchies
-    ├── Inventory/         # Stock, traceability, cost layers, AIDC, trace logs
-    ├── Purchase/          # Procurement: POs, GRNs, purchase invoices, returns
-    ├── Sales/             # Order-to-cash: orders, shipments, sales invoices, returns
-    ├── Finance/           # Double-entry accounting, bank feeds, tax, payments/refunds
-    └── Shared/            # Cross-module contracts, DTOs, events, interfaces
-```
+### Implementation Status
 
-> **Design Decision (Corrected):** Separate tables for `customers`, `employees`, and `suppliers`, each with a nullable `user_id` FK to the `users` table for portal/system access. This is cleaner for module independence, separate AR/AP linkages, and role-specific fields.
+| Module | Status | Files | Description |
+|--------|--------|-------|-------------|
+| Core | ✅ Implemented | 46 | Shared kernel: HasAudit trait, base classes, repository abstractions |
+| Auth | ✅ Implemented | 54 | OAuth2 login/token/SSO flows via Laravel Passport |
+| Tenant | ✅ Implemented | 113 | Multi-tenancy management, plans, settings, config |
+| User | ✅ Implemented | 129 | User CRUD, profiles, roles, permissions, devices |
+| OrganizationUnit | ✅ Implemented | 39 | Hierarchical org structures (materialized path) |
+| Product | ✅ Implemented | 142 | Product catalog, variants, categories, brands, UoM |
+| Finance | ✅ Implemented | 91 | Double-entry accounting, chart of accounts, journal entries |
+| Audit | ✅ Implemented | 17 | Immutable audit logs, compliance trails |
+| Configuration | ⚙️ Infrastructure | 2 | ServiceProvider only |
+| Shared | ⚙️ Infrastructure | 2 | ServiceProvider + reference table migrations |
+| Customer | 📋 Migration-only | — | Schema defined, no application code |
+| Employee | 📋 Migration-only | — | Schema defined, no application code |
+| Supplier | 📋 Migration-only | — | Schema defined, no application code |
+| Pricing | 📋 Migration-only | — | Schema defined, no application code |
+| Tax | 📋 Migration-only | — | Schema defined, no application code |
+| Warehouse | 📋 Migration-only | — | Schema defined, no application code |
+| Inventory | 📋 Migration-only | — | Schema defined, no application code |
+| Purchase | 📋 Migration-only | — | Schema defined, no application code |
+| Sales | 📋 Migration-only | — | Schema defined, no application code |
+
+> **Design Decision:** Separate tables for `customers`, `employees`, and `suppliers`, each with a nullable `user_id` FK to the `users` table for portal/system access.
 
 ### Module Independence Rules
 - Modules never import from each other's `Domain` or `Infrastructure` layers directly
@@ -196,13 +199,14 @@ app/
 
 ## 6. MULTI-TENANCY STRATEGY
 
-### Strategy
+### Current Implementation
 - Single database, tenant-scoped rows using `tenant_id` on all tenant-owned tables
-- Global Eloquent scope applied automatically via `TenantScope` model trait
-- Tenant context resolved from authenticated OAuth2 JWT token (Passport)
+- `ResolveTenant` middleware reads `X-Tenant-ID` from request headers
+- Repositories filter `tenant_id` explicitly in queries
+- `HasTenant` trait is defined in Core but **not currently used** by any model
 
 ### Tenant Isolation Rules
-- All queries automatically filtered by `tenant_id`
+- Repositories explicitly filter by `tenant_id` in all queries
 - No tenant can read or write data belonging to another tenant
 - Shared/global data (e.g., currency codes, country lists) lives in tenant-agnostic tables
 
@@ -227,7 +231,7 @@ The platform natively supports recursive/nested data using adjacency list + mate
 | Convention | Rule |
 |---|---|
 | Tables | `snake_case`, plural (e.g., `order_lines`, `stock_movements`) |
-| Primary Keys | `id BIGINT UNSIGNED AUTO_INCREMENT` (or `ULID` for distributed deployments) |
+| Primary Keys | `id BIGINT UNSIGNED AUTO_INCREMENT` |
 | Foreign Keys | `<table_singular>_id` (e.g., `product_id`, `tenant_id`) with explicit DB-level constraints |
 | Enums | Always define allowed values explicitly in migration |
 | Timestamps | All tables include `created_at`, `updated_at`; soft-delete tables add `deleted_at` |
@@ -261,23 +265,22 @@ The platform natively supports recursive/nested data using adjacency list + mate
 
 ### 8.1 Core
 
-Responsibility: Shared kernel — base classes, traits, interfaces, global utilities, and system bootstrap.
+Responsibility: Shared kernel — base classes, traits, interfaces, and system bootstrap.
 
-Key Components:
-- `BaseModel` — Eloquent base with tenant scope, audit trait, soft deletes
-- `BaseRepository` — generic CRUD contract and Eloquent implementation
-- `BaseService` — transaction-wrapped service base
-- `HasAttachments` trait — polymorphic attachment support (multipart/form-data)
-- `HasAuditLog` trait — automatic field-change tracking (Observer pattern)
-- `TenantScope` — global Eloquent scope injecting `tenant_id` filter
-- `UlidGenerator` — distributed-safe ID generation
-- Global/reference tables: `currencies`, `countries`, `timezones`, `languages`, `payment_terms`
+**Implemented Components (46 files):**
+- `HasAudit` trait — automatic field-change tracking (used by 20 models)
+- `HasUuid` trait — UUID generation (defined but **not currently used** by any model)
+- `HasTenant` trait — tenant scope (defined but **not currently used**; tenant isolation is via `ResolveTenant` middleware)
+- `BaseModel` — abstract base with SoftDeletes (defined but **not extended** by any model; all models extend `Model` directly)
+- Domain entities, repository interfaces, and service contracts
+- `AuditObserver` — records changes to `audit_logs`
 
+**Reference tables** (managed by Shared module migrations):
 ```sql
--- Reference tables (tenant-agnostic)
 currencies:      id, code (ISO 4217), name, symbol, decimal_places, is_active
 countries:       id, code (ISO 3166), name, phone_code, currency_code
-payment_terms:   id, name, net_days, discount_days, discount_pct, description
+timezones:       id, name, offset, is_active
+languages:       id, code (ISO 639-1), name, native_name, is_active
 ```
 
 ---
@@ -1033,31 +1036,16 @@ Every transactional event generates a balanced journal entry automatically via e
 
 ### 8.15 Shared
 
-Responsibility: Cross-module contracts, base DTOs, domain events, and integration interfaces.
+Responsibility: Global reference tables and infrastructure bootstrap.
 
-```
-Shared/
-├── Contracts/
-│   ├── Repositories/      # Generic repository interfaces (CRUD, filtering, pagination)
-│   ├── Services/          # Cross-module service interfaces
-│   └── AIDC/              # AIDC adapter interfaces
-├── DTOs/                  # Data transfer objects used across modules
-├── Events/                # Domain events (published/consumed cross-module)
-├── Enums/                 # Shared enumerations (status values, movement types, dispositions)
-├── Exceptions/            # Shared exception hierarchy (DomainException, ValidationException)
-└── ValueObjects/          # Immutable value objects
-    ├── Money              # Money(amount: Decimal, currency: Currency)
-    ├── Quantity           # Quantity(value: Decimal, uom: UnitOfMeasure)
-    ├── DateRange          # DateRange(from: Date, to: Date)
-    └── Address            # Normalized address structure
-```
+**Current implementation** (2 files): `SharedServiceProvider` that loads migrations for global reference tables (currencies, countries, timezones, languages).
 
-Polymorphic attachments via `attachments` table:
-```sql
-attachments:   id, tenant_id, attachable_type, attachable_id,
-               file_name, file_path, file_size, mime_type,
-               uploaded_by_user_id, created_at
-```
+**Planned expansion** (not yet implemented):
+- Cross-module contracts, base DTOs, domain events
+- Shared enumerations, exception hierarchy, value objects
+- AIDC adapter interfaces
+
+Polymorphic attachments are currently handled per-module (Tenant, User, OrganizationUnit modules each have their own attachment models and tables).
 
 ---
 
@@ -1439,7 +1427,7 @@ These rules apply to every code generation and architecture decision:
 2. **Never break existing functionality.** All refactors must preserve backward compatibility or document a migration path.
 3. **One module, one concern.** Never put Module A's business logic into Module B. Use events for cross-module effects.
 4. **Interfaces first.** Define repository and service interfaces in Domain layer before implementing in Infrastructure.
-5. **Never bypass tenant scope.** Every query must filter by `tenant_id`. Use `TenantScope` global Eloquent scope on all tenant-scoped models.
+5. **Never bypass tenant scope.** Every query must filter by `tenant_id`. Currently implemented via `ResolveTenant` middleware reading `X-Tenant-ID` header, with repositories filtering explicitly.
 6. **No raw SQL for business logic.** Use Eloquent with relationships; raw SQL only for performance-critical reporting queries.
 7. **Every financial event = journal entry.** No stock or order operation may affect financial state without a corresponding balanced, posted journal entry.
 8. **Migrations are forward-only in production.** The `down()` method must exist but production rollbacks require a new migration.

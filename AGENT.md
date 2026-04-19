@@ -1,8 +1,13 @@
 # AGENT.md — Enterprise SaaS Multi-Tenant ERP/CRM Platform
 **Document Type:** Autonomous Agent Operational Guide  
 **Companion To:** SKILL.md v2.0  
-**Version:** 1.0 (Enhanced — Corrected, Completed, Production-Ready)  
+**Version:** 1.1 (Updated to reflect actual implementation state)  
 **Last Reviewed:** 2026-04-19
+
+> **Implementation Note:** This guide covers both implemented modules and planned specifications.
+> 8 modules are fully implemented (Core, Auth, Tenant, User, OrganizationUnit, Product, Finance, Audit).
+> 9 modules have migration schemas only (Customer, Employee, Supplier, Pricing, Tax, Warehouse, Inventory, Purchase, Sales).
+> Decision trees and event catalogs for migration-only modules describe the target design.
 
 ---
 
@@ -727,134 +732,82 @@ Each module registers its own service provider. The root `AppServiceProvider` bo
 
 ```php
 <?php
-// app/Modules/Purchase/PurchaseServiceProvider.php
+// app/Modules/<Module>/Infrastructure/Providers/<Module>ServiceProvider.php
 declare(strict_types=1);
 
-namespace App\Modules\Purchase;
+namespace Modules\<Module>\Infrastructure\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use App\Modules\Purchase\Domain\Contracts\Repositories\PurchaseOrderRepositoryInterface;
-use App\Modules\Purchase\Infrastructure\Repositories\EloquentPurchaseOrderRepository;
-use App\Modules\Purchase\Domain\Contracts\Services\PurchaseOrderServiceInterface;
-use App\Modules\Purchase\Application\Services\PurchaseOrderService;
+use Modules\<Module>\Domain\RepositoryInterfaces\<Entity>RepositoryInterface;
+use Modules\<Module>\Infrastructure\Persistence\Eloquent\Repositories\Eloquent<Entity>Repository;
+use Modules\<Module>\Application\Contracts\<Entity>ServiceInterface;
+use Modules\<Module>\Application\Services\<Entity>Service;
 
-class PurchaseServiceProvider extends ServiceProvider
+class <Module>ServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         // Bind Repository Interfaces → Eloquent Implementations
         $this->app->bind(
-            PurchaseOrderRepositoryInterface::class,
-            EloquentPurchaseOrderRepository::class
+            <Entity>RepositoryInterface::class,
+            Eloquent<Entity>Repository::class
         );
 
         // Bind Service Interfaces → Application Services
         $this->app->bind(
-            PurchaseOrderServiceInterface::class,
-            PurchaseOrderService::class
+            <Entity>ServiceInterface::class,
+            <Entity>Service::class
         );
     }
 
     public function boot(): void
     {
         // Load module routes
-        $this->loadRoutesFrom(__DIR__ . '/Presentation/routes/api.php');
+        $this->loadRoutesFrom(__DIR__ . '/../../routes/api.php');
 
         // Load module migrations
-        $this->loadMigrationsFrom(__DIR__ . '/database/migrations');
-
-        // Register event listeners
-        $this->app['events']->listen(
-            \App\Modules\Shared\Events\GoodsReceiptPosted::class,
-            \App\Modules\Purchase\Infrastructure\Listeners\UpdatePOReceiptStatus::class
-        );
+        $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
     }
 }
 ```
 
-### Root Registration
+### Root Registration (bootstrap/providers.php)
 
 ```php
-// config/app.php  OR  app/Providers/AppServiceProvider.php
-$moduleProviders = [
-    App\Modules\Core\CoreServiceProvider::class,
-    App\Modules\Tenant\TenantServiceProvider::class,
-    App\Modules\OrganizationUnit\OrgUnitServiceProvider::class,
-    App\Modules\User\UserServiceProvider::class,
-    App\Modules\Customer\CustomerServiceProvider::class,
-    App\Modules\Employee\EmployeeServiceProvider::class,
-    App\Modules\Supplier\SupplierServiceProvider::class,
-    App\Modules\Product\ProductServiceProvider::class,
-    App\Modules\Pricing\PricingServiceProvider::class,
-    App\Modules\Warehouse\WarehouseServiceProvider::class,
-    App\Modules\Inventory\InventoryServiceProvider::class,
-    App\Modules\Purchase\PurchaseServiceProvider::class,
-    App\Modules\Sales\SalesServiceProvider::class,
-    App\Modules\Finance\FinanceServiceProvider::class,
-    App\Modules\Shared\SharedServiceProvider::class,
+// Currently registered providers (12):
+return [
+    App\Providers\AppServiceProvider::class,
+    Modules\Core\Infrastructure\Providers\CoreServiceProvider::class,
+    Modules\Configuration\Infrastructure\Providers\ConfigurationServiceProvider::class,
+    Modules\Shared\Infrastructure\Providers\SharedServiceProvider::class,
+    Modules\Audit\Infrastructure\Providers\AuditServiceProvider::class,
+    Modules\Auth\Infrastructure\Providers\AuthModuleServiceProvider::class,
+    Modules\Tenant\Infrastructure\Providers\TenantServiceProvider::class,
+    Modules\Tenant\Infrastructure\Providers\TenantConfigServiceProvider::class,
+    Modules\User\Infrastructure\Providers\UserServiceProvider::class,
+    Modules\OrganizationUnit\Infrastructure\Providers\OrganizationUnitServiceProvider::class,
+    Modules\Product\Infrastructure\Providers\ProductServiceProvider::class,
+    Modules\Finance\Infrastructure\Providers\FinanceServiceProvider::class,
 ];
 ```
 
-### Tenant Scope — Global Eloquent Scope
+### Tenant Isolation — Current Implementation
+
+Tenant isolation is currently implemented via **middleware**, not via a global Eloquent scope:
 
 ```php
-// app/Modules/Core/Infrastructure/Scopes/TenantScope.php
-declare(strict_types=1);
-
-namespace App\Modules\Core\Infrastructure\Scopes;
-
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Scope;
-use App\Modules\Tenant\Application\Services\TenantContextService;
-
-class TenantScope implements Scope
-{
-    public function apply(Builder $builder, Model $model): void
-    {
-        $tenantId = app(TenantContextService::class)->currentTenantId();
-        if ($tenantId) {
-            $builder->where($model->getTable() . '.tenant_id', $tenantId);
-        }
-    }
-}
-
-// app/Modules/Core/Domain/Traits/BelongsToTenant.php
-trait BelongsToTenant
-{
-    public static function bootBelongsToTenant(): void
-    {
-        static::addGlobalScope(new TenantScope());
-
-        static::creating(function (Model $model) {
-            if (empty($model->tenant_id)) {
-                $model->tenant_id = app(TenantContextService::class)->currentTenantId();
-            }
-        });
-    }
-}
+// Modules\Tenant\Infrastructure\Http\Middleware\ResolveTenant.php
+// Reads X-Tenant-ID from request headers and resolves the tenant
+// Applied to routes via 'resolve.tenant' middleware alias
 ```
 
-### Base Model
+Repositories filter `tenant_id` explicitly in queries. The `HasTenant` trait exists in Core but is **not currently used** by any model.
 
-```php
-// app/Modules/Core/Infrastructure/Models/BaseModel.php
-declare(strict_types=1);
+> **Note:** `HasUuid` trait also exists in Core but is unused. All models use integer auto-increment primary keys.
 
-namespace App\Modules\Core\Infrastructure\Models;
+### Base Model (Unused)
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Modules\Core\Domain\Traits\BelongsToTenant;
-use App\Modules\Core\Domain\Traits\HasAuditLog;
-
-abstract class BaseModel extends Model
-{
-    use SoftDeletes, BelongsToTenant, HasAuditLog;
-
-    protected $guarded = ['id', 'tenant_id', 'created_at', 'updated_at', 'deleted_at'];
-}
-```
+The `BaseModel` abstract class exists in Core with `SoftDeletes` but is **not extended by any model**. All 26 Eloquent models extend `Illuminate\Database\Eloquent\Model` directly (or `Authenticatable` for `UserModel`).
 
 ---
 
@@ -952,10 +905,10 @@ Apply these to **every** controller, service, migration, and model:
 - [ ] Device tokens validated on every multi-device request
 
 ### Tenant Isolation
-- [ ] `TenantScope` applied to all tenant-scoped Eloquent models
+- [ ] `ResolveTenant` middleware applied to all tenant-scoped API routes (reads `X-Tenant-ID` header)
+- [ ] Repositories explicitly filter by `tenant_id` in all queries
 - [ ] No raw queries that skip tenant filtering
-- [ ] Background jobs carry `tenant_id` in the job payload and re-apply scope
-- [ ] Queued event listeners restore tenant context from event payload
+- [ ] Background jobs carry `tenant_id` in the job payload for context restoration
 
 ### Input Validation
 - [ ] All input validated in Form Request classes (never in controllers or services)
@@ -1187,17 +1140,16 @@ Broadcast::channel('warehouse.{warehouseId}', function (User $user, string $ware
 - [ ] `down()` method fully reverses `up()` in correct reverse order
 
 **Model:**
-- [ ] Extends `BaseModel`
-- [ ] Uses `BelongsToTenant` trait
-- [ ] Uses `HasAuditLog` trait
-- [ ] Uses `SoftDeletes` (where applicable)
+- [ ] Extends `Illuminate\Database\Eloquent\Model` directly
+- [ ] Uses `HasAudit` trait (for audit logging)
+- [ ] Uses `SoftDeletes` (for master data entities)
 - [ ] `$guarded` set correctly (never `$fillable = ['*']`)
 - [ ] All relationships defined and typed
 - [ ] Casts defined for: `DECIMAL` fields (`'amount' => 'decimal:6'`), booleans, JSON, enums
 
 **Repository:**
-- [ ] Implements the corresponding interface from `Domain/Contracts/Repositories/`
-- [ ] All queries include `tenant_id` via the global scope (should be automatic)
+- [ ] Implements the corresponding interface from `Domain/RepositoryInterfaces/`
+- [ ] All queries explicitly filter by `tenant_id`
 - [ ] Pagination used on all collection-returning methods
 - [ ] No N+1 queries (use `->with([...])` for eager loading)
 

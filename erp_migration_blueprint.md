@@ -1,5 +1,16 @@
 # ERP Migration Blueprint
 
+> **Status:** This is an early design document. The actual schema has been implemented across
+> 66 module-scoped migrations in `app/Modules/<Module>/database/migrations/`.
+> For the authoritative specification, see [SKILL.md](SKILL.md) (module schemas)
+> and [MIGRATIONS_DEFERRED_FK_MATRIX.md](MIGRATIONS_DEFERRED_FK_MATRIX.md) (cross-module FKs).
+>
+> **Key differences from this blueprint:**
+> - The "Party" module was replaced by separate `Customer`, `Employee`, and `Supplier` modules
+> - Monetary/quantity values use `DECIMAL(20,6)` (not `decimal(18,4)`)
+> - OrgUnit uses materialized path hierarchy (not closure table)
+> - Constraint naming follows `{table}_{column(s)}_{type}` with `_pk`, `_uk`, `_idx`, `_fk` suffixes
+
 ## Scope
 A normalized, tenant-aware, modular migration design for a full ERP/CRM platform. Migrations are organized under:
 
@@ -7,21 +18,21 @@ A normalized, tenant-aware, modular migration design for a full ERP/CRM platform
 
 The schema is designed for:
 - SaaS multi-tenancy
-- Unified party model for customers, suppliers, employees, and stakeholders
-- Procurement, sales, inventory, warehouse, returns, finance, pricing, tax, AIDC, and audit
-- Batch, lot, serial, barcode, RFID, NFC, and GS1 compatibility
+- Separate entity tables for customers, suppliers, and employees (each with optional `user_id` FK)
+- Procurement, sales, inventory, warehouse, returns, finance, pricing, tax, and audit
+- Batch, lot, serial, and barcode compatibility
 - Period-based accounting and double-entry posting
 - Optional SMB shortcuts such as direct buy/sell and GRN without PO
 
 ## Global schema rules
 - Every tenant-scoped table includes `tenant_id`
 - Every document table includes: `document_number`, `document_date`, `status`, `currency_id`, `exchange_rate`, `notes`, `metadata`
-- Monetary values use `decimal(18,4)`
-- Quantity values use `decimal(18,4)`
-- Use `softDeletes()` only where business rules allow recovery
+- Monetary values use `DECIMAL(20,6)` — never `float`
+- Quantity values use `DECIMAL(20,6)`
+- Use `softDeletes()` only where business rules allow recovery (8 models currently use it)
 - Use immutable posted financial records
 - Use foreign keys everywhere, no free-text references for core relations
-- Use recursive closure table or parent path for hierarchical entities
+- OrgUnit uses materialized path for hierarchy; product categories use `parent_id`
 - Use nullable source-document references for direct and linked flows
 
 ## 1. Core Module
@@ -47,22 +58,18 @@ The schema is designed for:
 - Audit trail
 - Reliable event dispatching
 
-## 2. Party Module
-### Migrations
-- `parties_table`
-- `party_addresses_table`
-- `party_contacts_table`
-- `party_identifiers_table`
-- `party_tax_profiles_table`
-- `party_relationships_table`
+## 2. Customer / Employee / Supplier Modules
+### Migrations (per module)
+- `customers_table` / `employees_table` / `suppliers_table`
+- `customer_addresses_table` / `employee_addresses_table` / `supplier_addresses_table`
+- `customer_contacts_table` / `employee_contacts_table` / `supplier_contacts_table`
+- `supplier_products_table` (Supplier only)
 
-### Party model supports
-- Customer
-- Supplier
-- Employee
-- Courier
-- Warehouse contact
-- Other business stakeholders
+### Design
+- Separate tables per entity type (not a unified "party" model)
+- Each has an optional nullable `user_id` FK to `users` for portal/system access
+- Customers link to AR accounts; Suppliers link to AP accounts
+- Currently migration-only stubs (no application code)
 
 ## 3. Product Module
 ### Migrations
@@ -137,55 +144,39 @@ The schema is designed for:
 - Stock reservation and allocation
 - Reconciliation and cycle counts
 
-## 8. Procurement Module
+## 8. Purchase Module
 ### Migrations
 - `purchase_orders_table`
 - `purchase_order_lines_table`
-- `goods_receipts_table`
-- `goods_receipt_lines_table`
-- `supplier_invoices_table`
-- `supplier_invoice_lines_table`
-- `purchase_payments_table`
+- `grn_headers_table`
+- `grn_lines_table`
+- `purchase_invoices_table`
+- `purchase_invoice_lines_table`
+- `purchase_returns_table`
+- `purchase_return_lines_table`
 
 ### SMB flexibility
-- `purchase_orders_table` may be optional for `goods_receipts_table`
-- Direct buy is supported by allowing GRN to reference a party without PO
+- `purchase_orders_table` may be optional for `grn_headers_table`
+- Direct buy is supported by allowing GRN to reference a supplier without PO
 
 ## 9. Sales Module
 ### Migrations
 - `sales_orders_table`
 - `sales_order_lines_table`
 - `shipments_table`
-- `shipments_lines_table`
+- `shipment_lines_table`
 - `sales_invoices_table`
 - `sales_invoice_lines_table`
-- `customer_payments_table`
+- `sales_returns_table`
+- `sales_return_lines_table`
 
 ### SMB flexibility
 - Direct sell is supported by allowing shipment/invoice without SO
 
-## 10. Returns Module
-### Migrations
-- `purchase_returns_table`
-- `purchase_return_lines_table`
-- `sales_returns_table`
-- `sales_return_lines_table`
-- `credit_notes_table`
-- `debit_notes_table`
-- `return_inspections_table`
-- `return_dispositions_table`
+> **Note:** Returns are handled within their respective modules (Purchase and Sales),
+> not as a standalone Returns module. Credit/debit notes are handled within Finance.
 
-### Supports
-- Partial returns
-- Returns with or without original batch/lot/serial references
-- Restocking
-- Scrap
-- Vendor return
-- Quality checks
-- Restocking fees
-- Credit memo generation
-
-## 11. Finance Module
+## 10. Finance Module
 ### Migrations
 - `fiscal_years_table`
 - `fiscal_periods_table`
@@ -209,36 +200,23 @@ The schema is designed for:
 - Bank and credit card import
 - Bulk reclassification
 
-## 12. AIDC Module
+## 11. Audit Module
 ### Migrations
-- `identifier_types_table`
-- `entity_identifiers_table`
-- `scan_sessions_table`
-- `scan_events_table`
+- `audit_logs_table`
 
 ### Supports
-- 1D barcode
-- 2D barcode
-- QR code
-- RFID HF/UHF
-- NFC
-- GS1 EPC
+- Immutable audit trail
+- Field-level change tracking via HasAudit trait (used by 20 models)
+- IP address and user agent capture
 
-## 13. Audit and Compliance Module
+## 12. Configuration Module
 ### Migrations
-- `compliance_events_table`
-- `audit_trails_table`
-- `data_retention_policies_table`
-- `regulatory_mappings_table`
+- `module_configurations_table`
 
-## 14. Shared Reference Tables
+## 13. Shared Module
 ### Migrations
-- `currencies_table`
-- `exchange_rates_table`
-- `document_sequences_table`
-- `statuses_table`
-- `lookup_values_table`
-- `metadata_definitions_table`
+- `global_reference_tables` (currencies, countries, timezones, languages)
+- `add_remaining_foreign_keys` (deferred cross-module FKs)
 
 ## Recommended implementation conventions
 
@@ -251,9 +229,9 @@ The schema is designed for:
 ### Indexing
 - Unique index on `tenant_id + document_number`
 - Composite index on `tenant_id + status + document_date`
-- Composite index on `tenant_id + party_id`
+- Composite index on `tenant_id + entity_id` (customer_id, supplier_id, etc.)
 - Composite index on `tenant_id + warehouse_location_id`
-- Composite index on `tenant_id + product_id + batch_lot_id + serial_number_id`
+- Composite index on `tenant_id + product_id + batch_id + serial_id`
 
 ### Posting rules
 - Inventory movements create ledger-ready events
@@ -268,20 +246,24 @@ The schema is designed for:
 - Use event-driven read models for dashboards
 
 ## Suggested migration order
-1. Core
-2. Shared references
-3. Party
-4. Product
-5. Pricing
-6. Tax
-7. Warehouse
-8. Inventory
-9. Procurement
-10. Sales
-11. Returns
-12. Finance
-13. AIDC
-14. Audit and Compliance
+1. Shared (global reference tables)
+2. Core
+3. Tenant
+4. Auth
+5. User
+6. OrganizationUnit
+7. Customer / Employee / Supplier
+8. Product
+9. Pricing
+10. Tax
+11. Warehouse
+12. Inventory
+13. Purchase
+14. Sales
+15. Finance
+16. Configuration
+17. Audit
+18. Shared (deferred cross-module FKs — must run last)
 
 ## Implementation pattern for each migration
 Each table migration should follow this structure:

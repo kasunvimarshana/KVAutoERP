@@ -1,7 +1,14 @@
-# Migration Refactoring Progress Report
+# Migration Refactoring Progress Report — SUPERSEDED
+
+> **⚠️ This document is outdated.** It accurately tracked the first refactoring pass
+> (prefix-style naming: `uq_*`, `idx_*`) which completed 24/66 migrations. A subsequent
+> complete refactoring pass on 2026-04-18 converted all 67 migration files to
+> suffix-style naming (`_pk`, `_uk`, `_idx`, `_fk`).
+>
+> **Current authoritative report:** [`MIGRATION_NAMING_REFACTOR_REPORT.md`](MIGRATION_NAMING_REFACTOR_REPORT.md)
 
 **Date:** April 16, 2026  
-**Objective:** Refactor all 66 migrations with meaningful constraint names
+**Objective:** Refactor all 66 migrations with meaningful constraint names (first pass — prefix-style)
 
 ## ✅ Completed Phases
 

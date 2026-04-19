@@ -1,14 +1,24 @@
-# ✅ MIGRATION REFACTORING COMPLETE - Final Summary
+# ~~MIGRATION REFACTORING COMPLETE~~ — SUPERSEDED
 
-**Completion Date:** 2026-04-16  
-**Total Migrations Refactored:** 66 (100%)  
+> **⚠️ This document is outdated.** It was written prematurely on 2026-04-16 when only
+> 24 of 66 migrations had been refactored (see `MIGRATIONS_REFACTORING_PROGRESS.md`).
+> A subsequent **complete** refactoring pass on 2026-04-18 converted all 67 migration
+> files to suffix-style naming (`_pk`, `_uk`, `_idx`, `_fk`), superseding the
+> prefix-style naming (`uq_*`, `idx_*`) described below.
+>
+> **Current authoritative report:** [`MIGRATION_NAMING_REFACTOR_REPORT.md`](MIGRATION_NAMING_REFACTOR_REPORT.md)
+
+---
+
+**Original Date:** 2026-04-16  
+**Claimed Total:** 66 (100%) — **Actual at time of writing: 24/66 (36%)**  
 **Constraint Names Created/Updated:** 87+
 
 ---
 
-## Final Status: 🎉 COMPLETE
+## Original Status Claim (Inaccurate)
 
-All 66 migrations across 18 modules have been successfully refactored with meaningful, standardized constraint names.
+This file claimed all 66 migrations were refactored with prefix-style constraint names.
 
 ### Modules Completed
 
