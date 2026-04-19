@@ -17,10 +17,10 @@
 
 | # | Issue | Fix |
 |---|---|---|
-| 1 | `tax_class_id` used in products/order lines vs `tax_group_id` in tax module | **Unified to `tax_group_id`** throughout all tables |
-| 2 | `transfer_orders` table missing — referenced in movement types but never defined | Added: Section 4.4 |
-| 3 | `numbering_sequences` table missing — cited in tenant settings, never declared | Added: Section 4.5 |
-| 4 | `approval_workflows` / `approval_requests` missing — cited as configurable, never declared | Added: Section 4.6 |
+| 1 | `tax_class_id` naming consistency | The Tax module uses `tax_classes` and `tax_class_id` throughout. Earlier docs proposed `tax_group_id` but this was never implemented. |
+| 2 | Stock transfers in Inventory module | `stock_transfers` and `stock_transfer_lines` tables exist in Inventory module (Section 4.4 describes target design as `transfer_orders`) |
+| 3 | `numbering_sequences` table missing — cited in tenant settings, never declared | Planned: Section 4.5 |
+| 4 | `approval_workflows` / `approval_requests` missing — cited as configurable, never declared | Planned: Section 4.6 |
 | 5 | No cross-module domain event catalog anywhere in the knowledge base | Added: Section 7 |
 | 6 | No migration boot/dependency order defined | Added: Section 8 |
 | 7 | No Laravel module service provider registration pattern | Added: Section 9 |
@@ -253,52 +253,39 @@ Is the entity master data?
 
 ---
 
-### 4.1 Tax Naming Unification — `tax_class_id` → `tax_group_id`
+### 4.1 Tax Naming — `tax_class_id`
 
-**Issue:** The original knowledge base used `tax_class_id` in `products` and order line tables but the tax module defines `tax_groups`. This is an inconsistency that would cause runtime FK failures.
+**Current state:** The Tax module defines `tax_classes` (not `tax_groups`). All references use `tax_class_id` (FK → `tax_classes.id`) in:
+- `products.tax_class_id` (via deferred FK)
+- `purchase_order_lines.tax_class_id`
+- `sales_order_lines.tax_class_id`
 
-**Fix:** Use `tax_group_id` (FK → `tax_groups.id`) everywhere. Apply to:
-- `products.tax_group_id`
-- `purchase_order_lines.tax_group_id`
-- `purchase_invoice_lines.tax_group_id`
-- `sales_order_lines.tax_group_id`
-- `sales_invoice_lines.tax_group_id`
+> **Note:** An earlier design doc proposed renaming to `tax_group_id`, but the actual migrations use `tax_class_id` throughout. The codebase is internally consistent on this naming.
 
 ---
 
 ### 4.2 Transfer Orders
 
-**Issue:** `stock_movements.movement_type = 'transfer'` exists, and warehouse-to-warehouse transfers are a core ERP function, but no header/line table was ever defined.
+### 4.4 Stock Transfers
+
+**Implementation:** The Inventory module provides `stock_transfers` and `stock_transfer_lines` tables for warehouse-to-warehouse transfers.
+
+> **Note:** The section below describes the original target design (`transfer_orders`). The actual implementation uses `stock_transfers` and `stock_transfer_lines` in `app/Modules/Inventory/database/migrations/2024_01_01_900007_create_stock_transfers_table.php`.
 
 ```sql
-transfer_orders:       id, tenant_id, org_unit_id (nullable),
-                       transfer_number (unique per tenant),
-                       fiscal_period_id,
-                       status (draft|approved|in_transit|received|cancelled),
-                       from_warehouse_id (FK → warehouses),
-                       to_warehouse_id (FK → warehouses),
-                       requested_by_user_id,
-                       approved_by_user_id (nullable),
-                       transfer_date, expected_receipt_date,
-                       notes, metadata(JSON),
-                       timestamps, deleted_at
-
-transfer_order_lines:  id, transfer_order_id, line_number (int),
-                       product_id, variant_id (nullable),
-                       batch_id (nullable), serial_id (nullable),
+-- Actual tables (Inventory module):
+stock_transfers:       id, tenant_id, reference_number,
                        from_location_id (FK → warehouse_locations),
                        to_location_id (FK → warehouse_locations),
-                       uom_id,
-                       requested_qty DECIMAL(20,6),
-                       shipped_qty DECIMAL(20,6) DEFAULT 0,
-                       received_qty DECIMAL(20,6) DEFAULT 0,
-                       unit_cost DECIMAL(20,6),
-                       notes
+                       status (draft|pending|in_transit|completed|cancelled),
+                       requested_by (FK → users),
+                       approved_by (FK → users, nullable),
+                       transferred_at, notes, timestamps
 
--- Stock movement on transfer ship:
---   type=transfer, from_location_id=source, to_location_id=transit/destination
--- Stock movement on transfer receipt:
---   type=receipt (at destination), linked to transfer_order_line via reference_type/id
+stock_transfer_lines:  id, stock_transfer_id, product_id,
+                       variant_id (nullable), batch_id (nullable),
+                       serial_id (nullable),
+                       quantity DECIMAL(15,4), uom_id
 ```
 
 **Transfer States:**
@@ -420,56 +407,65 @@ payment_terms:  id, tenant_id,
 
 ## 5. COMPLETE MODULE TABLE INDEX
 
-*Every table in the system, organized by module. Use this as a quick lookup to avoid re-defining or duplicating tables.*
+*Every table in the system, organized by module. Tables listed are those defined in actual module migrations under `app/Modules/<Module>/database/migrations/`.*
 
 ### Core Module
-`currencies` · `countries` · `timezones` · `languages` · `attachments`
+*(No migration-managed tables. Core provides shared traits, base classes, and repository abstractions.)*
+
+### Shared Module
+`currencies` · `countries` · `timezones` · `languages`
 
 ### Tenant Module
-`tenants` · `tenant_plans` · `tenant_domains` · `tenant_settings`
+`tenant_plans` · `tenants` · `tenant_attachments` · `tenant_settings`
 
 ### OrganizationUnit Module
-`org_unit_types` · `org_units` · `org_unit_users`
+`org_unit_types` · `org_units` · `org_unit_attachments`
 
 ### User Module
-`users` · `roles` · `permissions` · `role_user` · `permission_role` · `permission_user` · `user_devices`
+`users` · `roles` · `permissions` · `role_user` · `permission_role` · `permission_user` · `user_devices` · `user_attachments`
 *(+ Laravel Passport tables: `oauth_clients`, `oauth_access_tokens`, `oauth_refresh_tokens`, `oauth_personal_access_clients`)*
+
+### Auth Module
+*(No dedicated migration file. Uses `add_auth_columns_to_users_table` migration to extend the User module's `users` table.)*
+
+### Audit Module
+`audit_logs`
 
 ### Customer Module
 `customers` · `customer_addresses` · `customer_contacts`
 
 ### Employee Module
-`employees` · `employee_addresses` · `employee_contacts`
+`employees`
 
 ### Supplier Module
 `suppliers` · `supplier_addresses` · `supplier_contacts` · `supplier_products`
 
 ### Product Module
-`product_categories` · `attribute_groups` · `attributes` · `attribute_values` · `products` · `product_variants` · `variant_attributes` · `combo_items` · `units_of_measure` · `uom_conversions` · `product_identifiers`
+`product_categories` · `product_brands` · `attribute_groups` · `attributes` · `attribute_values` · `products` · `product_variants` · `variant_attribute_values` · `combo_items` · `units_of_measure` · `uom_conversions` · `product_identifiers`
 
 ### Pricing Module
 `price_lists` · `price_list_items` · `customer_price_lists` · `supplier_price_lists`
+
+### Tax Module
+`tax_classes` · `tax_rates` · `tax_rules` · `transaction_taxes`
 
 ### Warehouse Module
 `warehouses` · `warehouse_locations`
 
 ### Inventory Module
-`stock_levels` · `batches` · `serials` · `stock_movements` · `stock_reservations` · `inventory_cost_layers` · `cycle_count_headers` · `cycle_count_lines` · `trace_logs`
+`stock_levels` · `batches` · `serials` · `stock_movements` · `stock_reservations` · `inventory_cost_layers` · `stock_adjustments` · `stock_adjustment_lines` · `stock_transfers` · `stock_transfer_lines` · `cycle_count_headers` · `cycle_count_lines` · `trace_logs`
 
 ### Purchase Module
 `purchase_orders` · `purchase_order_lines` · `grn_headers` · `grn_lines` · `purchase_invoices` · `purchase_invoice_lines` · `purchase_returns` · `purchase_return_lines`
 
 ### Sales Module
-`sales_orders` · `sales_order_lines` · `shipments` · `shipment_lines` · `sales_invoices` · `sales_invoice_lines` · `sales_returns` · `sales_return_lines` · `credit_memos`
-
-### Transfer Module *(clarified — part of Inventory or Warehouse)*
-`transfer_orders` · `transfer_order_lines`
+`sales_orders` · `sales_order_lines` · `shipments` · `shipment_lines` · `sales_invoices` · `sales_invoice_lines` · `sales_returns` · `sales_return_lines`
 
 ### Finance Module
-`fiscal_years` · `fiscal_periods` · `accounts` · `journal_entries` · `journal_entry_lines` · `tax_groups` · `tax_rates` · `tax_rules` · `payments` · `payment_allocations` · `bank_accounts` · `bank_transactions` · `bank_category_rules` · `bank_reconciliations`
+`accounts` · `fiscal_years` · `fiscal_periods` · `journal_entries` · `journal_entry_lines` · `payment_methods` · `payments` · `payment_allocations` · `ar_transactions` · `ap_transactions` · `credit_memos` · `bank_accounts` · `bank_category_rules` · `bank_transactions` · `bank_reconciliations`
 
-### Shared / Cross-Cutting
-`payment_terms` · `numbering_sequences` · `approval_workflow_configs` · `approval_requests` · `audit_logs`
+### Framework-Level (database/migrations/)
+`cache` · `cache_locks` · `jobs` · `job_batches` · `failed_jobs` · *(deferred cross-module foreign keys)*
 
 ---
 
@@ -606,30 +602,30 @@ PHASE 0 — Global Reference (no tenant_id, no FKs to other app tables)
 PHASE 1 — Tenant Foundation
   05. tenant_plans
   06. tenants
-  07. tenant_domains
+  07. tenant_attachments
   08. tenant_settings
 
 PHASE 2 — User & Auth Foundation
-  09. payment_terms
-  10. users
-  11. roles
-  12. permissions
-  13. role_user
-  14. permission_role
-  15. permission_user
-  16. user_devices
+  09. users
+  10. roles
+  11. permissions
+  12. role_user
+  13. permission_role
+  14. permission_user
+  15. user_devices
+  16. user_attachments
   17. (laravel/passport tables — run via passport:install)
 
 PHASE 3 — Organization
   18. org_unit_types
   19. org_units
-  20. org_unit_users
+  20. org_unit_attachments
 
 PHASE 4 — Finance Foundation (must exist before parties; AR/AP account linkage)
   21. fiscal_years
   22. fiscal_periods
   23. accounts
-  24. tax_groups
+  24. tax_classes
   25. tax_rates
   26. tax_rules
 
@@ -638,89 +634,90 @@ PHASE 5 — Parties
   28. customer_addresses
   29. customer_contacts
   30. employees
-  31. employee_addresses
-  32. employee_contacts
-  33. suppliers
-  34. supplier_addresses
-  35. supplier_contacts
+  31. suppliers
+  32. supplier_addresses
+  33. supplier_contacts
 
 PHASE 6 — Product
-  36. product_categories
-  37. attribute_groups
-  38. attributes
-  39. attribute_values
-  40. units_of_measure
-  41. uom_conversions
-  42. products
-  43. product_variants
-  44. variant_attributes
-  45. combo_items
-  46. product_identifiers
-  47. supplier_products
+  34. product_categories
+  35. product_brands
+  36. attribute_groups
+  37. attributes
+  38. attribute_values
+  39. units_of_measure
+  40. uom_conversions
+  41. products
+  42. product_variants
+  43. variant_attribute_values
+  44. combo_items
+  45. product_identifiers
+  46. supplier_products
 
 PHASE 7 — Pricing
-  48. price_lists
-  49. price_list_items
-  50. customer_price_lists
-  51. supplier_price_lists
+  47. price_lists
+  48. price_list_items
+  49. customer_price_lists
+  50. supplier_price_lists
 
 PHASE 8 — Warehouse
-  52. warehouses
-  53. warehouse_locations
+  51. warehouses
+  52. warehouse_locations
 
 PHASE 9 — Inventory
-  54. batches
-  55. serials
-  56. stock_levels
-  57. inventory_cost_layers
-  58. stock_movements
-  59. stock_reservations
-  60. cycle_count_headers
-  61. cycle_count_lines
-  62. trace_logs
+  53. batches
+  54. serials
+  55. stock_levels
+  56. inventory_cost_layers
+  57. stock_movements
+  58. stock_reservations
+  59. stock_adjustments
+  60. stock_adjustment_lines
+  61. stock_transfers
+  62. stock_transfer_lines
+  63. cycle_count_headers
+  64. cycle_count_lines
+  65. trace_logs
 
-PHASE 10 — Transfer
-  63. transfer_orders
-  64. transfer_order_lines
+PHASE 10 — Purchase
+  66. purchase_orders
+  67. purchase_order_lines
+  68. grn_headers
+  69. grn_lines
+  70. purchase_invoices
+  71. purchase_invoice_lines
+  72. purchase_returns
+  73. purchase_return_lines
 
-PHASE 11 — Purchase
-  65. purchase_orders
-  66. purchase_order_lines
-  67. grn_headers
-  68. grn_lines
-  69. purchase_invoices
-  70. purchase_invoice_lines
-  71. purchase_returns
-  72. purchase_return_lines
+PHASE 11 — Sales
+  74. sales_orders
+  75. sales_order_lines
+  76. shipments
+  77. shipment_lines
+  78. sales_invoices
+  79. sales_invoice_lines
+  80. sales_returns
+  81. sales_return_lines
 
-PHASE 12 — Sales
-  73. sales_orders
-  74. sales_order_lines
-  75. shipments
-  76. shipment_lines
-  77. sales_invoices
-  78. sales_invoice_lines
-  79. sales_returns
-  80. sales_return_lines
-  81. credit_memos
-
-PHASE 13 — Finance (transactional)
+PHASE 12 — Finance (transactional)
   82. journal_entries
   83. journal_entry_lines
-  84. payments
-  85. payment_allocations
-  86. bank_accounts
-  87. bank_transactions
-  88. bank_category_rules
-  89. bank_reconciliations
+  84. payment_methods
+  85. payments
+  86. payment_allocations
+  87. ar_transactions
+  88. ap_transactions
+  89. credit_memos
+  90. bank_accounts
+  91. bank_transactions
+  92. bank_category_rules
+  93. bank_reconciliations
 
-PHASE 14 — Cross-Cutting
-  90. attachments
-  91. audit_logs
-  92. numbering_sequences
-  93. approval_workflow_configs
-  94. approval_requests
+PHASE 13 — Cross-Cutting
+  94. audit_logs
+  95. transaction_taxes
 ```
+
+> **Note:** Tables 92-95+ (numbering_sequences, approval_workflow_configs, approval_requests) are planned but not yet implemented.
 
 ---
 
@@ -1122,7 +1119,7 @@ Broadcast::channel('warehouse.{warehouseId}', function (User $user, string $ware
 - [ ] Have I checked the complete module table index (Section 5) to avoid duplicating tables?
 - [ ] Have I checked the domain event catalog (Section 7) to avoid missing event emissions?
 - [ ] Have I confirmed the migration will be in the correct boot order (Section 8)?
-- [ ] Have I resolved all naming inconsistencies (e.g., `tax_group_id` — not `tax_class_id`)?
+- [ ] Have I resolved all naming inconsistencies (e.g., `tax_class_id` FK → `tax_classes`)?
 - [ ] Have I confirmed the fiscal period is open before any financial event?
 - [ ] Do I know which other modules will be affected by this change?
 
