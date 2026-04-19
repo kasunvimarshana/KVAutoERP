@@ -697,7 +697,6 @@ PHASE 11 — Sales
   79. sales_invoice_lines
   80. sales_returns
   81. sales_return_lines
-  81. sales_return_lines
 
 PHASE 12 — Finance (transactional)
   82. journal_entries
