@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Validation\PresenceVerifierInterface;
 use Laravel\Passport\Passport;
 use Modules\Auth\Application\Contracts\AuthorizationServiceInterface;
+use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\Product\Application\Contracts\CreateProductServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductServiceInterface;
 use Modules\Product\Application\Contracts\FindProductServiceInterface;
@@ -21,18 +24,32 @@ use Tests\TestCase;
 
 class ProductEndpointsAuthenticatedTest extends TestCase
 {
+    /** @var CreateProductServiceInterface&MockObject */
+    private CreateProductServiceInterface $createProductService;
+
+    /** @var UpdateProductServiceInterface&MockObject */
+    private UpdateProductServiceInterface $updateProductService;
+
     /** @var FindProductServiceInterface&MockObject */
     private FindProductServiceInterface $findProductService;
+
+    /** @var FileStorageServiceInterface&MockObject */
+    private FileStorageServiceInterface $fileStorageService;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->findProductService = $this->createMock(FindProductServiceInterface::class);
-        $this->app->instance(FindProductServiceInterface::class, $this->findProductService);
+        $this->createProductService = $this->createMock(CreateProductServiceInterface::class);
+        $this->updateProductService = $this->createMock(UpdateProductServiceInterface::class);
+        $this->fileStorageService = $this->createMock(FileStorageServiceInterface::class);
 
-        $this->app->instance(CreateProductServiceInterface::class, $this->createMock(CreateProductServiceInterface::class));
-        $this->app->instance(UpdateProductServiceInterface::class, $this->createMock(UpdateProductServiceInterface::class));
+        $this->app->instance(FindProductServiceInterface::class, $this->findProductService);
+        $this->app->instance(CreateProductServiceInterface::class, $this->createProductService);
+        $this->app->instance(UpdateProductServiceInterface::class, $this->updateProductService);
+        $this->app->instance(FileStorageServiceInterface::class, $this->fileStorageService);
+
         $this->app->instance(DeleteProductServiceInterface::class, $this->createMock(DeleteProductServiceInterface::class));
 
         $authorizationService = $this->createMock(AuthorizationServiceInterface::class);
@@ -45,6 +62,27 @@ class ProductEndpointsAuthenticatedTest extends TestCase
 
         $tenantConfigManager = $this->createMock(TenantConfigManagerInterface::class);
         $this->app->instance(TenantConfigManagerInterface::class, $tenantConfigManager);
+
+        $presenceVerifier = $this->createMock(PresenceVerifierInterface::class);
+        $presenceVerifier->method('getCount')->willReturnCallback(
+            static function (
+                string $collection,
+                string $column,
+                mixed $value,
+                mixed $excludeId = null,
+                mixed $idColumn = null,
+                array $extra = []
+            ): int {
+                if ($collection === 'products' && in_array($column, ['slug', 'sku'], true)) {
+                    return 0;
+                }
+
+                return 1;
+            }
+        );
+        $presenceVerifier->method('getMultiCount')->willReturn(1);
+        $this->app->instance(PresenceVerifierInterface::class, $presenceVerifier);
+        $this->app['validator']->setPresenceVerifier($presenceVerifier);
 
         $user = new UserModel([
             'id' => 201,
@@ -125,6 +163,73 @@ class ProductEndpointsAuthenticatedTest extends TestCase
 
         $response->assertStatus(HttpResponse::HTTP_FORBIDDEN)
             ->assertJsonPath('message', 'This action is unauthorized.');
+    }
+
+    public function test_authenticated_store_with_image_upload_passes_stored_path_to_service(): void
+    {
+        $this->fileStorageService
+            ->expects($this->once())
+            ->method('storeFile')
+            ->willReturn('products/9/sample.jpg');
+
+        $this->createProductService
+            ->expects($this->once())
+            ->method('execute')
+            ->with($this->callback(function (array $payload): bool {
+                return ($payload['image_path'] ?? null) === 'products/9/sample.jpg'
+                    && (int) ($payload['tenant_id'] ?? 0) === 9
+                    && ($payload['name'] ?? null) === 'Widget';
+            }))
+            ->willReturn($this->buildProduct(id: 91));
+
+        $response = $this->withHeader('X-Tenant-ID', '9')
+            ->post('/api/products', [
+                'tenant_id' => 9,
+                'type' => 'physical',
+                'name' => 'Widget',
+                'slug' => 'widget',
+                'base_uom_id' => 1,
+                'image_path' => UploadedFile::fake()->create('sample.jpg', 10, 'image/jpeg'),
+            ]);
+
+        $response->assertStatus(HttpResponse::HTTP_CREATED)
+            ->assertJsonPath('data.id', 91);
+    }
+
+    public function test_authenticated_update_with_image_upload_passes_stored_path_to_service(): void
+    {
+        $this->findProductService
+            ->expects($this->once())
+            ->method('find')
+            ->with(42)
+            ->willReturn($this->buildProduct(id: 42));
+
+        $this->fileStorageService
+            ->expects($this->once())
+            ->method('storeFile')
+            ->willReturn('products/9/updated.jpg');
+
+        $this->updateProductService
+            ->expects($this->once())
+            ->method('execute')
+            ->with($this->callback(function (array $payload): bool {
+                return ($payload['id'] ?? null) === 42
+                    && ($payload['image_path'] ?? null) === 'products/9/updated.jpg';
+            }))
+            ->willReturn($this->buildProduct(id: 42));
+
+        $response = $this->withHeader('X-Tenant-ID', '9')
+            ->put('/api/products/42', [
+                'tenant_id' => 9,
+                'type' => 'physical',
+                'name' => 'Widget',
+                'slug' => 'widget',
+                'base_uom_id' => 1,
+                'image_path' => UploadedFile::fake()->create('updated.jpg', 10, 'image/jpeg'),
+            ]);
+
+        $response->assertStatus(HttpResponse::HTTP_OK)
+            ->assertJsonPath('data.id', 42);
     }
 
     private function buildProduct(int $id): Product

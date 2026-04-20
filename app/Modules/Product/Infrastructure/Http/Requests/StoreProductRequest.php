@@ -25,7 +25,7 @@ class StoreProductRequest extends FormRequest
             'org_unit_id' => 'nullable|integer|exists:org_units,id',
             'type' => 'required|string|in:physical,service,digital,combo,variable',
             'name' => 'required|string|max:255',
-            'image_path' => 'nullable|string|max:255',
+            'image_path' => 'nullable|file|max:5120|mimes:jpg,jpeg,png,gif,webp,svg',
             'slug' => [
                 'required',
                 'string',

@@ -6,7 +6,9 @@ namespace Modules\Product\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Response;
+use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Product\Application\Contracts\CreateProductServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductServiceInterface;
@@ -24,6 +26,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 class ProductController extends AuthorizedController
 {
     public function __construct(
+        protected FileStorageServiceInterface $storage,
         protected CreateProductServiceInterface $createProductService,
         protected UpdateProductServiceInterface $updateProductService,
         protected DeleteProductServiceInterface $deleteProductService,
@@ -61,7 +64,17 @@ class ProductController extends AuthorizedController
     {
         $this->authorize('create', Product::class);
 
-        $product = $this->createProductService->execute($request->validated());
+        $payload = $request->validated();
+
+        if ($request->hasFile('image_path')) {
+            $payload['image_path'] = $this->storeImage(
+                $request->file('image_path'),
+                (int) $payload['tenant_id'],
+                'products'
+            );
+        }
+
+        $product = $this->createProductService->execute($payload);
 
         return (new ProductResource($product))
             ->response()
@@ -82,6 +95,15 @@ class ProductController extends AuthorizedController
         $this->authorize('update', $foundProduct);
 
         $payload = $request->validated();
+
+        if ($request->hasFile('image_path')) {
+            $payload['image_path'] = $this->storeImage(
+                $request->file('image_path'),
+                (int) $payload['tenant_id'],
+                'products'
+            );
+        }
+
         $payload['id'] = $product;
 
         return new ProductResource($this->updateProductService->execute($payload));
@@ -106,5 +128,10 @@ class ProductController extends AuthorizedController
         }
 
         return $product;
+    }
+
+    private function storeImage(UploadedFile $image, int $tenantId, string $baseDirectory): string
+    {
+        return $this->storage->storeFile($image, "{$baseDirectory}/{$tenantId}");
     }
 }
