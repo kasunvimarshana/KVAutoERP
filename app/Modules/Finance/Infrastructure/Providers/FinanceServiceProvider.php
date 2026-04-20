@@ -10,44 +10,64 @@ use Modules\Finance\Application\Contracts\CreateAccountServiceInterface;
 use Modules\Finance\Application\Contracts\CreateFiscalPeriodServiceInterface;
 use Modules\Finance\Application\Contracts\CreateFiscalYearServiceInterface;
 use Modules\Finance\Application\Contracts\CreateJournalEntryServiceInterface;
+use Modules\Finance\Application\Contracts\CreatePaymentMethodServiceInterface;
+use Modules\Finance\Application\Contracts\CreatePaymentServiceInterface;
 use Modules\Finance\Application\Contracts\DeleteAccountServiceInterface;
 use Modules\Finance\Application\Contracts\DeleteFiscalPeriodServiceInterface;
 use Modules\Finance\Application\Contracts\DeleteFiscalYearServiceInterface;
 use Modules\Finance\Application\Contracts\DeleteJournalEntryServiceInterface;
+use Modules\Finance\Application\Contracts\DeletePaymentMethodServiceInterface;
+use Modules\Finance\Application\Contracts\DeletePaymentServiceInterface;
 use Modules\Finance\Application\Contracts\FindAccountServiceInterface;
 use Modules\Finance\Application\Contracts\FindFiscalPeriodServiceInterface;
 use Modules\Finance\Application\Contracts\FindFiscalYearServiceInterface;
 use Modules\Finance\Application\Contracts\FindJournalEntryServiceInterface;
+use Modules\Finance\Application\Contracts\FindPaymentMethodServiceInterface;
+use Modules\Finance\Application\Contracts\FindPaymentServiceInterface;
 use Modules\Finance\Application\Contracts\PostJournalEntryServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateAccountServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateFiscalPeriodServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateFiscalYearServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateJournalEntryServiceInterface;
+use Modules\Finance\Application\Contracts\UpdatePaymentMethodServiceInterface;
+use Modules\Finance\Application\Contracts\UpdatePaymentServiceInterface;
 use Modules\Finance\Application\Services\CreateAccountService;
 use Modules\Finance\Application\Services\CreateFiscalPeriodService;
 use Modules\Finance\Application\Services\CreateFiscalYearService;
 use Modules\Finance\Application\Services\CreateJournalEntryService;
+use Modules\Finance\Application\Services\CreatePaymentMethodService;
+use Modules\Finance\Application\Services\CreatePaymentService;
 use Modules\Finance\Application\Services\DeleteAccountService;
 use Modules\Finance\Application\Services\DeleteFiscalPeriodService;
 use Modules\Finance\Application\Services\DeleteFiscalYearService;
 use Modules\Finance\Application\Services\DeleteJournalEntryService;
+use Modules\Finance\Application\Services\DeletePaymentMethodService;
+use Modules\Finance\Application\Services\DeletePaymentService;
 use Modules\Finance\Application\Services\FindAccountService;
 use Modules\Finance\Application\Services\FindFiscalPeriodService;
 use Modules\Finance\Application\Services\FindFiscalYearService;
 use Modules\Finance\Application\Services\FindJournalEntryService;
+use Modules\Finance\Application\Services\FindPaymentMethodService;
+use Modules\Finance\Application\Services\FindPaymentService;
 use Modules\Finance\Application\Services\PostJournalEntryService;
 use Modules\Finance\Application\Services\UpdateAccountService;
 use Modules\Finance\Application\Services\UpdateFiscalPeriodService;
 use Modules\Finance\Application\Services\UpdateFiscalYearService;
 use Modules\Finance\Application\Services\UpdateJournalEntryService;
+use Modules\Finance\Application\Services\UpdatePaymentMethodService;
+use Modules\Finance\Application\Services\UpdatePaymentService;
 use Modules\Finance\Domain\RepositoryInterfaces\AccountRepositoryInterface;
 use Modules\Finance\Domain\RepositoryInterfaces\FiscalPeriodRepositoryInterface;
 use Modules\Finance\Domain\RepositoryInterfaces\FiscalYearRepositoryInterface;
 use Modules\Finance\Domain\RepositoryInterfaces\JournalEntryRepositoryInterface;
+use Modules\Finance\Domain\RepositoryInterfaces\PaymentMethodRepositoryInterface;
+use Modules\Finance\Domain\RepositoryInterfaces\PaymentRepositoryInterface;
 use Modules\Finance\Infrastructure\Persistence\Eloquent\Repositories\EloquentAccountRepository;
 use Modules\Finance\Infrastructure\Persistence\Eloquent\Repositories\EloquentFiscalPeriodRepository;
 use Modules\Finance\Infrastructure\Persistence\Eloquent\Repositories\EloquentFiscalYearRepository;
 use Modules\Finance\Infrastructure\Persistence\Eloquent\Repositories\EloquentJournalEntryRepository;
+use Modules\Finance\Infrastructure\Persistence\Eloquent\Repositories\EloquentPaymentMethodRepository;
+use Modules\Finance\Infrastructure\Persistence\Eloquent\Repositories\EloquentPaymentRepository;
 
 class FinanceServiceProvider extends ServiceProvider
 {
@@ -60,6 +80,8 @@ class FinanceServiceProvider extends ServiceProvider
             FiscalPeriodRepositoryInterface::class => EloquentFiscalPeriodRepository::class,
             FiscalYearRepositoryInterface::class => EloquentFiscalYearRepository::class,
             JournalEntryRepositoryInterface::class => EloquentJournalEntryRepository::class,
+            PaymentMethodRepositoryInterface::class => EloquentPaymentMethodRepository::class,
+            PaymentRepositoryInterface::class => EloquentPaymentRepository::class,
         ];
 
         foreach ($repositoryBindings as $contract => $implementation) {
@@ -84,6 +106,14 @@ class FinanceServiceProvider extends ServiceProvider
             UpdateJournalEntryServiceInterface::class => UpdateJournalEntryService::class,
             DeleteJournalEntryServiceInterface::class => DeleteJournalEntryService::class,
             PostJournalEntryServiceInterface::class => PostJournalEntryService::class,
+            CreatePaymentMethodServiceInterface::class => CreatePaymentMethodService::class,
+            FindPaymentMethodServiceInterface::class => FindPaymentMethodService::class,
+            UpdatePaymentMethodServiceInterface::class => UpdatePaymentMethodService::class,
+            DeletePaymentMethodServiceInterface::class => DeletePaymentMethodService::class,
+            CreatePaymentServiceInterface::class => CreatePaymentService::class,
+            FindPaymentServiceInterface::class => FindPaymentService::class,
+            UpdatePaymentServiceInterface::class => UpdatePaymentService::class,
+            DeletePaymentServiceInterface::class => DeletePaymentService::class,
         ];
 
         foreach ($serviceBindings as $contract => $implementation) {
