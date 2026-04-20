@@ -6,10 +6,6 @@ namespace Modules\User\Infrastructure\Persistence\Eloquent\Repositories;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Hash;
-use Modules\User\Domain\ValueObjects\Address;
-use Modules\User\Domain\ValueObjects\Email;
-use Modules\User\Domain\ValueObjects\PhoneNumber;
-use Modules\User\Domain\ValueObjects\UserPreferences;
 use Modules\Core\Infrastructure\Persistence\Repositories\EloquentRepository;
 use Modules\User\Domain\Entities\Permission;
 use Modules\User\Domain\Entities\Role;
@@ -17,6 +13,10 @@ use Modules\User\Domain\Entities\User;
 use Modules\User\Domain\Entities\UserAttachment;
 use Modules\User\Domain\Entities\UserDevice;
 use Modules\User\Domain\RepositoryInterfaces\UserRepositoryInterface;
+use Modules\User\Domain\ValueObjects\Address;
+use Modules\User\Domain\ValueObjects\Email;
+use Modules\User\Domain\ValueObjects\PhoneNumber;
+use Modules\User\Domain\ValueObjects\UserPreferences;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserAttachmentModel;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserDeviceModel;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
@@ -41,16 +41,16 @@ class EloquentUserRepository extends EloquentRepository implements UserRepositor
     public function save(User $user): User
     {
         $data = [
-            'tenant_id'   => $user->getTenantId(),
+            'tenant_id' => $user->getTenantId(),
             'org_unit_id' => $user->getOrgUnitId(),
-            'email'       => $user->getEmail()->value(),
-            'first_name'  => $user->getFirstName(),
-            'last_name'   => $user->getLastName(),
-            'phone'       => $user->getPhone()?->value(),
-            'address'     => $user->getAddress()?->toArray(),
+            'email' => $user->getEmail()->value(),
+            'first_name' => $user->getFirstName(),
+            'last_name' => $user->getLastName(),
+            'phone' => $user->getPhone()?->value(),
+            'address' => $user->getAddress()?->toArray(),
             'preferences' => $user->getPreferences()->toArray(),
-            'status'      => $user->isActive() ? 'active' : 'inactive',
-            'avatar'      => $user->getAvatar(),
+            'status' => $user->isActive() ? 'active' : 'inactive',
+            'avatar' => $user->getAvatar(),
         ];
 
         if ($user->getId()) {

@@ -26,7 +26,7 @@ class ProductVariant
     private \DateTimeInterface $updatedAt;
 
     /**
-     * @param array<string, mixed>|null $metadata
+     * @param  array<string, mixed>|null  $metadata
      */
     public function __construct(
         int $productId,
@@ -99,7 +99,7 @@ class ProductVariant
     }
 
     /**
-     * @param array<string, mixed>|null $metadata
+     * @param  array<string, mixed>|null  $metadata
      */
     public function update(
         string $name,

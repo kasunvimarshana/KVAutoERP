@@ -17,8 +17,7 @@ class UpdateTenantService extends BaseService implements UpdateTenantServiceInte
     public function __construct(
         private readonly TenantRepositoryInterface $tenantRepository,
         private readonly TenantConfigValueObjectFactory $valueObjectFactory
-    )
-    {
+    ) {
         parent::__construct($tenantRepository);
     }
 

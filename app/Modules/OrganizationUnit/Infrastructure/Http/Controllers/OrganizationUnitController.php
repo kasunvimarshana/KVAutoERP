@@ -47,8 +47,7 @@ class OrganizationUnitController extends AuthorizedController
         protected FindOrganizationUnitAttachmentsServiceInterface $findOrganizationUnitAttachmentsService,
         protected FindUserServiceInterface $findUserService,
         protected UploadOrganizationUnitAttachmentServiceInterface $uploadAttachmentService,
-    ) {
-    }
+    ) {}
 
     public function index(ListOrganizationUnitRequest $request): JsonResponse
     {
@@ -203,7 +202,7 @@ class OrganizationUnitController extends AuthorizedController
     }
 
     /**
-     * @param array<int, string> $includes
+     * @param  array<int, string>  $includes
      */
     private function buildOrganizationUnitResource(OrganizationUnit $organizationUnit, array $includes): OrganizationUnitResource
     {

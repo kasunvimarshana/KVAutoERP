@@ -30,8 +30,7 @@ class OrganizationUnitAttachmentController extends AuthorizedController
         protected DeleteOrganizationUnitAttachmentServiceInterface $deleteAttachmentService,
         protected FindOrganizationUnitAttachmentsServiceInterface $findAttachmentsService,
         protected FileStorageServiceInterface $storage,
-    ) {
-    }
+    ) {}
 
     public function index(int $organizationUnitId, ListOrganizationUnitAttachmentRequest $request): OrganizationUnitAttachmentCollection
     {

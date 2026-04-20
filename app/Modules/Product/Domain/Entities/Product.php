@@ -19,6 +19,7 @@ class Product
     private string $type;
 
     private string $name;
+
     private ?string $imagePath;
 
     private string $slug;
@@ -65,7 +66,7 @@ class Product
     private \DateTimeInterface $updatedAt;
 
     /**
-     * @param array<string, mixed>|null $metadata
+     * @param  array<string, mixed>|null  $metadata
      */
     public function __construct(
         int $tenantId,
@@ -164,7 +165,10 @@ class Product
         return $this->name;
     }
 
-    public function getImagePath(): ?string { return $this->imagePath; }
+    public function getImagePath(): ?string
+    {
+        return $this->imagePath;
+    }
 
     public function getSlug(): string
     {
@@ -275,15 +279,15 @@ class Product
     }
 
     /**
-     * @param array<string, mixed>|null $metadata
+     * @param  array<string, mixed>|null  $metadata
      */
     public function update(
         string $type,
         string $name,
         string $slug,
         int $baseUomId,
-        ?string $imagePath = null,
-        ?int $taxGroupId = null,
+        ?string $imagePath,
+        ?int $taxGroupId,
         ?int $categoryId,
         ?int $brandId,
         ?int $orgUnitId,
