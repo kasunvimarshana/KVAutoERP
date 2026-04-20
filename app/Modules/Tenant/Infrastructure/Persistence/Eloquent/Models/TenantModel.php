@@ -47,6 +47,9 @@ class TenantModel extends BaseModel
     protected $hidden = [
         'api_keys',
         'database_config',
+        'mail_config',
+        'cache_config',
+        'queue_config',
     ];
 
     protected $fillable = [
@@ -70,12 +73,12 @@ class TenantModel extends BaseModel
     ];
 
     protected $casts = [
-        'database_config' => 'array',
-        'mail_config' => 'array',
-        'cache_config' => 'array',
-        'queue_config' => 'array',
+        'database_config' => 'encrypted:array',
+        'mail_config' => 'encrypted:array',
+        'cache_config' => 'encrypted:array',
+        'queue_config' => 'encrypted:array',
         'feature_flags' => 'array',
-        'api_keys' => 'array',
+        'api_keys' => 'encrypted:array',
         'settings' => 'array',
         'active' => 'boolean',
         'trial_ends_at' => 'datetime',

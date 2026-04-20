@@ -244,6 +244,72 @@ class ProductEndpointsAuthenticatedTest extends TestCase
             ->assertJsonPath('data.id', 42);
     }
 
+    public function test_authenticated_store_rejects_serial_tracked_with_batch_or_lot(): void
+    {
+        $this->createProductService
+            ->expects($this->never())
+            ->method('execute');
+
+        $response = $this->withHeader('X-Tenant-ID', '9')
+            ->postJson('/api/products', [
+                'tenant_id' => 9,
+                'type' => 'physical',
+                'name' => 'Widget',
+                'slug' => 'widget',
+                'base_uom_id' => 1,
+                'is_serial_tracked' => true,
+                'is_batch_tracked' => true,
+            ]);
+
+        $response->assertStatus(HttpResponse::HTTP_UNPROCESSABLE_ENTITY)
+            ->assertJsonValidationErrors(['is_serial_tracked']);
+    }
+
+    public function test_authenticated_store_requires_standard_cost_for_standard_valuation(): void
+    {
+        $this->createProductService
+            ->expects($this->never())
+            ->method('execute');
+
+        $response = $this->withHeader('X-Tenant-ID', '9')
+            ->postJson('/api/products', [
+                'tenant_id' => 9,
+                'type' => 'physical',
+                'name' => 'Widget',
+                'slug' => 'widget',
+                'base_uom_id' => 1,
+                'valuation_method' => 'standard',
+            ]);
+
+        $response->assertStatus(HttpResponse::HTTP_UNPROCESSABLE_ENTITY)
+            ->assertJsonValidationErrors(['standard_cost']);
+    }
+
+    public function test_authenticated_update_rejects_serial_tracked_with_lot_tracking(): void
+    {
+        $this->findProductService
+            ->expects($this->never())
+            ->method('find');
+
+        $this->updateProductService
+            ->expects($this->never())
+            ->method('execute');
+
+        $response = $this->withHeader('X-Tenant-ID', '9')
+            ->putJson('/api/products/42', [
+                'tenant_id' => 9,
+                'type' => 'physical',
+                'name' => 'Widget',
+                'slug' => 'widget',
+                'base_uom_id' => 1,
+                'is_serial_tracked' => true,
+                'is_lot_tracked' => true,
+            ]);
+
+        $response->assertStatus(HttpResponse::HTTP_UNPROCESSABLE_ENTITY)
+            ->assertJsonValidationErrors(['is_serial_tracked']);
+    }
+
     private function buildProduct(int $id, ?string $imagePath = null): Product
     {
         return new Product(

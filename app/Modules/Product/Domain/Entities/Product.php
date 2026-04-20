@@ -6,6 +6,12 @@ namespace Modules\Product\Domain\Entities;
 
 class Product
 {
+    /** @var array<string> */
+    private const SUPPORTED_TYPES = ['physical', 'service', 'digital', 'combo', 'variable'];
+
+    /** @var array<string> */
+    private const SUPPORTED_VALUATION_METHODS = ['fifo', 'lifo', 'fefo', 'weighted_average', 'standard'];
+
     private ?int $id;
 
     private int $tenantId;
@@ -99,6 +105,16 @@ class Product
         ?\DateTimeInterface $createdAt = null,
         ?\DateTimeInterface $updatedAt = null,
     ) {
+        $this->assertInvariants(
+            type: $type,
+            valuationMethod: $valuationMethod,
+            uomConversionFactor: $uomConversionFactor,
+            isBatchTracked: $isBatchTracked,
+            isLotTracked: $isLotTracked,
+            isSerialTracked: $isSerialTracked,
+            standardCost: $standardCost,
+        );
+
         $this->id = $id;
         $this->tenantId = $tenantId;
         $this->categoryId = $categoryId;
@@ -308,6 +324,16 @@ class Product
         bool $isActive,
         ?array $metadata,
     ): void {
+        $this->assertInvariants(
+            type: $type,
+            valuationMethod: $valuationMethod,
+            uomConversionFactor: $uomConversionFactor,
+            isBatchTracked: $isBatchTracked,
+            isLotTracked: $isLotTracked,
+            isSerialTracked: $isSerialTracked,
+            standardCost: $standardCost,
+        );
+
         $this->type = $type;
         $this->name = $name;
         $this->imagePath = $imagePath;
@@ -334,5 +360,35 @@ class Product
         $this->isActive = $isActive;
         $this->metadata = $metadata;
         $this->updatedAt = new \DateTimeImmutable;
+    }
+
+    private function assertInvariants(
+        string $type,
+        string $valuationMethod,
+        string $uomConversionFactor,
+        bool $isBatchTracked,
+        bool $isLotTracked,
+        bool $isSerialTracked,
+        ?string $standardCost,
+    ): void {
+        if (! in_array($type, self::SUPPORTED_TYPES, true)) {
+            throw new \InvalidArgumentException('Unsupported product type.');
+        }
+
+        if (! in_array($valuationMethod, self::SUPPORTED_VALUATION_METHODS, true)) {
+            throw new \InvalidArgumentException('Unsupported valuation method.');
+        }
+
+        if (! is_numeric($uomConversionFactor) || (float) $uomConversionFactor <= 0) {
+            throw new \InvalidArgumentException('UOM conversion factor must be greater than zero.');
+        }
+
+        if ($isSerialTracked && ($isBatchTracked || $isLotTracked)) {
+            throw new \InvalidArgumentException('Serial-tracked products cannot be batch-tracked or lot-tracked.');
+        }
+
+        if ($valuationMethod === 'standard' && $standardCost === null) {
+            throw new \InvalidArgumentException('Standard cost is required when valuation method is standard.');
+        }
     }
 }

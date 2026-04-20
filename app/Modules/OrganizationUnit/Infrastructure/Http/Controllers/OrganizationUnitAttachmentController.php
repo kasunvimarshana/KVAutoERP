@@ -48,7 +48,7 @@ class OrganizationUnitAttachmentController extends AuthorizedController
             $page
         );
 
-        return new OrganizationUnitAttachmentCollection($attachments);
+        return new OrganizationUnitAttachmentCollection($attachments, $this->storage);
     }
 
     public function store(UploadOrganizationUnitAttachmentRequest $request, int $organizationUnitId): OrganizationUnitAttachmentResource
@@ -75,7 +75,7 @@ class OrganizationUnitAttachmentController extends AuthorizedController
             'metadata' => $request->input('metadata'),
         ]);
 
-        return new OrganizationUnitAttachmentResource($attachment);
+        return new OrganizationUnitAttachmentResource($attachment, $this->storage);
     }
 
     public function destroy(int $organizationUnitId, int $attachmentId): JsonResponse

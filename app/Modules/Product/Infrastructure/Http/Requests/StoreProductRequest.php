@@ -6,6 +6,7 @@ namespace Modules\Product\Infrastructure\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreProductRequest extends FormRequest
 {
@@ -56,5 +57,25 @@ class StoreProductRequest extends FormRequest
             'is_active' => 'nullable|boolean',
             'metadata' => 'nullable|array',
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $isSerialTracked = (bool) $this->input('is_serial_tracked', false);
+            $isBatchTracked = (bool) $this->input('is_batch_tracked', false);
+            $isLotTracked = (bool) $this->input('is_lot_tracked', false);
+
+            if ($isSerialTracked && ($isBatchTracked || $isLotTracked)) {
+                $validator->errors()->add('is_serial_tracked', 'Serial-tracked products cannot be batch-tracked or lot-tracked.');
+            }
+
+            $valuationMethod = (string) $this->input('valuation_method', 'fifo');
+            $standardCost = $this->input('standard_cost');
+
+            if ($valuationMethod === 'standard' && ($standardCost === null || $standardCost === '')) {
+                $validator->errors()->add('standard_cost', 'Standard cost is required when valuation method is standard.');
+            }
+        });
     }
 }
