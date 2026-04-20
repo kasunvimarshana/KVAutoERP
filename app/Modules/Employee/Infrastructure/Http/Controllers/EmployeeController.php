@@ -58,7 +58,15 @@ class EmployeeController extends AuthorizedController
     {
         $this->authorize('create', Employee::class);
 
-        $employee = $this->createEmployeeService->execute($request->validated());
+        $payload = $request->validated();
+        $avatarFile = $request->file('user.avatar');
+
+        if ($avatarFile !== null) {
+            $payload['user'] ??= [];
+            $payload['user']['avatar'] = $avatarFile;
+        }
+
+        $employee = $this->createEmployeeService->execute($payload);
 
         return (new EmployeeResource($employee))
             ->response()
@@ -79,6 +87,11 @@ class EmployeeController extends AuthorizedController
         $this->authorize('update', $foundEmployee);
 
         $payload = $request->validated();
+        $avatarFile = $request->file('user.avatar');
+        if ($avatarFile !== null) {
+            $payload['user'] ??= [];
+            $payload['user']['avatar'] = $avatarFile;
+        }
         $payload['id'] = $employee;
 
         return new EmployeeResource($this->updateEmployeeService->execute($payload));

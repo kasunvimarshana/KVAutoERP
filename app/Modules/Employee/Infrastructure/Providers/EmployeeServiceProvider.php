@@ -10,12 +10,14 @@ use Modules\Employee\Application\Contracts\CreateEmployeeServiceInterface;
 use Modules\Employee\Application\Contracts\DeleteEmployeeServiceInterface;
 use Modules\Employee\Application\Contracts\FindEmployeeServiceInterface;
 use Modules\Employee\Application\Contracts\UpdateEmployeeServiceInterface;
+use Modules\Employee\Domain\Contracts\EmployeeUserSynchronizerInterface;
 use Modules\Employee\Application\Services\CreateEmployeeService;
 use Modules\Employee\Application\Services\DeleteEmployeeService;
 use Modules\Employee\Application\Services\FindEmployeeService;
 use Modules\Employee\Application\Services\UpdateEmployeeService;
 use Modules\Employee\Domain\RepositoryInterfaces\EmployeeRepositoryInterface;
 use Modules\Employee\Infrastructure\Persistence\Eloquent\Repositories\EloquentEmployeeRepository;
+use Modules\Employee\Infrastructure\Services\EloquentEmployeeUserSynchronizer;
 
 class EmployeeServiceProvider extends ServiceProvider
 {
@@ -24,6 +26,7 @@ class EmployeeServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(EmployeeRepositoryInterface::class, EloquentEmployeeRepository::class);
+        $this->app->bind(EmployeeUserSynchronizerInterface::class, EloquentEmployeeUserSynchronizer::class);
 
         $this->app->bind(CreateEmployeeServiceInterface::class, CreateEmployeeService::class);
         $this->app->bind(FindEmployeeServiceInterface::class, FindEmployeeService::class);

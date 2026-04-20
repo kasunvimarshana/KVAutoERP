@@ -22,11 +22,25 @@ class StoreEmployeeRequest extends FormRequest
         return [
             'tenant_id' => 'required|integer|exists:tenants,id',
             'user_id' => [
-                'required',
+                'nullable',
                 'integer',
+                'required_without:user',
                 Rule::exists('users', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
                 Rule::unique('employees', 'user_id'),
             ],
+            'user' => 'required_without:user_id|array',
+            'user.email' => [
+                'required_with:user',
+                'email',
+                Rule::unique('users', 'email')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
+            ],
+            'user.first_name' => 'required_with:user|string|max:255',
+            'user.last_name' => 'required_with:user|string|max:255',
+            'user.phone' => 'nullable|string|max:30',
+            'user.address' => 'nullable|array',
+            'user.preferences' => 'nullable|array',
+            'user.active' => 'nullable|boolean',
+            'user.avatar' => 'nullable|file|max:5120|mimes:jpg,jpeg,png,gif,webp,svg',
             'employee_code' => [
                 'nullable',
                 'string',

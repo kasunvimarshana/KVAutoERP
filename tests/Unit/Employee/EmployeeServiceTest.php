@@ -9,6 +9,7 @@ use Modules\Employee\Application\Services\CreateEmployeeService;
 use Modules\Employee\Application\Services\DeleteEmployeeService;
 use Modules\Employee\Application\Services\FindEmployeeService;
 use Modules\Employee\Application\Services\UpdateEmployeeService;
+use Modules\Employee\Domain\Contracts\EmployeeUserSynchronizerInterface;
 use Modules\Employee\Domain\Entities\Employee;
 use Modules\Employee\Domain\Exceptions\EmployeeNotFoundException;
 use Modules\Employee\Domain\RepositoryInterfaces\EmployeeRepositoryInterface;
@@ -20,16 +21,32 @@ class EmployeeServiceTest extends TestCase
     /** @var EmployeeRepositoryInterface&MockObject */
     private EmployeeRepositoryInterface $repository;
 
+    /** @var EmployeeUserSynchronizerInterface&MockObject */
+    private EmployeeUserSynchronizerInterface $userSynchronizer;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->repository = $this->createMock(EmployeeRepositoryInterface::class);
+        $this->userSynchronizer = $this->createMock(EmployeeUserSynchronizerInterface::class);
     }
 
     public function test_create_employee_service_maps_payload_and_saves(): void
     {
-        $service = new CreateEmployeeService($this->repository);
+        $service = new CreateEmployeeService($this->repository, $this->userSynchronizer);
+
+        $this->userSynchronizer
+            ->expects($this->once())
+            ->method('resolveUserIdForCreate')
+            ->with(9, null, 55, null)
+            ->willReturn(55);
+
+        $this->repository
+            ->expects($this->once())
+            ->method('findByTenantAndUserId')
+            ->with(9, 55)
+            ->willReturn(null);
 
         $this->repository
             ->expects($this->once())
@@ -83,7 +100,7 @@ class EmployeeServiceTest extends TestCase
 
     public function test_update_employee_service_throws_when_employee_missing(): void
     {
-        $service = new UpdateEmployeeService($this->repository);
+        $service = new UpdateEmployeeService($this->repository, $this->userSynchronizer);
 
         $this->repository
             ->expects($this->once())
@@ -126,5 +143,38 @@ class EmployeeServiceTest extends TestCase
             jobTitle: 'Finance Analyst',
             hireDate: new \DateTimeImmutable('2024-05-01'),
         );
+    }
+
+    public function test_update_employee_service_synchronizes_associated_user(): void
+    {
+        $service = new UpdateEmployeeService($this->repository, $this->userSynchronizer);
+
+        $existing = $this->buildEmployee(411);
+
+        $this->repository
+            ->expects($this->once())
+            ->method('find')
+            ->with(411)
+            ->willReturn($existing);
+
+        $this->repository
+            ->expects($this->once())
+            ->method('save')
+            ->with($this->isInstanceOf(Employee::class))
+            ->willReturn($existing);
+
+        $this->userSynchronizer
+            ->expects($this->once())
+            ->method('synchronizeForEmployeeUpdate')
+            ->with(9, 55, null, ['first_name' => 'Updated']);
+
+        $result = $service->execute([
+            'id' => 411,
+            'tenant_id' => 9,
+            'employee_code' => 'EMP-001',
+            'user' => ['first_name' => 'Updated'],
+        ]);
+
+        $this->assertInstanceOf(Employee::class, $result);
     }
 }

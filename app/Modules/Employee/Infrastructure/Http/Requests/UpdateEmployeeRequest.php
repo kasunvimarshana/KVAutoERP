@@ -22,12 +22,16 @@ class UpdateEmployeeRequest extends FormRequest
 
         return [
             'tenant_id' => 'required|integer|exists:tenants,id',
-            'user_id' => [
-                'required',
-                'integer',
-                Rule::exists('users', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
-                Rule::unique('employees', 'user_id')->ignore($employeeId),
-            ],
+            'user_id' => 'prohibited',
+            'user' => 'sometimes|array',
+            'user.email' => 'sometimes|email',
+            'user.first_name' => 'sometimes|string|max:255',
+            'user.last_name' => 'sometimes|string|max:255',
+            'user.phone' => 'sometimes|nullable|string|max:30',
+            'user.address' => 'sometimes|nullable|array',
+            'user.preferences' => 'sometimes|nullable|array',
+            'user.active' => 'sometimes|boolean',
+            'user.avatar' => 'nullable|file|max:5120|mimes:jpg,jpeg,png,gif,webp,svg',
             'employee_code' => [
                 'nullable',
                 'string',

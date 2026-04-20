@@ -38,6 +38,16 @@ class EloquentUserRepository extends EloquentRepository implements UserRepositor
         return $model ? $this->toDomainEntity($model) : null;
     }
 
+    public function findByTenantAndId(int $tenantId, int $userId): ?User
+    {
+        $model = $this->model->newQuery()
+            ->where('tenant_id', $tenantId)
+            ->where('id', $userId)
+            ->first();
+
+        return $model ? $this->toDomainEntity($model) : null;
+    }
+
     public function save(User $user): User
     {
         $data = [
@@ -88,6 +98,28 @@ class EloquentUserRepository extends EloquentRepository implements UserRepositor
     public function changePassword(int $userId, string $hashedPassword): void
     {
         $this->model->where('id', $userId)->update(['password' => $hashedPassword]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function createRecord(array $attributes): int
+    {
+        /** @var UserModel $model */
+        $model = $this->model->newQuery()->create($attributes);
+
+        return (int) $model->id;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function updateRecord(int $tenantId, int $userId, array $attributes): void
+    {
+        $this->model->newQuery()
+            ->where('tenant_id', $tenantId)
+            ->where('id', $userId)
+            ->update($attributes);
     }
 
     public function updateAvatar(int $userId, ?string $avatarPath): void
@@ -160,7 +192,14 @@ class EloquentUserRepository extends EloquentRepository implements UserRepositor
         foreach ($model->roles as $roleModel) {
             $role = new Role($roleModel->tenant_id, $roleModel->name, $roleModel->id);
             foreach ($roleModel->permissions as $permModel) {
-                $perm = new Permission($permModel->tenant_id, $permModel->name, $permModel->id);
+                $perm = new Permission(
+                    tenantId: (int) $permModel->tenant_id,
+                    name: (string) $permModel->name,
+                    guardName: (string) $permModel->guard_name,
+                    module: (string) ($permModel->module ?? 'general'),
+                    description: $permModel->description,
+                    id: (int) $permModel->id,
+                );
                 $role->grantPermission($perm);
             }
             $user->assignRole($role);
