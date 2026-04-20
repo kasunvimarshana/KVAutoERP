@@ -69,11 +69,11 @@ class EloquentNumberingSequenceRepository extends EloquentRepository implements 
             if (! $model) {
                 $prefix = strtoupper(substr($documentType, 0, 3));
 
-                return $prefix . '-' . str_pad('1', 5, '0', STR_PAD_LEFT);
+                return $prefix.'-'.str_pad('1', 5, '0', STR_PAD_LEFT);
             }
 
             $number = str_pad((string) $model->next_number, (int) $model->padding, '0', STR_PAD_LEFT);
-            $result = ($model->prefix ?? '') . $number . ($model->suffix ?? '');
+            $result = ($model->prefix ?? '').$number.($model->suffix ?? '');
 
             $model->increment('next_number');
 

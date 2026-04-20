@@ -23,17 +23,60 @@ class NumberingSequence
         $this->updatedAt = $updatedAt ?? new \DateTimeImmutable;
     }
 
-    public function getId(): ?int { return $this->id; }
-    public function getTenantId(): int { return $this->tenantId; }
-    public function getModule(): string { return $this->module; }
-    public function getDocumentType(): string { return $this->documentType; }
-    public function getPrefix(): ?string { return $this->prefix; }
-    public function getSuffix(): ?string { return $this->suffix; }
-    public function getNextNumber(): int { return $this->nextNumber; }
-    public function getPadding(): int { return $this->padding; }
-    public function isActive(): bool { return $this->isActive; }
-    public function getCreatedAt(): \DateTimeInterface { return $this->createdAt; }
-    public function getUpdatedAt(): \DateTimeInterface { return $this->updatedAt; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getTenantId(): int
+    {
+        return $this->tenantId;
+    }
+
+    public function getModule(): string
+    {
+        return $this->module;
+    }
+
+    public function getDocumentType(): string
+    {
+        return $this->documentType;
+    }
+
+    public function getPrefix(): ?string
+    {
+        return $this->prefix;
+    }
+
+    public function getSuffix(): ?string
+    {
+        return $this->suffix;
+    }
+
+    public function getNextNumber(): int
+    {
+        return $this->nextNumber;
+    }
+
+    public function getPadding(): int
+    {
+        return $this->padding;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->isActive;
+    }
+
+    public function getCreatedAt(): \DateTimeInterface
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): \DateTimeInterface
+    {
+        return $this->updatedAt;
+    }
 
     public function generateNext(): string
     {
@@ -41,7 +84,7 @@ class NumberingSequence
         $this->nextNumber++;
         $this->updatedAt = new \DateTimeImmutable;
 
-        return ($this->prefix ?? '') . $number . ($this->suffix ?? '');
+        return ($this->prefix ?? '').$number.($this->suffix ?? '');
     }
 
     public function update(

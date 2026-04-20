@@ -20,14 +20,45 @@ class PaymentMethod
         $this->updatedAt = $updatedAt ?? new \DateTimeImmutable;
     }
 
-    public function getId(): ?int { return $this->id; }
-    public function getTenantId(): int { return $this->tenantId; }
-    public function getName(): string { return $this->name; }
-    public function getType(): string { return $this->type; }
-    public function getAccountId(): ?int { return $this->accountId; }
-    public function isActive(): bool { return $this->isActive; }
-    public function getCreatedAt(): \DateTimeInterface { return $this->createdAt; }
-    public function getUpdatedAt(): \DateTimeInterface { return $this->updatedAt; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getTenantId(): int
+    {
+        return $this->tenantId;
+    }
+
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    public function getType(): string
+    {
+        return $this->type;
+    }
+
+    public function getAccountId(): ?int
+    {
+        return $this->accountId;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->isActive;
+    }
+
+    public function getCreatedAt(): \DateTimeInterface
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): \DateTimeInterface
+    {
+        return $this->updatedAt;
+    }
 
     public function update(string $name, string $type, ?int $accountId, bool $isActive): void
     {

@@ -23,17 +23,60 @@ class CostCenter
         $this->updatedAt = $updatedAt ?? new \DateTimeImmutable;
     }
 
-    public function getId(): ?int { return $this->id; }
-    public function getTenantId(): int { return $this->tenantId; }
-    public function getParentId(): ?int { return $this->parentId; }
-    public function getCode(): string { return $this->code; }
-    public function getName(): string { return $this->name; }
-    public function getDescription(): ?string { return $this->description; }
-    public function isActive(): bool { return $this->isActive; }
-    public function getPath(): ?string { return $this->path; }
-    public function getDepth(): int { return $this->depth; }
-    public function getCreatedAt(): \DateTimeInterface { return $this->createdAt; }
-    public function getUpdatedAt(): \DateTimeInterface { return $this->updatedAt; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getTenantId(): int
+    {
+        return $this->tenantId;
+    }
+
+    public function getParentId(): ?int
+    {
+        return $this->parentId;
+    }
+
+    public function getCode(): string
+    {
+        return $this->code;
+    }
+
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->isActive;
+    }
+
+    public function getPath(): ?string
+    {
+        return $this->path;
+    }
+
+    public function getDepth(): int
+    {
+        return $this->depth;
+    }
+
+    public function getCreatedAt(): \DateTimeInterface
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): \DateTimeInterface
+    {
+        return $this->updatedAt;
+    }
 
     public function update(
         string $code,

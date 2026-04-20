@@ -34,27 +34,105 @@ class Payment
         }
     }
 
-    public function getId(): ?int { return $this->id; }
-    public function getTenantId(): int { return $this->tenantId; }
-    public function getPaymentNumber(): string { return $this->paymentNumber; }
-    public function getDirection(): string { return $this->direction; }
-    public function getPartyType(): string { return $this->partyType; }
-    public function getPartyId(): int { return $this->partyId; }
-    public function getPaymentMethodId(): int { return $this->paymentMethodId; }
-    public function getAccountId(): int { return $this->accountId; }
-    public function getAmount(): float { return $this->amount; }
-    public function getCurrencyId(): int { return $this->currencyId; }
-    public function getExchangeRate(): float { return $this->exchangeRate; }
-    public function getBaseAmount(): float { return $this->baseAmount; }
-    public function getPaymentDate(): \DateTimeInterface { return $this->paymentDate; }
-    public function getStatus(): string { return $this->status; }
-    public function getReference(): ?string { return $this->reference; }
-    public function getNotes(): ?string { return $this->notes; }
-    public function getJournalEntryId(): ?int { return $this->journalEntryId; }
-    public function getCreatedAt(): \DateTimeInterface { return $this->createdAt; }
-    public function getUpdatedAt(): \DateTimeInterface { return $this->updatedAt; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
 
-    public function isDraft(): bool { return $this->status === 'draft'; }
+    public function getTenantId(): int
+    {
+        return $this->tenantId;
+    }
+
+    public function getPaymentNumber(): string
+    {
+        return $this->paymentNumber;
+    }
+
+    public function getDirection(): string
+    {
+        return $this->direction;
+    }
+
+    public function getPartyType(): string
+    {
+        return $this->partyType;
+    }
+
+    public function getPartyId(): int
+    {
+        return $this->partyId;
+    }
+
+    public function getPaymentMethodId(): int
+    {
+        return $this->paymentMethodId;
+    }
+
+    public function getAccountId(): int
+    {
+        return $this->accountId;
+    }
+
+    public function getAmount(): float
+    {
+        return $this->amount;
+    }
+
+    public function getCurrencyId(): int
+    {
+        return $this->currencyId;
+    }
+
+    public function getExchangeRate(): float
+    {
+        return $this->exchangeRate;
+    }
+
+    public function getBaseAmount(): float
+    {
+        return $this->baseAmount;
+    }
+
+    public function getPaymentDate(): \DateTimeInterface
+    {
+        return $this->paymentDate;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function getReference(): ?string
+    {
+        return $this->reference;
+    }
+
+    public function getNotes(): ?string
+    {
+        return $this->notes;
+    }
+
+    public function getJournalEntryId(): ?int
+    {
+        return $this->journalEntryId;
+    }
+
+    public function getCreatedAt(): \DateTimeInterface
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): \DateTimeInterface
+    {
+        return $this->updatedAt;
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->status === 'draft';
+    }
 
     public function post(?int $journalEntryId = null): void
     {

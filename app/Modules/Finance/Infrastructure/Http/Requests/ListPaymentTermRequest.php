@@ -8,7 +8,10 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class ListPaymentTermRequest extends FormRequest
 {
-    public function authorize(): bool { return true; }
+    public function authorize(): bool
+    {
+        return true;
+    }
 
     /**
      * @return array<string, mixed>
