@@ -23,7 +23,7 @@ class StoreProductBrandRequest extends FormRequest
             'parent_id' => 'nullable|integer|exists:product_brands,id',
             'name' => 'required|string|max:255',
             'image_path' => 'nullable|file|max:5120|mimes:jpg,jpeg,png,gif,webp,svg',
-            'slug' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:255',
             'code' => [
                 'nullable',
                 'string',

@@ -17,7 +17,7 @@ class StoreTenantRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:tenants,slug',
+            'slug' => 'nullable|string|max:255|unique:tenants,slug',
             'domain' => 'nullable|string|max:255|unique:tenants,domain',
             'database_config' => 'required|array',
             'database_config.driver' => 'required|string|in:mysql,pgsql,sqlite,sqlsrv',

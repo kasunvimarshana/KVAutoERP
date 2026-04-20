@@ -28,7 +28,7 @@ class StoreProductRequest extends FormRequest
             'name' => 'required|string|max:255',
             'image_path' => 'nullable|file|max:5120|mimes:jpg,jpeg,png,gif,webp,svg',
             'slug' => [
-                'required',
+                'nullable',
                 'string',
                 'max:255',
                 Rule::unique('products', 'slug')->where(fn ($query) => $query->where('tenant_id', $tenantId)),

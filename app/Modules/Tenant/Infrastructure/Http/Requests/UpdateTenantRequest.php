@@ -19,7 +19,7 @@ class UpdateTenantRequest extends FormRequest
 
         return [
             'name' => 'sometimes|required|string|max:255',
-            'slug' => 'sometimes|required|string|max:255|unique:tenants,slug,'.$tenantId,
+            'slug' => 'sometimes|nullable|string|max:255|unique:tenants,slug,'.$tenantId,
             'domain' => 'sometimes|nullable|string|max:255|unique:tenants,domain,'.$tenantId,
             'database_config' => 'sometimes|required|array',
             'database_config.driver' => 'required_with:database_config|string|in:mysql,pgsql,sqlite,sqlsrv',
