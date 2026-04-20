@@ -14,6 +14,7 @@ use Modules\Finance\Infrastructure\Http\Controllers\BankReconciliationController
 use Modules\Finance\Infrastructure\Http\Controllers\BankTransactionController;
 use Modules\Finance\Infrastructure\Http\Controllers\CostCenterController;
 use Modules\Finance\Infrastructure\Http\Controllers\CreditMemoController;
+use Modules\Finance\Infrastructure\Http\Controllers\FinancialReportController;
 use Modules\Finance\Infrastructure\Http\Controllers\FiscalPeriodController;
 use Modules\Finance\Infrastructure\Http\Controllers\FiscalYearController;
 use Modules\Finance\Infrastructure\Http\Controllers\JournalEntryController;
@@ -94,4 +95,10 @@ Route::middleware(['auth:api', 'resolve.tenant'])->group(function (): void {
     // Approval Workflows
     Route::apiResource('approval-workflow-configs', ApprovalWorkflowConfigController::class);
     Route::apiResource('approval-requests', ApprovalRequestController::class);
+
+    // Financial Reports
+    Route::get('reports/general-ledger', [FinancialReportController::class, 'generalLedger']);
+    Route::get('reports/trial-balance', [FinancialReportController::class, 'trialBalance']);
+    Route::get('reports/balance-sheet', [FinancialReportController::class, 'balanceSheet']);
+    Route::get('reports/profit-loss', [FinancialReportController::class, 'profitLoss']);
 });

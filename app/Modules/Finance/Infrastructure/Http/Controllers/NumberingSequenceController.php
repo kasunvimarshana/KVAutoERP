@@ -100,7 +100,7 @@ class NumberingSequenceController extends AuthorizedController
         $found = $this->findNumberingSequenceOrFail($numberingSequence);
         $this->authorize('update', $found);
 
-        /** @var array{number: string, sequence: \Modules\Finance\Domain\Entities\NumberingSequence} $result */
+        /** @var array{number: string, sequence: NumberingSequence} $result */
         $result = $this->nextNumberingSequenceService->execute(['id' => $numberingSequence]);
 
         return Response::json([
