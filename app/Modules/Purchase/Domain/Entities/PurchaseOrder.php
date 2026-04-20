@@ -7,25 +7,45 @@ namespace Modules\Purchase\Domain\Entities;
 class PurchaseOrder
 {
     private ?int $id;
+
     private int $tenantId;
+
     private int $supplierId;
+
     private ?int $orgUnitId;
+
     private int $warehouseId;
+
     private string $poNumber;
+
     private string $status;
+
     private int $currencyId;
+
     private string $exchangeRate;
+
     private \DateTimeInterface $orderDate;
+
     private ?\DateTimeInterface $expectedDate;
+
     private string $subtotal;
+
     private string $taxTotal;
+
     private string $discountTotal;
+
     private string $grandTotal;
+
     private ?string $notes;
+
     private ?array $metadata;
+
     private int $createdBy;
+
     private ?int $approvedBy;
+
     private \DateTimeInterface $createdAt;
+
     private \DateTimeInterface $updatedAt;
 
     public function __construct(
@@ -74,27 +94,110 @@ class PurchaseOrder
         $this->updatedAt = $updatedAt ?? new \DateTimeImmutable;
     }
 
-    public function getId(): ?int { return $this->id; }
-    public function getTenantId(): int { return $this->tenantId; }
-    public function getSupplierId(): int { return $this->supplierId; }
-    public function getOrgUnitId(): ?int { return $this->orgUnitId; }
-    public function getWarehouseId(): int { return $this->warehouseId; }
-    public function getPoNumber(): string { return $this->poNumber; }
-    public function getStatus(): string { return $this->status; }
-    public function getCurrencyId(): int { return $this->currencyId; }
-    public function getExchangeRate(): string { return $this->exchangeRate; }
-    public function getOrderDate(): \DateTimeInterface { return $this->orderDate; }
-    public function getExpectedDate(): ?\DateTimeInterface { return $this->expectedDate; }
-    public function getSubtotal(): string { return $this->subtotal; }
-    public function getTaxTotal(): string { return $this->taxTotal; }
-    public function getDiscountTotal(): string { return $this->discountTotal; }
-    public function getGrandTotal(): string { return $this->grandTotal; }
-    public function getNotes(): ?string { return $this->notes; }
-    public function getMetadata(): ?array { return $this->metadata; }
-    public function getCreatedBy(): int { return $this->createdBy; }
-    public function getApprovedBy(): ?int { return $this->approvedBy; }
-    public function getCreatedAt(): \DateTimeInterface { return $this->createdAt; }
-    public function getUpdatedAt(): \DateTimeInterface { return $this->updatedAt; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getTenantId(): int
+    {
+        return $this->tenantId;
+    }
+
+    public function getSupplierId(): int
+    {
+        return $this->supplierId;
+    }
+
+    public function getOrgUnitId(): ?int
+    {
+        return $this->orgUnitId;
+    }
+
+    public function getWarehouseId(): int
+    {
+        return $this->warehouseId;
+    }
+
+    public function getPoNumber(): string
+    {
+        return $this->poNumber;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function getCurrencyId(): int
+    {
+        return $this->currencyId;
+    }
+
+    public function getExchangeRate(): string
+    {
+        return $this->exchangeRate;
+    }
+
+    public function getOrderDate(): \DateTimeInterface
+    {
+        return $this->orderDate;
+    }
+
+    public function getExpectedDate(): ?\DateTimeInterface
+    {
+        return $this->expectedDate;
+    }
+
+    public function getSubtotal(): string
+    {
+        return $this->subtotal;
+    }
+
+    public function getTaxTotal(): string
+    {
+        return $this->taxTotal;
+    }
+
+    public function getDiscountTotal(): string
+    {
+        return $this->discountTotal;
+    }
+
+    public function getGrandTotal(): string
+    {
+        return $this->grandTotal;
+    }
+
+    public function getNotes(): ?string
+    {
+        return $this->notes;
+    }
+
+    public function getMetadata(): ?array
+    {
+        return $this->metadata;
+    }
+
+    public function getCreatedBy(): int
+    {
+        return $this->createdBy;
+    }
+
+    public function getApprovedBy(): ?int
+    {
+        return $this->approvedBy;
+    }
+
+    public function getCreatedAt(): \DateTimeInterface
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): \DateTimeInterface
+    {
+        return $this->updatedAt;
+    }
 
     public function update(
         int $supplierId,

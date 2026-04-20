@@ -7,19 +7,33 @@ namespace Modules\Purchase\Domain\Entities;
 class GrnHeader
 {
     private ?int $id;
+
     private int $tenantId;
+
     private int $supplierId;
+
     private int $warehouseId;
+
     private ?int $purchaseOrderId;
+
     private string $grnNumber;
+
     private string $status;
+
     private \DateTimeInterface $receivedDate;
+
     private int $currencyId;
+
     private string $exchangeRate;
+
     private ?string $notes;
+
     private ?array $metadata;
+
     private int $createdBy;
+
     private \DateTimeInterface $createdAt;
+
     private \DateTimeInterface $updatedAt;
 
     public function __construct(
@@ -56,21 +70,80 @@ class GrnHeader
         $this->updatedAt = $updatedAt ?? new \DateTimeImmutable;
     }
 
-    public function getId(): ?int { return $this->id; }
-    public function getTenantId(): int { return $this->tenantId; }
-    public function getSupplierId(): int { return $this->supplierId; }
-    public function getWarehouseId(): int { return $this->warehouseId; }
-    public function getPurchaseOrderId(): ?int { return $this->purchaseOrderId; }
-    public function getGrnNumber(): string { return $this->grnNumber; }
-    public function getStatus(): string { return $this->status; }
-    public function getReceivedDate(): \DateTimeInterface { return $this->receivedDate; }
-    public function getCurrencyId(): int { return $this->currencyId; }
-    public function getExchangeRate(): string { return $this->exchangeRate; }
-    public function getNotes(): ?string { return $this->notes; }
-    public function getMetadata(): ?array { return $this->metadata; }
-    public function getCreatedBy(): int { return $this->createdBy; }
-    public function getCreatedAt(): \DateTimeInterface { return $this->createdAt; }
-    public function getUpdatedAt(): \DateTimeInterface { return $this->updatedAt; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getTenantId(): int
+    {
+        return $this->tenantId;
+    }
+
+    public function getSupplierId(): int
+    {
+        return $this->supplierId;
+    }
+
+    public function getWarehouseId(): int
+    {
+        return $this->warehouseId;
+    }
+
+    public function getPurchaseOrderId(): ?int
+    {
+        return $this->purchaseOrderId;
+    }
+
+    public function getGrnNumber(): string
+    {
+        return $this->grnNumber;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function getReceivedDate(): \DateTimeInterface
+    {
+        return $this->receivedDate;
+    }
+
+    public function getCurrencyId(): int
+    {
+        return $this->currencyId;
+    }
+
+    public function getExchangeRate(): string
+    {
+        return $this->exchangeRate;
+    }
+
+    public function getNotes(): ?string
+    {
+        return $this->notes;
+    }
+
+    public function getMetadata(): ?array
+    {
+        return $this->metadata;
+    }
+
+    public function getCreatedBy(): int
+    {
+        return $this->createdBy;
+    }
+
+    public function getCreatedAt(): \DateTimeInterface
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): \DateTimeInterface
+    {
+        return $this->updatedAt;
+    }
 
     public function update(
         int $supplierId,

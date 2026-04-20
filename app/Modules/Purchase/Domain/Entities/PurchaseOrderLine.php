@@ -7,19 +7,33 @@ namespace Modules\Purchase\Domain\Entities;
 class PurchaseOrderLine
 {
     private ?int $id;
+
     private int $tenantId;
+
     private int $purchaseOrderId;
+
     private int $productId;
+
     private ?int $variantId;
+
     private ?string $description;
+
     private int $uomId;
+
     private string $orderedQty;
+
     private string $receivedQty;
+
     private string $unitPrice;
+
     private string $discountPct;
+
     private ?int $taxGroupId;
+
     private ?int $accountId;
+
     private \DateTimeInterface $createdAt;
+
     private \DateTimeInterface $updatedAt;
 
     public function __construct(
@@ -56,21 +70,80 @@ class PurchaseOrderLine
         $this->updatedAt = $updatedAt ?? new \DateTimeImmutable;
     }
 
-    public function getId(): ?int { return $this->id; }
-    public function getTenantId(): int { return $this->tenantId; }
-    public function getPurchaseOrderId(): int { return $this->purchaseOrderId; }
-    public function getProductId(): int { return $this->productId; }
-    public function getVariantId(): ?int { return $this->variantId; }
-    public function getDescription(): ?string { return $this->description; }
-    public function getUomId(): int { return $this->uomId; }
-    public function getOrderedQty(): string { return $this->orderedQty; }
-    public function getReceivedQty(): string { return $this->receivedQty; }
-    public function getUnitPrice(): string { return $this->unitPrice; }
-    public function getDiscountPct(): string { return $this->discountPct; }
-    public function getTaxGroupId(): ?int { return $this->taxGroupId; }
-    public function getAccountId(): ?int { return $this->accountId; }
-    public function getCreatedAt(): \DateTimeInterface { return $this->createdAt; }
-    public function getUpdatedAt(): \DateTimeInterface { return $this->updatedAt; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getTenantId(): int
+    {
+        return $this->tenantId;
+    }
+
+    public function getPurchaseOrderId(): int
+    {
+        return $this->purchaseOrderId;
+    }
+
+    public function getProductId(): int
+    {
+        return $this->productId;
+    }
+
+    public function getVariantId(): ?int
+    {
+        return $this->variantId;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function getUomId(): int
+    {
+        return $this->uomId;
+    }
+
+    public function getOrderedQty(): string
+    {
+        return $this->orderedQty;
+    }
+
+    public function getReceivedQty(): string
+    {
+        return $this->receivedQty;
+    }
+
+    public function getUnitPrice(): string
+    {
+        return $this->unitPrice;
+    }
+
+    public function getDiscountPct(): string
+    {
+        return $this->discountPct;
+    }
+
+    public function getTaxGroupId(): ?int
+    {
+        return $this->taxGroupId;
+    }
+
+    public function getAccountId(): ?int
+    {
+        return $this->accountId;
+    }
+
+    public function getCreatedAt(): \DateTimeInterface
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): \DateTimeInterface
+    {
+        return $this->updatedAt;
+    }
 
     public function update(
         int $productId,

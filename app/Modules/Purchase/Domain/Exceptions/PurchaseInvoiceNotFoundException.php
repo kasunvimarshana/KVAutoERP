@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Purchase\Domain\Exceptions;
 
-class PurchaseInvoiceNotFoundException extends \Modules\Core\Domain\Exceptions\NotFoundException
+use Modules\Core\Domain\Exceptions\NotFoundException;
+
+class PurchaseInvoiceNotFoundException extends NotFoundException
 {
     public function __construct(mixed $id = null)
     {

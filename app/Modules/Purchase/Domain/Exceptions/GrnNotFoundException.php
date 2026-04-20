@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Purchase\Domain\Exceptions;
 
-class GrnNotFoundException extends \Modules\Core\Domain\Exceptions\NotFoundException
+use Modules\Core\Domain\Exceptions\NotFoundException;
+
+class GrnNotFoundException extends NotFoundException
 {
     public function __construct(mixed $id = null)
     {
