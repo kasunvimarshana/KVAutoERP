@@ -11,13 +11,13 @@ use Modules\Warehouse\Application\Contracts\CreateWarehouseLocationServiceInterf
 use Modules\Warehouse\Application\Contracts\CreateWarehouseServiceInterface;
 use Tests\TestCase;
 
-class WarehouseStockMovementIntegrationTest extends TestCase
+class InventoryStockMovementIntegrationTest extends TestCase
 {
     use RefreshDatabase;
 
     public function test_transfer_movement_updates_stock_levels_for_both_locations(): void
     {
-        $tenantId = 52;
+        $tenantId = 60;
         $this->seedTenant($tenantId);
         $this->seedReferenceData($tenantId);
 

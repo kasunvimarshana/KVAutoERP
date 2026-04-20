@@ -11,9 +11,6 @@ use Modules\Warehouse\Application\Contracts\CreateWarehouseServiceInterface;
 use Modules\Warehouse\Application\Contracts\DeleteWarehouseLocationServiceInterface;
 use Modules\Warehouse\Application\Contracts\DeleteWarehouseServiceInterface;
 use Modules\Warehouse\Application\Contracts\FindWarehouseLocationServiceInterface;
-use Modules\Warehouse\Application\Contracts\FindWarehouseStockLevelServiceInterface;
-use Modules\Warehouse\Application\Contracts\FindWarehouseStockMovementServiceInterface;
-use Modules\Warehouse\Application\Contracts\RecordWarehouseStockMovementServiceInterface;
 use Modules\Warehouse\Application\Contracts\FindWarehouseServiceInterface;
 use Modules\Warehouse\Application\Contracts\UpdateWarehouseLocationServiceInterface;
 use Modules\Warehouse\Application\Contracts\UpdateWarehouseServiceInterface;
@@ -22,17 +19,12 @@ use Modules\Warehouse\Application\Services\CreateWarehouseService;
 use Modules\Warehouse\Application\Services\DeleteWarehouseLocationService;
 use Modules\Warehouse\Application\Services\DeleteWarehouseService;
 use Modules\Warehouse\Application\Services\FindWarehouseLocationService;
-use Modules\Warehouse\Application\Services\FindWarehouseStockLevelService;
-use Modules\Warehouse\Application\Services\FindWarehouseStockMovementService;
 use Modules\Warehouse\Application\Services\FindWarehouseService;
-use Modules\Warehouse\Application\Services\RecordWarehouseStockMovementService;
 use Modules\Warehouse\Application\Services\UpdateWarehouseLocationService;
 use Modules\Warehouse\Application\Services\UpdateWarehouseService;
 use Modules\Warehouse\Domain\RepositoryInterfaces\WarehouseLocationRepositoryInterface;
 use Modules\Warehouse\Domain\RepositoryInterfaces\WarehouseRepositoryInterface;
-use Modules\Warehouse\Domain\RepositoryInterfaces\WarehouseStockMovementRepositoryInterface;
 use Modules\Warehouse\Infrastructure\Persistence\Eloquent\Repositories\EloquentWarehouseLocationRepository;
-use Modules\Warehouse\Infrastructure\Persistence\Eloquent\Repositories\EloquentWarehouseStockMovementRepository;
 use Modules\Warehouse\Infrastructure\Persistence\Eloquent\Repositories\EloquentWarehouseRepository;
 
 class WarehouseServiceProvider extends ServiceProvider
@@ -43,7 +35,6 @@ class WarehouseServiceProvider extends ServiceProvider
     {
         $this->app->bind(WarehouseRepositoryInterface::class, EloquentWarehouseRepository::class);
         $this->app->bind(WarehouseLocationRepositoryInterface::class, EloquentWarehouseLocationRepository::class);
-        $this->app->bind(WarehouseStockMovementRepositoryInterface::class, EloquentWarehouseStockMovementRepository::class);
 
         $this->app->bind(CreateWarehouseServiceInterface::class, CreateWarehouseService::class);
         $this->app->bind(FindWarehouseServiceInterface::class, FindWarehouseService::class);
@@ -54,10 +45,6 @@ class WarehouseServiceProvider extends ServiceProvider
         $this->app->bind(FindWarehouseLocationServiceInterface::class, FindWarehouseLocationService::class);
         $this->app->bind(UpdateWarehouseLocationServiceInterface::class, UpdateWarehouseLocationService::class);
         $this->app->bind(DeleteWarehouseLocationServiceInterface::class, DeleteWarehouseLocationService::class);
-
-        $this->app->bind(RecordWarehouseStockMovementServiceInterface::class, RecordWarehouseStockMovementService::class);
-        $this->app->bind(FindWarehouseStockMovementServiceInterface::class, FindWarehouseStockMovementService::class);
-        $this->app->bind(FindWarehouseStockLevelServiceInterface::class, FindWarehouseStockLevelService::class);
     }
 
     public function boot(): void

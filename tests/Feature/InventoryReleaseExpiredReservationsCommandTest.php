@@ -5,49 +5,46 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Modules\Inventory\Application\Contracts\RecordStockMovementServiceInterface;
+use Illuminate\Support\Facades\Event;
+use Modules\Inventory\Application\Contracts\CreateStockReservationServiceInterface;
+use Modules\Inventory\Domain\Events\ExpiredStockReservationsReleased;
 use Modules\Warehouse\Application\Contracts\CreateWarehouseLocationServiceInterface;
 use Modules\Warehouse\Application\Contracts\CreateWarehouseServiceInterface;
 use Tests\TestCase;
 
-class WarehouseStockMovementIntegrationTest extends TestCase
+class InventoryReleaseExpiredReservationsCommandTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_transfer_movement_updates_stock_levels_for_both_locations(): void
+    public function test_command_releases_only_expired_reservations_for_active_tenant(): void
     {
-        $tenantId = 52;
-        $this->seedTenant($tenantId);
+        Event::fake([ExpiredStockReservationsReleased::class]);
+
+        $tenantId = 92;
+        $this->seedTenant($tenantId, true);
         $this->seedReferenceData($tenantId);
 
         /** @var CreateWarehouseServiceInterface $createWarehouseService */
         $createWarehouseService = app(CreateWarehouseServiceInterface::class);
         /** @var CreateWarehouseLocationServiceInterface $createWarehouseLocationService */
         $createWarehouseLocationService = app(CreateWarehouseLocationServiceInterface::class);
-        /** @var RecordStockMovementServiceInterface $recordStockMovementService */
-        $recordStockMovementService = app(RecordStockMovementServiceInterface::class);
+        /** @var CreateStockReservationServiceInterface $createReservationService */
+        $createReservationService = app(CreateStockReservationServiceInterface::class);
 
         $warehouse = $createWarehouseService->execute([
             'tenant_id' => $tenantId,
-            'name' => 'Main DC',
-            'code' => 'MDC',
+            'name' => 'Cmd WH',
+            'code' => 'CMD-WH',
             'is_default' => true,
         ]);
 
-        $fromLocation = $createWarehouseLocationService->execute([
+        $location = $createWarehouseLocationService->execute([
             'tenant_id' => $tenantId,
             'warehouse_id' => $warehouse->getId(),
-            'name' => 'Staging A',
-            'code' => 'STAGE-A',
-            'type' => 'staging',
-        ]);
-
-        $toLocation = $createWarehouseLocationService->execute([
-            'tenant_id' => $tenantId,
-            'warehouse_id' => $warehouse->getId(),
-            'name' => 'Rack B1',
-            'code' => 'RACK-B1',
+            'name' => 'Cmd Rack',
+            'code' => 'CMD-RACK',
             'type' => 'rack',
         ]);
 
@@ -55,58 +52,63 @@ class WarehouseStockMovementIntegrationTest extends TestCase
             'tenant_id' => $tenantId,
             'product_id' => 1001,
             'variant_id' => null,
-            'location_id' => $fromLocation->getId(),
+            'location_id' => $location->getId(),
             'batch_id' => null,
             'serial_id' => null,
             'uom_id' => 2001,
-            'quantity_on_hand' => '25.000000',
+            'quantity_on_hand' => '30.000000',
             'quantity_reserved' => '0.000000',
-            'unit_cost' => '10.000000',
+            'unit_cost' => '8.000000',
             'last_movement_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        $movement = $recordStockMovementService->execute([
+        $expired = $createReservationService->execute([
             'tenant_id' => $tenantId,
-            'warehouse_id' => $warehouse->getId(),
             'product_id' => 1001,
-            'from_location_id' => $fromLocation->getId(),
-            'to_location_id' => $toLocation->getId(),
-            'movement_type' => 'transfer',
-            'uom_id' => 2001,
-            'quantity' => '5.000000',
-            'unit_cost' => '10.000000',
+            'location_id' => $location->getId(),
+            'quantity' => '4.000000',
+            'expires_at' => now()->subMinutes(30)->format('Y-m-d H:i:s'),
         ]);
 
-        $this->assertSame('transfer', $movement->getMovementType());
-
-        $fromQty = DB::table('stock_levels')
-            ->where('tenant_id', $tenantId)
-            ->where('product_id', 1001)
-            ->where('location_id', $fromLocation->getId())
-            ->value('quantity_on_hand');
-
-        $toQty = DB::table('stock_levels')
-            ->where('tenant_id', $tenantId)
-            ->where('product_id', 1001)
-            ->where('location_id', $toLocation->getId())
-            ->value('quantity_on_hand');
-
-        $this->assertSame(0, bccomp((string) $fromQty, '20.000000', 6));
-        $this->assertSame(0, bccomp((string) $toQty, '5.000000', 6));
-
-        $this->assertDatabaseHas('stock_movements', [
+        $active = $createReservationService->execute([
             'tenant_id' => $tenantId,
             'product_id' => 1001,
-            'from_location_id' => $fromLocation->getId(),
-            'to_location_id' => $toLocation->getId(),
-            'movement_type' => 'transfer',
-            'quantity' => '5.000000',
+            'location_id' => $location->getId(),
+            'quantity' => '2.000000',
+            'expires_at' => now()->addHour()->format('Y-m-d H:i:s'),
+        ]);
+
+        $exitCode = Artisan::call('inventory:release-expired-reservations');
+        $this->assertSame(0, $exitCode);
+
+        Event::assertDispatched(ExpiredStockReservationsReleased::class, function (ExpiredStockReservationsReleased $event) use ($tenantId): bool {
+            return $event->tenantId === $tenantId
+                && $event->releasedCount === 1
+                && $event->expiresBefore === null;
+        });
+
+        $reservedQty = DB::table('stock_levels')
+            ->where('tenant_id', $tenantId)
+            ->where('product_id', 1001)
+            ->where('location_id', $location->getId())
+            ->value('quantity_reserved');
+
+        $this->assertSame(0, bccomp((string) $reservedQty, '2.000000', 6));
+
+        $this->assertDatabaseMissing('stock_reservations', [
+            'id' => (int) $expired->getId(),
+            'tenant_id' => $tenantId,
+        ]);
+
+        $this->assertDatabaseHas('stock_reservations', [
+            'id' => (int) $active->getId(),
+            'tenant_id' => $tenantId,
         ]);
     }
 
-    private function seedTenant(int $tenantId): void
+    private function seedTenant(int $tenantId, bool $active): void
     {
         DB::table('tenants')->insert([
             'id' => $tenantId,
@@ -124,7 +126,7 @@ class WarehouseStockMovementIntegrationTest extends TestCase
             'plan' => 'free',
             'tenant_plan_id' => null,
             'status' => 'active',
-            'active' => true,
+            'active' => $active,
             'trial_ends_at' => null,
             'subscription_ends_at' => null,
             'created_at' => now(),
@@ -154,9 +156,9 @@ class WarehouseStockMovementIntegrationTest extends TestCase
             'brand_id' => null,
             'org_unit_id' => null,
             'type' => 'physical',
-            'name' => 'Test Product',
-            'slug' => 'test-product',
-            'sku' => 'SKU-1001',
+            'name' => 'Command Product',
+            'slug' => 'command-product',
+            'sku' => 'SKU-CMD-1001',
             'description' => null,
             'base_uom_id' => 2001,
             'purchase_uom_id' => null,
@@ -167,7 +169,7 @@ class WarehouseStockMovementIntegrationTest extends TestCase
             'is_lot_tracked' => false,
             'is_serial_tracked' => false,
             'valuation_method' => 'fifo',
-            'standard_cost' => '10.000000',
+            'standard_cost' => '8.000000',
             'income_account_id' => null,
             'cogs_account_id' => null,
             'inventory_account_id' => null,

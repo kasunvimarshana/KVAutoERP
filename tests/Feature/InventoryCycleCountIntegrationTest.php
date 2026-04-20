@@ -6,18 +6,20 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Modules\Inventory\Application\Contracts\RecordStockMovementServiceInterface;
+use Modules\Inventory\Application\Contracts\CompleteCycleCountServiceInterface;
+use Modules\Inventory\Application\Contracts\CreateCycleCountServiceInterface;
+use Modules\Inventory\Application\Contracts\StartCycleCountServiceInterface;
 use Modules\Warehouse\Application\Contracts\CreateWarehouseLocationServiceInterface;
 use Modules\Warehouse\Application\Contracts\CreateWarehouseServiceInterface;
 use Tests\TestCase;
 
-class WarehouseStockMovementIntegrationTest extends TestCase
+class InventoryCycleCountIntegrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_transfer_movement_updates_stock_levels_for_both_locations(): void
+    public function test_cycle_count_complete_posts_adjustment_movement_and_trace_log(): void
     {
-        $tenantId = 52;
+        $tenantId = 80;
         $this->seedTenant($tenantId);
         $this->seedReferenceData($tenantId);
 
@@ -25,29 +27,25 @@ class WarehouseStockMovementIntegrationTest extends TestCase
         $createWarehouseService = app(CreateWarehouseServiceInterface::class);
         /** @var CreateWarehouseLocationServiceInterface $createWarehouseLocationService */
         $createWarehouseLocationService = app(CreateWarehouseLocationServiceInterface::class);
-        /** @var RecordStockMovementServiceInterface $recordStockMovementService */
-        $recordStockMovementService = app(RecordStockMovementServiceInterface::class);
+        /** @var CreateCycleCountServiceInterface $createCycleCountService */
+        $createCycleCountService = app(CreateCycleCountServiceInterface::class);
+        /** @var StartCycleCountServiceInterface $startCycleCountService */
+        $startCycleCountService = app(StartCycleCountServiceInterface::class);
+        /** @var CompleteCycleCountServiceInterface $completeCycleCountService */
+        $completeCycleCountService = app(CompleteCycleCountServiceInterface::class);
 
         $warehouse = $createWarehouseService->execute([
             'tenant_id' => $tenantId,
-            'name' => 'Main DC',
-            'code' => 'MDC',
+            'name' => 'Count WH',
+            'code' => 'COUNT-WH',
             'is_default' => true,
         ]);
 
-        $fromLocation = $createWarehouseLocationService->execute([
+        $location = $createWarehouseLocationService->execute([
             'tenant_id' => $tenantId,
             'warehouse_id' => $warehouse->getId(),
-            'name' => 'Staging A',
-            'code' => 'STAGE-A',
-            'type' => 'staging',
-        ]);
-
-        $toLocation = $createWarehouseLocationService->execute([
-            'tenant_id' => $tenantId,
-            'warehouse_id' => $warehouse->getId(),
-            'name' => 'Rack B1',
-            'code' => 'RACK-B1',
+            'name' => 'Cycle Rack',
+            'code' => 'CYCLE-RACK',
             'type' => 'rack',
         ]);
 
@@ -55,54 +53,72 @@ class WarehouseStockMovementIntegrationTest extends TestCase
             'tenant_id' => $tenantId,
             'product_id' => 1001,
             'variant_id' => null,
-            'location_id' => $fromLocation->getId(),
+            'location_id' => $location->getId(),
             'batch_id' => null,
             'serial_id' => null,
-            'uom_id' => 2001,
-            'quantity_on_hand' => '25.000000',
+            'uom_id' => 1,
+            'quantity_on_hand' => '10.000000',
             'quantity_reserved' => '0.000000',
-            'unit_cost' => '10.000000',
+            'unit_cost' => '12.000000',
             'last_movement_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        $movement = $recordStockMovementService->execute([
+        $count = $createCycleCountService->execute([
             'tenant_id' => $tenantId,
             'warehouse_id' => $warehouse->getId(),
-            'product_id' => 1001,
-            'from_location_id' => $fromLocation->getId(),
-            'to_location_id' => $toLocation->getId(),
-            'movement_type' => 'transfer',
-            'uom_id' => 2001,
-            'quantity' => '5.000000',
-            'unit_cost' => '10.000000',
+            'location_id' => $location->getId(),
+            'counted_by_user_id' => 5001,
+            'lines' => [[
+                'product_id' => 1001,
+                'uom_id' => 1,
+                'unit_cost' => '12.000000',
+            ]],
         ]);
 
-        $this->assertSame('transfer', $movement->getMovementType());
+        $this->assertSame('draft', $count->getStatus());
 
-        $fromQty = DB::table('stock_levels')
+        $inProgress = $startCycleCountService->execute($tenantId, (int) $count->getId());
+        $this->assertSame('in_progress', $inProgress->getStatus());
+
+        $completed = $completeCycleCountService->execute(
+            $tenantId,
+            (int) $inProgress->getId(),
+            5001,
+            [[
+                'line_id' => (int) $inProgress->getLines()[0]->getId(),
+                'counted_qty' => '13.000000',
+            ]]
+        );
+
+        $this->assertSame('completed', $completed->getStatus());
+        $this->assertNotNull($completed->getLines()[0]->getAdjustmentMovementId());
+
+        $qty = DB::table('stock_levels')
             ->where('tenant_id', $tenantId)
             ->where('product_id', 1001)
-            ->where('location_id', $fromLocation->getId())
+            ->where('location_id', $location->getId())
             ->value('quantity_on_hand');
 
-        $toQty = DB::table('stock_levels')
-            ->where('tenant_id', $tenantId)
-            ->where('product_id', 1001)
-            ->where('location_id', $toLocation->getId())
-            ->value('quantity_on_hand');
-
-        $this->assertSame(0, bccomp((string) $fromQty, '20.000000', 6));
-        $this->assertSame(0, bccomp((string) $toQty, '5.000000', 6));
+        $this->assertSame(0, bccomp((string) $qty, '13.000000', 6));
 
         $this->assertDatabaseHas('stock_movements', [
             'tenant_id' => $tenantId,
             'product_id' => 1001,
-            'from_location_id' => $fromLocation->getId(),
-            'to_location_id' => $toLocation->getId(),
-            'movement_type' => 'transfer',
-            'quantity' => '5.000000',
+            'movement_type' => 'adjustment_in',
+            'to_location_id' => $location->getId(),
+            'reference_type' => 'cycle_count_headers',
+            'reference_id' => (int) $count->getId(),
+            'quantity' => '3.000000',
+        ]);
+
+        $this->assertDatabaseHas('trace_logs', [
+            'tenant_id' => $tenantId,
+            'entity_type' => 'product',
+            'entity_id' => 1001,
+            'action_type' => 'adjust',
+            'destination_location_id' => $location->getId(),
         ]);
     }
 
@@ -131,12 +147,32 @@ class WarehouseStockMovementIntegrationTest extends TestCase
             'updated_at' => now(),
             'deleted_at' => null,
         ]);
+
+        DB::table('users')->insert([
+            'id' => 5001,
+            'tenant_id' => $tenantId,
+            'org_unit_id' => null,
+            'email' => 'counter'.$tenantId.'@example.com',
+            'password' => bcrypt('secret'),
+            'first_name' => 'Count',
+            'last_name' => 'User',
+            'phone' => null,
+            'avatar' => null,
+            'email_verified_at' => now(),
+            'remember_token' => null,
+            'status' => 'active',
+            'address' => null,
+            'preferences' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ]);
     }
 
     private function seedReferenceData(int $tenantId): void
     {
         DB::table('units_of_measure')->insert([
-            'id' => 2001,
+            'id' => 1,
             'tenant_id' => $tenantId,
             'name' => 'Each',
             'symbol' => 'ea',
@@ -154,11 +190,11 @@ class WarehouseStockMovementIntegrationTest extends TestCase
             'brand_id' => null,
             'org_unit_id' => null,
             'type' => 'physical',
-            'name' => 'Test Product',
-            'slug' => 'test-product',
-            'sku' => 'SKU-1001',
+            'name' => 'Count Product',
+            'slug' => 'count-product',
+            'sku' => 'SKU-CP-1001',
             'description' => null,
-            'base_uom_id' => 2001,
+            'base_uom_id' => 1,
             'purchase_uom_id' => null,
             'sales_uom_id' => null,
             'tax_group_id' => null,
@@ -167,7 +203,7 @@ class WarehouseStockMovementIntegrationTest extends TestCase
             'is_lot_tracked' => false,
             'is_serial_tracked' => false,
             'valuation_method' => 'fifo',
-            'standard_cost' => '10.000000',
+            'standard_cost' => '12.000000',
             'income_account_id' => null,
             'cogs_account_id' => null,
             'inventory_account_id' => null,

@@ -6,18 +6,20 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Modules\Inventory\Application\Contracts\RecordStockMovementServiceInterface;
+use Modules\Inventory\Application\Contracts\ApproveTransferOrderServiceInterface;
+use Modules\Inventory\Application\Contracts\CreateTransferOrderServiceInterface;
+use Modules\Inventory\Application\Contracts\ReceiveTransferOrderServiceInterface;
 use Modules\Warehouse\Application\Contracts\CreateWarehouseLocationServiceInterface;
 use Modules\Warehouse\Application\Contracts\CreateWarehouseServiceInterface;
 use Tests\TestCase;
 
-class WarehouseStockMovementIntegrationTest extends TestCase
+class InventoryTransferOrderIntegrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_transfer_movement_updates_stock_levels_for_both_locations(): void
+    public function test_transfer_order_create_approve_receive_updates_status_and_stock(): void
     {
-        $tenantId = 52;
+        $tenantId = 70;
         $this->seedTenant($tenantId);
         $this->seedReferenceData($tenantId);
 
@@ -25,29 +27,40 @@ class WarehouseStockMovementIntegrationTest extends TestCase
         $createWarehouseService = app(CreateWarehouseServiceInterface::class);
         /** @var CreateWarehouseLocationServiceInterface $createWarehouseLocationService */
         $createWarehouseLocationService = app(CreateWarehouseLocationServiceInterface::class);
-        /** @var RecordStockMovementServiceInterface $recordStockMovementService */
-        $recordStockMovementService = app(RecordStockMovementServiceInterface::class);
+        /** @var CreateTransferOrderServiceInterface $createTransferOrderService */
+        $createTransferOrderService = app(CreateTransferOrderServiceInterface::class);
+        /** @var ApproveTransferOrderServiceInterface $approveTransferOrderService */
+        $approveTransferOrderService = app(ApproveTransferOrderServiceInterface::class);
+        /** @var ReceiveTransferOrderServiceInterface $receiveTransferOrderService */
+        $receiveTransferOrderService = app(ReceiveTransferOrderServiceInterface::class);
 
-        $warehouse = $createWarehouseService->execute([
+        $fromWarehouse = $createWarehouseService->execute([
             'tenant_id' => $tenantId,
-            'name' => 'Main DC',
-            'code' => 'MDC',
+            'name' => 'Origin WH',
+            'code' => 'ORIG-WH',
             'is_default' => true,
+        ]);
+
+        $toWarehouse = $createWarehouseService->execute([
+            'tenant_id' => $tenantId,
+            'name' => 'Destination WH',
+            'code' => 'DEST-WH',
+            'is_default' => false,
         ]);
 
         $fromLocation = $createWarehouseLocationService->execute([
             'tenant_id' => $tenantId,
-            'warehouse_id' => $warehouse->getId(),
-            'name' => 'Staging A',
-            'code' => 'STAGE-A',
-            'type' => 'staging',
+            'warehouse_id' => $fromWarehouse->getId(),
+            'name' => 'From Rack',
+            'code' => 'FROM-RACK',
+            'type' => 'rack',
         ]);
 
         $toLocation = $createWarehouseLocationService->execute([
             'tenant_id' => $tenantId,
-            'warehouse_id' => $warehouse->getId(),
-            'name' => 'Rack B1',
-            'code' => 'RACK-B1',
+            'warehouse_id' => $toWarehouse->getId(),
+            'name' => 'To Rack',
+            'code' => 'TO-RACK',
             'type' => 'rack',
         ]);
 
@@ -59,7 +72,7 @@ class WarehouseStockMovementIntegrationTest extends TestCase
             'batch_id' => null,
             'serial_id' => null,
             'uom_id' => 2001,
-            'quantity_on_hand' => '25.000000',
+            'quantity_on_hand' => '30.000000',
             'quantity_reserved' => '0.000000',
             'unit_cost' => '10.000000',
             'last_movement_at' => now(),
@@ -67,19 +80,33 @@ class WarehouseStockMovementIntegrationTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $movement = $recordStockMovementService->execute([
+        $order = $createTransferOrderService->execute([
             'tenant_id' => $tenantId,
-            'warehouse_id' => $warehouse->getId(),
-            'product_id' => 1001,
-            'from_location_id' => $fromLocation->getId(),
-            'to_location_id' => $toLocation->getId(),
-            'movement_type' => 'transfer',
-            'uom_id' => 2001,
-            'quantity' => '5.000000',
-            'unit_cost' => '10.000000',
+            'from_warehouse_id' => $fromWarehouse->getId(),
+            'to_warehouse_id' => $toWarehouse->getId(),
+            'transfer_number' => 'TO-7001',
+            'request_date' => now()->toDateString(),
+            'lines' => [[
+                'product_id' => 1001,
+                'from_location_id' => $fromLocation->getId(),
+                'to_location_id' => $toLocation->getId(),
+                'uom_id' => 2001,
+                'requested_qty' => '5.000000',
+                'unit_cost' => '10.000000',
+            ]],
         ]);
 
-        $this->assertSame('transfer', $movement->getMovementType());
+        $this->assertSame('draft', $order->getStatus());
+
+        $approved = $approveTransferOrderService->execute($tenantId, (int) $order->getId());
+        $this->assertSame('approved', $approved->getStatus());
+
+        $received = $receiveTransferOrderService->execute($tenantId, (int) $approved->getId(), [[
+            'line_id' => (int) $approved->getLines()[0]->getId(),
+            'received_qty' => '5.000000',
+        ]]);
+
+        $this->assertSame('received', $received->getStatus());
 
         $fromQty = DB::table('stock_levels')
             ->where('tenant_id', $tenantId)
@@ -93,16 +120,13 @@ class WarehouseStockMovementIntegrationTest extends TestCase
             ->where('location_id', $toLocation->getId())
             ->value('quantity_on_hand');
 
-        $this->assertSame(0, bccomp((string) $fromQty, '20.000000', 6));
+        $this->assertSame(0, bccomp((string) $fromQty, '25.000000', 6));
         $this->assertSame(0, bccomp((string) $toQty, '5.000000', 6));
 
-        $this->assertDatabaseHas('stock_movements', [
+        $this->assertDatabaseHas('transfer_orders', [
             'tenant_id' => $tenantId,
-            'product_id' => 1001,
-            'from_location_id' => $fromLocation->getId(),
-            'to_location_id' => $toLocation->getId(),
-            'movement_type' => 'transfer',
-            'quantity' => '5.000000',
+            'transfer_number' => 'TO-7001',
+            'status' => 'received',
         ]);
     }
 

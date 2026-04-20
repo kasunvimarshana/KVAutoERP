@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\Warehouse\Infrastructure\Http\Controllers;
+namespace Modules\Inventory\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
@@ -10,13 +10,13 @@ use Modules\Inventory\Application\Contracts\FindStockLevelServiceInterface;
 use Modules\Inventory\Application\Contracts\FindStockMovementServiceInterface;
 use Modules\Inventory\Application\Contracts\RecordStockMovementServiceInterface;
 use Modules\Inventory\Domain\Entities\StockMovement;
-use Modules\Warehouse\Infrastructure\Http\Requests\ListWarehouseStockLevelRequest;
-use Modules\Warehouse\Infrastructure\Http\Requests\ListWarehouseStockMovementRequest;
-use Modules\Warehouse\Infrastructure\Http\Requests\StoreWarehouseStockMovementRequest;
+use Modules\Inventory\Infrastructure\Http\Requests\ListInventoryStockLevelRequest;
+use Modules\Inventory\Infrastructure\Http\Requests\ListInventoryStockMovementRequest;
+use Modules\Inventory\Infrastructure\Http\Requests\StoreInventoryStockMovementRequest;
 use Modules\Inventory\Infrastructure\Http\Resources\StockMovementResource;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
-class WarehouseStockController extends AuthorizedController
+class InventoryStockController extends AuthorizedController
 {
     public function __construct(
         private readonly RecordStockMovementServiceInterface $recordStockMovementService,
@@ -24,7 +24,7 @@ class WarehouseStockController extends AuthorizedController
         private readonly FindStockLevelServiceInterface $findStockLevelService,
     ) {}
 
-    public function movements(ListWarehouseStockMovementRequest $request, int $warehouse): JsonResponse
+    public function movements(ListInventoryStockMovementRequest $request, int $warehouse): JsonResponse
     {
         $this->authorize('viewAny', StockMovement::class);
 
@@ -47,7 +47,7 @@ class WarehouseStockController extends AuthorizedController
         return response()->json($movements);
     }
 
-    public function storeMovement(StoreWarehouseStockMovementRequest $request, int $warehouse): JsonResponse
+    public function storeMovement(StoreInventoryStockMovementRequest $request, int $warehouse): JsonResponse
     {
         $this->authorize('create', StockMovement::class);
 
@@ -61,7 +61,7 @@ class WarehouseStockController extends AuthorizedController
             ->setStatusCode(HttpResponse::HTTP_CREATED);
     }
 
-    public function stockLevels(ListWarehouseStockLevelRequest $request, int $warehouse): JsonResponse
+    public function stockLevels(ListInventoryStockLevelRequest $request, int $warehouse): JsonResponse
     {
         $this->authorize('viewAny', StockMovement::class);
         $validated = $request->validated();
