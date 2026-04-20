@@ -15,6 +15,7 @@ use Modules\Pricing\Infrastructure\Providers\PricingServiceProvider;
 use Modules\Product\Infrastructure\Providers\ProductServiceProvider;
 use Modules\Shared\Infrastructure\Providers\SharedServiceProvider;
 use Modules\Supplier\Infrastructure\Providers\SupplierServiceProvider;
+use Modules\Tax\Infrastructure\Providers\TaxServiceProvider;
 use Modules\Tenant\Infrastructure\Providers\TenantConfigServiceProvider;
 use Modules\Tenant\Infrastructure\Providers\TenantServiceProvider;
 use Modules\User\Infrastructure\Providers\UserServiceProvider;
@@ -35,5 +36,6 @@ return [
     CustomerServiceProvider::class,
     EmployeeServiceProvider::class,
     SupplierServiceProvider::class,
+    TaxServiceProvider::class,
     FinanceServiceProvider::class,
 ];
