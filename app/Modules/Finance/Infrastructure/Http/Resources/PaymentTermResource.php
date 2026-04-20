@@ -21,6 +21,9 @@ class PaymentTermResource extends JsonResource
             'days' => $this->resource->getDays(),
             'is_default' => $this->resource->isDefault(),
             'is_active' => $this->resource->isActive(),
+            'description' => $this->resource->getDescription(),
+            'discount_days' => $this->resource->getDiscountDays(),
+            'discount_rate' => $this->resource->getDiscountRate(),
             'created_at' => $this->resource->getCreatedAt(),
             'updated_at' => $this->resource->getUpdatedAt(),
         ];

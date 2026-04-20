@@ -28,7 +28,15 @@ class UpdatePaymentTermService extends BaseService implements UpdatePaymentTermS
             throw new PaymentTermNotFoundException((int) $dto->id);
         }
 
-        $paymentTerm->update($dto->name, $dto->days, $dto->is_default, $dto->is_active);
+        $paymentTerm->update(
+            $dto->name,
+            $dto->days,
+            $dto->is_default,
+            $dto->is_active,
+            $dto->description,
+            $dto->discount_days,
+            $dto->discount_rate,
+        );
 
         return $this->paymentTermRepository->save($paymentTerm);
     }

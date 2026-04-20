@@ -24,6 +24,9 @@ class UpdatePaymentTermRequest extends FormRequest
             'days' => ['sometimes', 'integer', 'min:0'],
             'is_default' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
+            'description' => ['nullable', 'string'],
+            'discount_days' => ['nullable', 'integer', 'min:0'],
+            'discount_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
 }

@@ -8,11 +8,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
+use Modules\Finance\Application\Contracts\CompleteBankReconciliationServiceInterface;
 use Modules\Finance\Application\Contracts\CreateBankReconciliationServiceInterface;
 use Modules\Finance\Application\Contracts\DeleteBankReconciliationServiceInterface;
 use Modules\Finance\Application\Contracts\FindBankReconciliationServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateBankReconciliationServiceInterface;
 use Modules\Finance\Domain\Entities\BankReconciliation;
+use Modules\Finance\Infrastructure\Http\Requests\CompleteBankReconciliationRequest;
 use Modules\Finance\Infrastructure\Http\Requests\ListBankReconciliationRequest;
 use Modules\Finance\Infrastructure\Http\Requests\StoreBankReconciliationRequest;
 use Modules\Finance\Infrastructure\Http\Requests\UpdateBankReconciliationRequest;
@@ -28,6 +30,7 @@ class BankReconciliationController extends AuthorizedController
         private readonly UpdateBankReconciliationServiceInterface $updateService,
         private readonly DeleteBankReconciliationServiceInterface $deleteService,
         private readonly FindBankReconciliationServiceInterface $findService,
+        private readonly CompleteBankReconciliationServiceInterface $completeService,
     ) {}
 
     public function index(ListBankReconciliationRequest $request): JsonResponse
@@ -89,6 +92,17 @@ class BankReconciliationController extends AuthorizedController
         $this->deleteService->execute(['id' => $bankReconciliation]);
 
         return Response::json(['message' => 'Bank reconciliation deleted successfully']);
+    }
+
+    public function complete(CompleteBankReconciliationRequest $request, int $bankReconciliation): BankReconciliationResource
+    {
+        $found = $this->findOrFail($bankReconciliation);
+        $this->authorize('update', $found);
+
+        $payload = $request->validated();
+        $payload['id'] = $bankReconciliation;
+
+        return new BankReconciliationResource($this->completeService->execute($payload));
     }
 
     private function findOrFail(int $id): BankReconciliation

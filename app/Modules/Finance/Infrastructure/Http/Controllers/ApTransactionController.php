@@ -11,9 +11,11 @@ use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Finance\Application\Contracts\CreateApTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\DeleteApTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\FindApTransactionServiceInterface;
+use Modules\Finance\Application\Contracts\ReconcileApTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateApTransactionServiceInterface;
 use Modules\Finance\Domain\Entities\ApTransaction;
 use Modules\Finance\Infrastructure\Http\Requests\ListApTransactionRequest;
+use Modules\Finance\Infrastructure\Http\Requests\ReconcileApTransactionRequest;
 use Modules\Finance\Infrastructure\Http\Requests\StoreApTransactionRequest;
 use Modules\Finance\Infrastructure\Http\Requests\UpdateApTransactionRequest;
 use Modules\Finance\Infrastructure\Http\Resources\ApTransactionCollection;
@@ -28,6 +30,7 @@ class ApTransactionController extends AuthorizedController
         private readonly UpdateApTransactionServiceInterface $updateService,
         private readonly DeleteApTransactionServiceInterface $deleteService,
         private readonly FindApTransactionServiceInterface $findService,
+        private readonly ReconcileApTransactionServiceInterface $reconcileService,
     ) {}
 
     public function index(ListApTransactionRequest $request): JsonResponse
@@ -90,6 +93,14 @@ class ApTransactionController extends AuthorizedController
         $this->deleteService->execute(['id' => $apTransaction]);
 
         return Response::json(['message' => 'AP transaction deleted successfully']);
+    }
+
+    public function reconcile(ReconcileApTransactionRequest $request, int $apTransaction): ApTransactionResource
+    {
+        $found = $this->findOrFail($apTransaction);
+        $this->authorize('update', $found);
+
+        return new ApTransactionResource($this->reconcileService->execute(['id' => $apTransaction]));
     }
 
     private function findOrFail(int $id): ApTransaction

@@ -15,6 +15,9 @@ class PaymentTerm
         private ?int $id = null,
         private ?\DateTimeInterface $createdAt = null,
         private ?\DateTimeInterface $updatedAt = null,
+        private ?string $description = null,
+        private ?int $discountDays = null,
+        private ?float $discountRate = null,
     ) {
         $this->createdAt = $createdAt ?? new \DateTimeImmutable;
         $this->updatedAt = $updatedAt ?? new \DateTimeImmutable;
@@ -60,12 +63,37 @@ class PaymentTerm
         return $this->updatedAt;
     }
 
-    public function update(string $name, int $days, bool $isDefault, bool $isActive): void
+    public function getDescription(): ?string
     {
+        return $this->description;
+    }
+
+    public function getDiscountDays(): ?int
+    {
+        return $this->discountDays;
+    }
+
+    public function getDiscountRate(): ?float
+    {
+        return $this->discountRate;
+    }
+
+    public function update(
+        string $name,
+        int $days,
+        bool $isDefault,
+        bool $isActive,
+        ?string $description = null,
+        ?int $discountDays = null,
+        ?float $discountRate = null,
+    ): void {
         $this->name = $name;
         $this->days = $days;
         $this->isDefault = $isDefault;
         $this->isActive = $isActive;
+        $this->description = $description;
+        $this->discountDays = $discountDays;
+        $this->discountRate = $discountRate;
         $this->updatedAt = new \DateTimeImmutable;
     }
 }

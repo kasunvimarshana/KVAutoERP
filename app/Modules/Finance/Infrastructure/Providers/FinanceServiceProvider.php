@@ -64,6 +64,19 @@ use Modules\Finance\Application\Contracts\FindPaymentMethodServiceInterface;
 use Modules\Finance\Application\Contracts\FindPaymentServiceInterface;
 use Modules\Finance\Application\Contracts\FindPaymentTermServiceInterface;
 use Modules\Finance\Application\Contracts\PostJournalEntryServiceInterface;
+use Modules\Finance\Application\Contracts\PostPaymentServiceInterface;
+use Modules\Finance\Application\Contracts\ApplyCreditMemoServiceInterface;
+use Modules\Finance\Application\Contracts\IssueCreditMemoServiceInterface;
+use Modules\Finance\Application\Contracts\VoidCreditMemoServiceInterface;
+use Modules\Finance\Application\Contracts\VoidPaymentServiceInterface;
+use Modules\Finance\Application\Contracts\CompleteBankReconciliationServiceInterface;
+use Modules\Finance\Application\Contracts\ApproveApprovalRequestServiceInterface;
+use Modules\Finance\Application\Contracts\RejectApprovalRequestServiceInterface;
+use Modules\Finance\Application\Contracts\CancelApprovalRequestServiceInterface;
+use Modules\Finance\Application\Contracts\CategorizeBankTransactionServiceInterface;
+use Modules\Finance\Application\Contracts\ReconcileArTransactionServiceInterface;
+use Modules\Finance\Application\Contracts\ReconcileApTransactionServiceInterface;
+use Modules\Finance\Application\Contracts\NextNumberingSequenceServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateAccountServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateApprovalRequestServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateApprovalWorkflowConfigServiceInterface;
@@ -140,6 +153,19 @@ use Modules\Finance\Application\Services\FindPaymentMethodService;
 use Modules\Finance\Application\Services\FindPaymentService;
 use Modules\Finance\Application\Services\FindPaymentTermService;
 use Modules\Finance\Application\Services\PostJournalEntryService;
+use Modules\Finance\Application\Services\PostPaymentService;
+use Modules\Finance\Application\Services\ApplyCreditMemoService;
+use Modules\Finance\Application\Services\IssueCreditMemoService;
+use Modules\Finance\Application\Services\VoidCreditMemoService;
+use Modules\Finance\Application\Services\VoidPaymentService;
+use Modules\Finance\Application\Services\CompleteBankReconciliationService;
+use Modules\Finance\Application\Services\ApproveApprovalRequestService;
+use Modules\Finance\Application\Services\RejectApprovalRequestService;
+use Modules\Finance\Application\Services\CancelApprovalRequestService;
+use Modules\Finance\Application\Services\CategorizeBankTransactionService;
+use Modules\Finance\Application\Services\ReconcileArTransactionService;
+use Modules\Finance\Application\Services\ReconcileApTransactionService;
+use Modules\Finance\Application\Services\NextNumberingSequenceService;
 use Modules\Finance\Application\Services\UpdateAccountService;
 use Modules\Finance\Application\Services\UpdateApprovalRequestService;
 use Modules\Finance\Application\Services\UpdateApprovalWorkflowConfigService;
@@ -287,6 +313,19 @@ class FinanceServiceProvider extends ServiceProvider
             UpdateJournalEntryServiceInterface::class => UpdateJournalEntryService::class,
             DeleteJournalEntryServiceInterface::class => DeleteJournalEntryService::class,
             PostJournalEntryServiceInterface::class => PostJournalEntryService::class,
+            PostPaymentServiceInterface::class => PostPaymentService::class,
+            VoidPaymentServiceInterface::class => VoidPaymentService::class,
+            IssueCreditMemoServiceInterface::class => IssueCreditMemoService::class,
+            ApplyCreditMemoServiceInterface::class => ApplyCreditMemoService::class,
+            VoidCreditMemoServiceInterface::class => VoidCreditMemoService::class,
+            CompleteBankReconciliationServiceInterface::class => CompleteBankReconciliationService::class,
+            ApproveApprovalRequestServiceInterface::class => ApproveApprovalRequestService::class,
+            RejectApprovalRequestServiceInterface::class => RejectApprovalRequestService::class,
+            CancelApprovalRequestServiceInterface::class => CancelApprovalRequestService::class,
+            CategorizeBankTransactionServiceInterface::class => CategorizeBankTransactionService::class,
+            ReconcileArTransactionServiceInterface::class => ReconcileArTransactionService::class,
+            ReconcileApTransactionServiceInterface::class => ReconcileApTransactionService::class,
+            NextNumberingSequenceServiceInterface::class => NextNumberingSequenceService::class,
             CreateNumberingSequenceServiceInterface::class => CreateNumberingSequenceService::class,
             FindNumberingSequenceServiceInterface::class => FindNumberingSequenceService::class,
             UpdateNumberingSequenceServiceInterface::class => UpdateNumberingSequenceService::class,

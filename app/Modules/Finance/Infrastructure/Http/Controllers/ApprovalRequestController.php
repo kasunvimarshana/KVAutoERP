@@ -8,12 +8,18 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
+use Modules\Finance\Application\Contracts\ApproveApprovalRequestServiceInterface;
+use Modules\Finance\Application\Contracts\CancelApprovalRequestServiceInterface;
 use Modules\Finance\Application\Contracts\CreateApprovalRequestServiceInterface;
 use Modules\Finance\Application\Contracts\DeleteApprovalRequestServiceInterface;
 use Modules\Finance\Application\Contracts\FindApprovalRequestServiceInterface;
+use Modules\Finance\Application\Contracts\RejectApprovalRequestServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateApprovalRequestServiceInterface;
 use Modules\Finance\Domain\Entities\ApprovalRequest;
+use Modules\Finance\Infrastructure\Http\Requests\ApproveApprovalRequestRequest;
+use Modules\Finance\Infrastructure\Http\Requests\CancelApprovalRequestRequest;
 use Modules\Finance\Infrastructure\Http\Requests\ListApprovalRequestRequest;
+use Modules\Finance\Infrastructure\Http\Requests\RejectApprovalRequestRequest;
 use Modules\Finance\Infrastructure\Http\Requests\StoreApprovalRequestRequest;
 use Modules\Finance\Infrastructure\Http\Requests\UpdateApprovalRequestRequest;
 use Modules\Finance\Infrastructure\Http\Resources\ApprovalRequestCollection;
@@ -28,6 +34,9 @@ class ApprovalRequestController extends AuthorizedController
         private readonly UpdateApprovalRequestServiceInterface $updateService,
         private readonly DeleteApprovalRequestServiceInterface $deleteService,
         private readonly FindApprovalRequestServiceInterface $findService,
+        private readonly ApproveApprovalRequestServiceInterface $approveService,
+        private readonly RejectApprovalRequestServiceInterface $rejectService,
+        private readonly CancelApprovalRequestServiceInterface $cancelService,
     ) {}
 
     public function index(ListApprovalRequestRequest $request): JsonResponse
@@ -90,6 +99,39 @@ class ApprovalRequestController extends AuthorizedController
         $this->deleteService->execute(['id' => $approvalRequest]);
 
         return Response::json(['message' => 'Approval request deleted successfully']);
+    }
+
+    public function approve(ApproveApprovalRequestRequest $request, int $approvalRequest): ApprovalRequestResource
+    {
+        $found = $this->findOrFail($approvalRequest);
+        $this->authorize('update', $found);
+
+        $payload = $request->validated();
+        $payload['id'] = $approvalRequest;
+
+        return new ApprovalRequestResource($this->approveService->execute($payload));
+    }
+
+    public function reject(RejectApprovalRequestRequest $request, int $approvalRequest): ApprovalRequestResource
+    {
+        $found = $this->findOrFail($approvalRequest);
+        $this->authorize('update', $found);
+
+        $payload = $request->validated();
+        $payload['id'] = $approvalRequest;
+
+        return new ApprovalRequestResource($this->rejectService->execute($payload));
+    }
+
+    public function cancel(CancelApprovalRequestRequest $request, int $approvalRequest): ApprovalRequestResource
+    {
+        $found = $this->findOrFail($approvalRequest);
+        $this->authorize('update', $found);
+
+        $payload = $request->validated();
+        $payload['id'] = $approvalRequest;
+
+        return new ApprovalRequestResource($this->cancelService->execute($payload));
     }
 
     private function findOrFail(int $id): ApprovalRequest

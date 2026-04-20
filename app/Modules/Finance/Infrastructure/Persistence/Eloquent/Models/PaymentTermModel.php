@@ -21,11 +21,16 @@ class PaymentTermModel extends BaseModel
         'days',
         'is_default',
         'is_active',
+        'description',
+        'discount_days',
+        'discount_rate',
     ];
 
     protected $casts = [
         'days' => 'integer',
         'is_default' => 'boolean',
         'is_active' => 'boolean',
+        'discount_days' => 'integer',
+        'discount_rate' => 'decimal:4',
     ];
 }

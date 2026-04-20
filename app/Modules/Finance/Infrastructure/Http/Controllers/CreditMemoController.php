@@ -8,14 +8,20 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
+use Modules\Finance\Application\Contracts\ApplyCreditMemoServiceInterface;
 use Modules\Finance\Application\Contracts\CreateCreditMemoServiceInterface;
 use Modules\Finance\Application\Contracts\DeleteCreditMemoServiceInterface;
 use Modules\Finance\Application\Contracts\FindCreditMemoServiceInterface;
+use Modules\Finance\Application\Contracts\IssueCreditMemoServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateCreditMemoServiceInterface;
+use Modules\Finance\Application\Contracts\VoidCreditMemoServiceInterface;
 use Modules\Finance\Domain\Entities\CreditMemo;
+use Modules\Finance\Infrastructure\Http\Requests\ApplyCreditMemoRequest;
+use Modules\Finance\Infrastructure\Http\Requests\IssueCreditMemoRequest;
 use Modules\Finance\Infrastructure\Http\Requests\ListCreditMemoRequest;
 use Modules\Finance\Infrastructure\Http\Requests\StoreCreditMemoRequest;
 use Modules\Finance\Infrastructure\Http\Requests\UpdateCreditMemoRequest;
+use Modules\Finance\Infrastructure\Http\Requests\VoidCreditMemoRequest;
 use Modules\Finance\Infrastructure\Http\Resources\CreditMemoCollection;
 use Modules\Finance\Infrastructure\Http\Resources\CreditMemoResource;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -28,6 +34,9 @@ class CreditMemoController extends AuthorizedController
         private readonly UpdateCreditMemoServiceInterface $updateService,
         private readonly DeleteCreditMemoServiceInterface $deleteService,
         private readonly FindCreditMemoServiceInterface $findService,
+        private readonly IssueCreditMemoServiceInterface $issueService,
+        private readonly ApplyCreditMemoServiceInterface $applyService,
+        private readonly VoidCreditMemoServiceInterface $voidService,
     ) {}
 
     public function index(ListCreditMemoRequest $request): JsonResponse
@@ -90,6 +99,33 @@ class CreditMemoController extends AuthorizedController
         $this->deleteService->execute(['id' => $creditMemo]);
 
         return Response::json(['message' => 'Credit memo deleted successfully']);
+    }
+
+    public function issue(IssueCreditMemoRequest $request, int $creditMemo): CreditMemoResource
+    {
+        $found = $this->findOrFail($creditMemo);
+        $this->authorize('update', $found);
+
+        return new CreditMemoResource($this->issueService->execute(['id' => $creditMemo]));
+    }
+
+    public function apply(ApplyCreditMemoRequest $request, int $creditMemo): CreditMemoResource
+    {
+        $found = $this->findOrFail($creditMemo);
+        $this->authorize('update', $found);
+
+        $payload = $request->validated();
+        $payload['id'] = $creditMemo;
+
+        return new CreditMemoResource($this->applyService->execute($payload));
+    }
+
+    public function voidMemo(VoidCreditMemoRequest $request, int $creditMemo): CreditMemoResource
+    {
+        $found = $this->findOrFail($creditMemo);
+        $this->authorize('update', $found);
+
+        return new CreditMemoResource($this->voidService->execute(['id' => $creditMemo]));
     }
 
     private function findOrFail(int $id): CreditMemo

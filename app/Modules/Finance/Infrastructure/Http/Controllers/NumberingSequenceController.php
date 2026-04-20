@@ -11,6 +11,7 @@ use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Finance\Application\Contracts\CreateNumberingSequenceServiceInterface;
 use Modules\Finance\Application\Contracts\DeleteNumberingSequenceServiceInterface;
 use Modules\Finance\Application\Contracts\FindNumberingSequenceServiceInterface;
+use Modules\Finance\Application\Contracts\NextNumberingSequenceServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateNumberingSequenceServiceInterface;
 use Modules\Finance\Domain\Entities\NumberingSequence;
 use Modules\Finance\Infrastructure\Http\Requests\ListNumberingSequenceRequest;
@@ -28,6 +29,7 @@ class NumberingSequenceController extends AuthorizedController
         private readonly UpdateNumberingSequenceServiceInterface $updateNumberingSequenceService,
         private readonly DeleteNumberingSequenceServiceInterface $deleteNumberingSequenceService,
         private readonly FindNumberingSequenceServiceInterface $findNumberingSequenceService,
+        private readonly NextNumberingSequenceServiceInterface $nextNumberingSequenceService,
     ) {}
 
     public function index(ListNumberingSequenceRequest $request): JsonResponse
@@ -90,6 +92,20 @@ class NumberingSequenceController extends AuthorizedController
         $this->deleteNumberingSequenceService->execute(['id' => $numberingSequence]);
 
         return Response::json(['message' => 'Numbering sequence deleted successfully']);
+    }
+
+    public function next(Request $request, int $numberingSequence): JsonResponse
+    {
+        $found = $this->findNumberingSequenceOrFail($numberingSequence);
+        $this->authorize('update', $found);
+
+        /** @var array{number: string, sequence: \Modules\Finance\Domain\Entities\NumberingSequence} $result */
+        $result = $this->nextNumberingSequenceService->execute(['id' => $numberingSequence]);
+
+        return Response::json([
+            'number' => $result['number'],
+            'sequence' => new NumberingSequenceResource($result['sequence']),
+        ]);
     }
 
     private function findNumberingSequenceOrFail(int $id): NumberingSequence

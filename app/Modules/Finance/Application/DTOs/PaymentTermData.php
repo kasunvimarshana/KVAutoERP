@@ -13,6 +13,9 @@ class PaymentTermData
         public readonly bool $is_default = false,
         public readonly bool $is_active = true,
         public readonly ?int $id = null,
+        public readonly ?string $description = null,
+        public readonly ?int $discount_days = null,
+        public readonly ?float $discount_rate = null,
     ) {}
 
     /**
@@ -27,6 +30,9 @@ class PaymentTermData
             is_default: (bool) ($data['is_default'] ?? false),
             is_active: (bool) ($data['is_active'] ?? true),
             id: isset($data['id']) ? (int) $data['id'] : null,
+            description: isset($data['description']) ? (string) $data['description'] : null,
+            discount_days: isset($data['discount_days']) ? (int) $data['discount_days'] : null,
+            discount_rate: isset($data['discount_rate']) ? (float) $data['discount_rate'] : null,
         );
     }
 }

@@ -11,9 +11,11 @@ use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Finance\Application\Contracts\CreateArTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\DeleteArTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\FindArTransactionServiceInterface;
+use Modules\Finance\Application\Contracts\ReconcileArTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateArTransactionServiceInterface;
 use Modules\Finance\Domain\Entities\ArTransaction;
 use Modules\Finance\Infrastructure\Http\Requests\ListArTransactionRequest;
+use Modules\Finance\Infrastructure\Http\Requests\ReconcileArTransactionRequest;
 use Modules\Finance\Infrastructure\Http\Requests\StoreArTransactionRequest;
 use Modules\Finance\Infrastructure\Http\Requests\UpdateArTransactionRequest;
 use Modules\Finance\Infrastructure\Http\Resources\ArTransactionCollection;
@@ -28,6 +30,7 @@ class ArTransactionController extends AuthorizedController
         private readonly UpdateArTransactionServiceInterface $updateService,
         private readonly DeleteArTransactionServiceInterface $deleteService,
         private readonly FindArTransactionServiceInterface $findService,
+        private readonly ReconcileArTransactionServiceInterface $reconcileService,
     ) {}
 
     public function index(ListArTransactionRequest $request): JsonResponse
@@ -90,6 +93,14 @@ class ArTransactionController extends AuthorizedController
         $this->deleteService->execute(['id' => $arTransaction]);
 
         return Response::json(['message' => 'AR transaction deleted successfully']);
+    }
+
+    public function reconcile(ReconcileArTransactionRequest $request, int $arTransaction): ArTransactionResource
+    {
+        $found = $this->findOrFail($arTransaction);
+        $this->authorize('update', $found);
+
+        return new ArTransactionResource($this->reconcileService->execute(['id' => $arTransaction]));
     }
 
     private function findOrFail(int $id): ArTransaction

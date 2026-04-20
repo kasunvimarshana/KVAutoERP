@@ -35,6 +35,33 @@ Route::middleware(['auth:api', 'resolve.tenant'])->group(function (): void {
     Route::apiResource('journal-entries', JournalEntryController::class);
     Route::post('journal-entries/{journal_entry}/post', [JournalEntryController::class, 'post']);
 
+    // Payment lifecycle
+    Route::post('payments/{payment}/post', [PaymentController::class, 'post']);
+    Route::post('payments/{payment}/void', [PaymentController::class, 'void']);
+
+    // Credit Memo lifecycle
+    Route::post('credit-memos/{credit_memo}/issue', [CreditMemoController::class, 'issue']);
+    Route::post('credit-memos/{credit_memo}/apply', [CreditMemoController::class, 'apply']);
+    Route::post('credit-memos/{credit_memo}/void', [CreditMemoController::class, 'voidMemo']);
+
+    // Bank Reconciliation lifecycle
+    Route::post('bank-reconciliations/{bank_reconciliation}/complete', [BankReconciliationController::class, 'complete']);
+
+    // Approval Request lifecycle
+    Route::post('approval-requests/{approval_request}/approve', [ApprovalRequestController::class, 'approve']);
+    Route::post('approval-requests/{approval_request}/reject', [ApprovalRequestController::class, 'reject']);
+    Route::post('approval-requests/{approval_request}/cancel', [ApprovalRequestController::class, 'cancel']);
+
+    // Bank Transaction categorization
+    Route::post('bank-transactions/{bank_transaction}/categorize', [BankTransactionController::class, 'categorize']);
+
+    // AR/AP reconciliation
+    Route::post('ar-transactions/{ar_transaction}/reconcile', [ArTransactionController::class, 'reconcile']);
+    Route::post('ap-transactions/{ap_transaction}/reconcile', [ApTransactionController::class, 'reconcile']);
+
+    // Generate next document number
+    Route::post('numbering-sequences/{numbering_sequence}/next', [NumberingSequenceController::class, 'next']);
+
     // Cost Centers
     Route::apiResource('cost-centers', CostCenterController::class);
 

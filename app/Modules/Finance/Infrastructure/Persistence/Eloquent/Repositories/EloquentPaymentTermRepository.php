@@ -25,6 +25,9 @@ class EloquentPaymentTermRepository extends EloquentRepository implements Paymen
             'days' => $paymentTerm->getDays(),
             'is_default' => $paymentTerm->isDefault(),
             'is_active' => $paymentTerm->isActive(),
+            'description' => $paymentTerm->getDescription(),
+            'discount_days' => $paymentTerm->getDiscountDays(),
+            'discount_rate' => $paymentTerm->getDiscountRate(),
         ];
 
         if ($paymentTerm->getId()) {
@@ -60,6 +63,9 @@ class EloquentPaymentTermRepository extends EloquentRepository implements Paymen
             id: (int) $model->id,
             createdAt: $model->created_at,
             updatedAt: $model->updated_at,
+            description: $model->description !== null ? (string) $model->description : null,
+            discountDays: $model->discount_days !== null ? (int) $model->discount_days : null,
+            discountRate: $model->discount_rate !== null ? (float) $model->discount_rate : null,
         );
     }
 }

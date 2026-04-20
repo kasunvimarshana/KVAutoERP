@@ -8,11 +8,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
+use Modules\Finance\Application\Contracts\CategorizeBankTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\CreateBankTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\DeleteBankTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\FindBankTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateBankTransactionServiceInterface;
 use Modules\Finance\Domain\Entities\BankTransaction;
+use Modules\Finance\Infrastructure\Http\Requests\CategorizeBankTransactionRequest;
 use Modules\Finance\Infrastructure\Http\Requests\ListBankTransactionRequest;
 use Modules\Finance\Infrastructure\Http\Requests\StoreBankTransactionRequest;
 use Modules\Finance\Infrastructure\Http\Requests\UpdateBankTransactionRequest;
@@ -28,6 +30,7 @@ class BankTransactionController extends AuthorizedController
         private readonly UpdateBankTransactionServiceInterface $updateService,
         private readonly DeleteBankTransactionServiceInterface $deleteService,
         private readonly FindBankTransactionServiceInterface $findService,
+        private readonly CategorizeBankTransactionServiceInterface $categorizeService,
     ) {}
 
     public function index(ListBankTransactionRequest $request): JsonResponse
@@ -90,6 +93,17 @@ class BankTransactionController extends AuthorizedController
         $this->deleteService->execute(['id' => $bankTransaction]);
 
         return Response::json(['message' => 'Bank transaction deleted successfully']);
+    }
+
+    public function categorize(CategorizeBankTransactionRequest $request, int $bankTransaction): BankTransactionResource
+    {
+        $found = $this->findOrFail($bankTransaction);
+        $this->authorize('update', $found);
+
+        $payload = $request->validated();
+        $payload['id'] = $bankTransaction;
+
+        return new BankTransactionResource($this->categorizeService->execute($payload));
     }
 
     private function findOrFail(int $id): BankTransaction
