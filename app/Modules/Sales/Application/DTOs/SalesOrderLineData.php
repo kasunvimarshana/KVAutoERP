@@ -6,9 +6,6 @@ namespace Modules\Sales\Application\DTOs;
 
 class SalesOrderLineData
 {
-    /**
-     * @param  array<string, mixed>|null  $data
-     */
     public function __construct(
         public readonly int $tenantId,
         public readonly int $productId,
