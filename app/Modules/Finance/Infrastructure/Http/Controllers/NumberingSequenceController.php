@@ -15,6 +15,7 @@ use Modules\Finance\Application\Contracts\NextNumberingSequenceServiceInterface;
 use Modules\Finance\Application\Contracts\UpdateNumberingSequenceServiceInterface;
 use Modules\Finance\Domain\Entities\NumberingSequence;
 use Modules\Finance\Infrastructure\Http\Requests\ListNumberingSequenceRequest;
+use Modules\Finance\Infrastructure\Http\Requests\NextNumberingSequenceRequest;
 use Modules\Finance\Infrastructure\Http\Requests\StoreNumberingSequenceRequest;
 use Modules\Finance\Infrastructure\Http\Requests\UpdateNumberingSequenceRequest;
 use Modules\Finance\Infrastructure\Http\Resources\NumberingSequenceCollection;
@@ -94,7 +95,7 @@ class NumberingSequenceController extends AuthorizedController
         return Response::json(['message' => 'Numbering sequence deleted successfully']);
     }
 
-    public function next(Request $request, int $numberingSequence): JsonResponse
+    public function next(NextNumberingSequenceRequest $request, int $numberingSequence): JsonResponse
     {
         $found = $this->findNumberingSequenceOrFail($numberingSequence);
         $this->authorize('update', $found);

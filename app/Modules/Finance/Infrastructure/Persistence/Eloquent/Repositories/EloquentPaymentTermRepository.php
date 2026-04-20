@@ -63,8 +63,8 @@ class EloquentPaymentTermRepository extends EloquentRepository implements Paymen
             id: (int) $model->id,
             createdAt: $model->created_at,
             updatedAt: $model->updated_at,
-            description: $model->description !== null ? (string) $model->description : null,
-            discountDays: $model->discount_days !== null ? (int) $model->discount_days : null,
+            description: $model->description,
+            discountDays: $model->discount_days,
             discountRate: $model->discount_rate !== null ? (float) $model->discount_rate : null,
         );
     }
