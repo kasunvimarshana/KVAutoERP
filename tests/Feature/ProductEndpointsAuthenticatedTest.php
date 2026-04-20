@@ -202,12 +202,24 @@ class ProductEndpointsAuthenticatedTest extends TestCase
             ->expects($this->once())
             ->method('find')
             ->with(42)
-            ->willReturn($this->buildProduct(id: 42));
+            ->willReturn($this->buildProduct(id: 42, imagePath: 'products/9/old.jpg'));
 
         $this->fileStorageService
             ->expects($this->once())
             ->method('storeFile')
             ->willReturn('products/9/updated.jpg');
+
+        $this->fileStorageService
+            ->expects($this->once())
+            ->method('exists')
+            ->with('products/9/old.jpg')
+            ->willReturn(true);
+
+        $this->fileStorageService
+            ->expects($this->once())
+            ->method('delete')
+            ->with('products/9/old.jpg')
+            ->willReturn(true);
 
         $this->updateProductService
             ->expects($this->once())
@@ -232,13 +244,14 @@ class ProductEndpointsAuthenticatedTest extends TestCase
             ->assertJsonPath('data.id', 42);
     }
 
-    private function buildProduct(int $id): Product
+    private function buildProduct(int $id, ?string $imagePath = null): Product
     {
         return new Product(
             id: $id,
             tenantId: 9,
             type: 'physical',
             name: 'Widget',
+            imagePath: $imagePath,
             slug: 'widget',
             sku: 'WGT-001',
             description: 'Sample product',

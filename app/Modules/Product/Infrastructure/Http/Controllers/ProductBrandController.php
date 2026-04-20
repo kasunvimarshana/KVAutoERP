@@ -92,18 +92,36 @@ class ProductBrandController extends AuthorizedController
         $this->authorize('update', $foundProductBrand);
 
         $payload = $request->validated();
+        $oldImagePath = $foundProductBrand->getImagePath();
+        $newImagePath = null;
 
         if ($request->hasFile('image_path')) {
-            $payload['image_path'] = $this->storeImage(
+            $newImagePath = $this->storeImage(
                 $request->file('image_path'),
                 (int) $payload['tenant_id'],
                 'product-brands'
             );
+
+            $payload['image_path'] = $newImagePath;
         }
 
         $payload['id'] = $productBrand;
 
-        return new ProductBrandResource($this->updateProductBrandService->execute($payload));
+        try {
+            $updatedProductBrand = $this->updateProductBrandService->execute($payload);
+        } catch (\Throwable $exception) {
+            if ($newImagePath !== null) {
+                $this->deleteImageIfSafe($newImagePath, (int) $payload['tenant_id'], 'product-brands');
+            }
+
+            throw $exception;
+        }
+
+        if ($newImagePath !== null) {
+            $this->deleteImageIfSafe($oldImagePath, (int) $payload['tenant_id'], 'product-brands', $newImagePath);
+        }
+
+        return new ProductBrandResource($updatedProductBrand);
     }
 
     public function destroy(int $productBrand): JsonResponse
@@ -130,5 +148,22 @@ class ProductBrandController extends AuthorizedController
     private function storeImage(UploadedFile $image, int $tenantId, string $baseDirectory): string
     {
         return $this->storage->storeFile($image, "{$baseDirectory}/{$tenantId}");
+    }
+
+    private function deleteImageIfSafe(?string $imagePath, int $tenantId, string $baseDirectory, ?string $excludePath = null): void
+    {
+        if ($imagePath === null || $imagePath === '' || $imagePath === $excludePath) {
+            return;
+        }
+
+        $expectedPrefix = "{$baseDirectory}/{$tenantId}/";
+
+        if (! str_starts_with($imagePath, $expectedPrefix)) {
+            return;
+        }
+
+        if ($this->storage->exists($imagePath)) {
+            $this->storage->delete($imagePath);
+        }
     }
 }

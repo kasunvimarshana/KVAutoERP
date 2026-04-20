@@ -183,12 +183,24 @@ class ProductCategoryEndpointsAuthenticatedTest extends TestCase
             ->expects($this->once())
             ->method('find')
             ->with(82)
-            ->willReturn($this->buildProductCategory(id: 82));
+            ->willReturn($this->buildProductCategory(id: 82, imagePath: 'product-categories/9/old.jpg'));
 
         $this->fileStorageService
             ->expects($this->once())
             ->method('storeFile')
             ->willReturn('product-categories/9/category-updated.jpg');
+
+        $this->fileStorageService
+            ->expects($this->once())
+            ->method('exists')
+            ->with('product-categories/9/old.jpg')
+            ->willReturn(true);
+
+        $this->fileStorageService
+            ->expects($this->once())
+            ->method('delete')
+            ->with('product-categories/9/old.jpg')
+            ->willReturn(true);
 
         $this->updateProductCategoryService
             ->expects($this->once())
@@ -211,12 +223,13 @@ class ProductCategoryEndpointsAuthenticatedTest extends TestCase
             ->assertJsonPath('data.id', 82);
     }
 
-    private function buildProductCategory(int $id): ProductCategory
+    private function buildProductCategory(int $id, ?string $imagePath = null): ProductCategory
     {
         return new ProductCategory(
             id: $id,
             tenantId: 9,
             name: 'Electronics',
+            imagePath: $imagePath,
             slug: 'electronics',
             code: 'ELC',
             isActive: true,

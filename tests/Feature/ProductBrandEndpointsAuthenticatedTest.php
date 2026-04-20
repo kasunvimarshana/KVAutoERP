@@ -183,12 +183,24 @@ class ProductBrandEndpointsAuthenticatedTest extends TestCase
             ->expects($this->once())
             ->method('find')
             ->with(72)
-            ->willReturn($this->buildProductBrand(id: 72));
+            ->willReturn($this->buildProductBrand(id: 72, imagePath: 'product-brands/9/old.jpg'));
 
         $this->fileStorageService
             ->expects($this->once())
             ->method('storeFile')
             ->willReturn('product-brands/9/brand-updated.jpg');
+
+        $this->fileStorageService
+            ->expects($this->once())
+            ->method('exists')
+            ->with('product-brands/9/old.jpg')
+            ->willReturn(true);
+
+        $this->fileStorageService
+            ->expects($this->once())
+            ->method('delete')
+            ->with('product-brands/9/old.jpg')
+            ->willReturn(true);
 
         $this->updateProductBrandService
             ->expects($this->once())
@@ -211,12 +223,13 @@ class ProductBrandEndpointsAuthenticatedTest extends TestCase
             ->assertJsonPath('data.id', 72);
     }
 
-    private function buildProductBrand(int $id): ProductBrand
+    private function buildProductBrand(int $id, ?string $imagePath = null): ProductBrand
     {
         return new ProductBrand(
             id: $id,
             tenantId: 9,
             name: 'Acme',
+            imagePath: $imagePath,
             slug: 'acme',
             code: 'ACM',
             isActive: true,
