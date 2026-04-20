@@ -118,7 +118,8 @@ class ProductEndpointsAuthenticatedTest extends TestCase
                 ],
                 15,
                 1,
-                '-created_at'
+                '-created_at',
+                null
             )
             ->willReturn($paginator);
 

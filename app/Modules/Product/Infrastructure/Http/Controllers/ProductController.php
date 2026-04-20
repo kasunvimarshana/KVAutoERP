@@ -55,6 +55,7 @@ class ProductController extends AuthorizedController
             perPage: (int) ($validated['per_page'] ?? 15),
             page: (int) ($validated['page'] ?? 1),
             sort: $validated['sort'] ?? null,
+            include: $validated['include'] ?? null,
         );
 
         return (new ProductCollection($products))->response();

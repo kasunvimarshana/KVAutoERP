@@ -10,6 +10,7 @@ class ProductVariantData
      * @param  array<string, mixed>|null  $metadata
      */
     public function __construct(
+        public readonly int $tenant_id,
         public readonly int $product_id,
         public readonly string $name,
         public readonly ?string $sku = null,
@@ -25,6 +26,7 @@ class ProductVariantData
     public static function fromArray(array $data): self
     {
         return new self(
+            tenant_id: (int) $data['tenant_id'],
             product_id: (int) $data['product_id'],
             name: (string) $data['name'],
             sku: isset($data['sku']) ? (string) $data['sku'] : null,
