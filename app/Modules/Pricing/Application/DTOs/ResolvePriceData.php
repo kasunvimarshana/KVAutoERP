@@ -11,7 +11,7 @@ class ResolvePriceData
         public readonly string $type,
         public readonly int $product_id,
         public readonly int $uom_id,
-        public readonly string $quantity = '1.000000',
+        public readonly string $quantity,
         public readonly int $currency_id,
         public readonly ?int $variant_id = null,
         public readonly ?int $customer_id = null,

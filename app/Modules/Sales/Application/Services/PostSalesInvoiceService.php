@@ -7,6 +7,7 @@ namespace Modules\Sales\Application\Services;
 use Modules\Core\Application\Services\BaseService;
 use Modules\Sales\Application\Contracts\PostSalesInvoiceServiceInterface;
 use Modules\Sales\Domain\Entities\SalesInvoice;
+use Modules\Sales\Domain\Events\SalesInvoicePosted;
 use Modules\Sales\Domain\Exceptions\SalesInvoiceNotFoundException;
 use Modules\Sales\Domain\RepositoryInterfaces\SalesInvoiceRepositoryInterface;
 
@@ -27,7 +28,19 @@ class PostSalesInvoiceService extends BaseService implements PostSalesInvoiceSer
         }
 
         $invoice->post();
+        $saved = $this->salesInvoiceRepository->save($invoice);
 
-        return $this->salesInvoiceRepository->save($invoice);
+        $this->addEvent(new SalesInvoicePosted(
+            tenantId: $saved->getTenantId(),
+            salesInvoiceId: (int) $saved->getId(),
+            customerId: $saved->getCustomerId(),
+            arAccountId: $saved->getArAccountId(),
+            grandTotal: $saved->getGrandTotal(),
+            currencyId: $saved->getCurrencyId(),
+            exchangeRate: $saved->getExchangeRate(),
+            invoiceDate: $saved->getInvoiceDate()->format('Y-m-d'),
+        ));
+
+        return $saved;
     }
 }

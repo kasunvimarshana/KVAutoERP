@@ -38,6 +38,11 @@ class ApprovePurchaseInvoiceService extends BaseService implements ApprovePurcha
             tenantId: $saved->getTenantId(),
             purchaseInvoiceId: (int) $saved->getId(),
             supplierId: $saved->getSupplierId(),
+            apAccountId: $saved->getApAccountId(),
+            grandTotal: $saved->getGrandTotal(),
+            currencyId: $saved->getCurrencyId(),
+            exchangeRate: $saved->getExchangeRate(),
+            invoiceDate: $saved->getInvoiceDate()->format('Y-m-d'),
         ));
 
         return $saved;
