@@ -30,6 +30,12 @@ class PostSalesInvoiceService extends BaseService implements PostSalesInvoiceSer
         $invoice->post();
         $saved = $this->salesInvoiceRepository->save($invoice);
 
+        $lines = array_map(static fn ($line): array => [
+            'income_account_id' => $line->getIncomeAccountId(),
+            'line_total' => $line->getLineTotal(),
+            'tax_amount' => $line->getTaxAmount(),
+        ], $saved->getLines());
+
         $this->addEvent(new SalesInvoicePosted(
             tenantId: $saved->getTenantId(),
             salesInvoiceId: (int) $saved->getId(),
@@ -39,6 +45,7 @@ class PostSalesInvoiceService extends BaseService implements PostSalesInvoiceSer
             currencyId: $saved->getCurrencyId(),
             exchangeRate: $saved->getExchangeRate(),
             invoiceDate: $saved->getInvoiceDate()->format('Y-m-d'),
+            lines: $lines,
         ));
 
         return $saved;

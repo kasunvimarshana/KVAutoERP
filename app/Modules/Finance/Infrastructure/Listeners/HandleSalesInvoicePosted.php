@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Finance\Infrastructure\Listeners;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Modules\Finance\Application\Contracts\CreateJournalEntryServiceInterface;
 use Modules\Finance\Domain\RepositoryInterfaces\FiscalPeriodRepositoryInterface;
@@ -27,6 +28,45 @@ class HandleSalesInvoicePosted
             return;
         }
 
+        if (empty($event->lines)) {
+            Log::warning('HandleSalesInvoicePosted: no invoice lines in event; skipping journal entry', [
+                'sales_invoice_id' => $event->salesInvoiceId,
+                'tenant_id' => $event->tenantId,
+            ]);
+
+            return;
+        }
+
+        // Aggregate credit amounts by income_account_id (revenue accounts)
+        $creditsByAccount = [];
+        foreach ($event->lines as $line) {
+            $accountId = isset($line['income_account_id']) ? (int) $line['income_account_id'] : null;
+            if ($accountId === null) {
+                Log::warning('HandleSalesInvoicePosted: invoice line missing income_account_id; skipping journal entry', [
+                    'sales_invoice_id' => $event->salesInvoiceId,
+                    'line' => $line,
+                ]);
+
+                return;
+            }
+
+            $amount = (float) ($line['line_total'] ?? '0') + (float) ($line['tax_amount'] ?? '0');
+            $creditsByAccount[$accountId] = ($creditsByAccount[$accountId] ?? 0.0) + $amount;
+        }
+
+        $grandTotal = (float) $event->grandTotal;
+        $creditTotal = (float) array_sum($creditsByAccount);
+
+        if (abs($creditTotal - $grandTotal) > 0.01) {
+            Log::warning('HandleSalesInvoicePosted: credit total does not match grand total; skipping journal entry', [
+                'sales_invoice_id' => $event->salesInvoiceId,
+                'credit_total' => $creditTotal,
+                'grand_total' => $grandTotal,
+            ]);
+
+            return;
+        }
+
         $invoiceDate = $event->invoiceDate !== ''
             ? new \DateTimeImmutable($event->invoiceDate)
             : new \DateTimeImmutable;
@@ -42,16 +82,49 @@ class HandleSalesInvoicePosted
             return;
         }
 
-        // A balanced AR journal entry requires both the AR (debit) account and a
-        // corresponding credit (revenue) account. The revenue account is not carried
-        // on the event because it varies per invoice line. Until line-level account
-        // data is propagated in the event, we defer journal creation and log.
-        Log::info('HandleSalesInvoicePosted: AR journal entry deferred; credit (revenue) account not available in event', [
-            'sales_invoice_id' => $event->salesInvoiceId,
-            'ar_account_id' => $event->arAccountId,
-            'grand_total' => $event->grandTotal,
-            'fiscal_period_id' => $period->getId(),
-            'tenant_id' => $event->tenantId,
-        ]);
+        $exchangeRate = (float) $event->exchangeRate;
+        $description = 'AR entry for Sales Invoice #'.$event->salesInvoiceId;
+
+        $jeLines = [];
+
+        // DR: AR account = grandTotal
+        $jeLines[] = [
+            'account_id' => $event->arAccountId,
+            'debit_amount' => $grandTotal,
+            'credit_amount' => 0.0,
+            'description' => $description,
+            'currency_id' => $event->currencyId,
+            'exchange_rate' => $exchangeRate,
+            'base_debit_amount' => $grandTotal * $exchangeRate,
+            'base_credit_amount' => 0.0,
+        ];
+
+        // CR: revenue account(s) per line
+        foreach ($creditsByAccount as $accountId => $amount) {
+            $jeLines[] = [
+                'account_id' => $accountId,
+                'debit_amount' => 0.0,
+                'credit_amount' => $amount,
+                'description' => $description,
+                'currency_id' => $event->currencyId,
+                'exchange_rate' => $exchangeRate,
+                'base_debit_amount' => 0.0,
+                'base_credit_amount' => $amount * $exchangeRate,
+            ];
+        }
+
+        DB::transaction(function () use ($event, $period, $invoiceDate, $description, $jeLines): void {
+            $this->createJournalEntryService->execute([
+                'tenant_id' => $event->tenantId,
+                'fiscal_period_id' => $period->getId(),
+                'entry_date' => $invoiceDate->format('Y-m-d'),
+                'created_by' => 1,
+                'entry_type' => 'system',
+                'reference_type' => 'sales_invoice',
+                'reference_id' => $event->salesInvoiceId,
+                'description' => $description,
+                'lines' => $jeLines,
+            ]);
+        });
     }
 }
