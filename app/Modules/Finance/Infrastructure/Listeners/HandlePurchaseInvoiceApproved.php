@@ -50,14 +50,14 @@ class HandlePurchaseInvoiceApproved
                 return;
             }
 
-            $amount = (float) ($line['line_total'] ?? '0') + (float) ($line['tax_amount'] ?? '0');
-            $debitsByAccount[$accountId] = ($debitsByAccount[$accountId] ?? 0.0) + $amount;
+            $amount = bcadd((string) ($line['line_total'] ?? '0'), (string) ($line['tax_amount'] ?? '0'), 6);
+            $debitsByAccount[$accountId] = bcadd($debitsByAccount[$accountId] ?? '0.000000', $amount, 6);
         }
 
-        $grandTotal = (float) $event->grandTotal;
-        $debitTotal = (float) array_sum($debitsByAccount);
+        $grandTotal = $event->grandTotal;
+        $debitTotal = array_reduce(array_values($debitsByAccount), fn (string $carry, string $a): string => bcadd($carry, $a, 6), '0.000000');
 
-        if (abs($debitTotal - $grandTotal) > 0.01) {
+        if (bccomp($debitTotal, $grandTotal, 2) !== 0) {
             Log::warning('HandlePurchaseInvoiceApproved: debit total does not match grand total; skipping journal entry', [
                 'purchase_invoice_id' => $event->purchaseInvoiceId,
                 'debit_total' => $debitTotal,
@@ -82,32 +82,34 @@ class HandlePurchaseInvoiceApproved
             return;
         }
 
-        $exchangeRate = (float) $event->exchangeRate;
+        $exchangeRate = $event->exchangeRate;
         $description = 'AP entry for Purchase Invoice #'.$event->purchaseInvoiceId;
 
         $jeLines = [];
         foreach ($debitsByAccount as $accountId => $amount) {
+            $baseAmount = bcmul($amount, $exchangeRate, 6);
             $jeLines[] = [
                 'account_id' => $accountId,
                 'debit_amount' => $amount,
-                'credit_amount' => 0.0,
+                'credit_amount' => '0.000000',
                 'description' => $description,
                 'currency_id' => $event->currencyId,
-                'exchange_rate' => $exchangeRate,
-                'base_debit_amount' => $amount * $exchangeRate,
-                'base_credit_amount' => 0.0,
+                'exchange_rate' => (float) $exchangeRate,
+                'base_debit_amount' => $baseAmount,
+                'base_credit_amount' => '0.000000',
             ];
         }
 
+        $baseGrandTotal = bcmul($grandTotal, $exchangeRate, 6);
         $jeLines[] = [
             'account_id' => $event->apAccountId,
-            'debit_amount' => 0.0,
+            'debit_amount' => '0.000000',
             'credit_amount' => $grandTotal,
             'description' => $description,
             'currency_id' => $event->currencyId,
-            'exchange_rate' => $exchangeRate,
-            'base_debit_amount' => 0.0,
-            'base_credit_amount' => $grandTotal * $exchangeRate,
+            'exchange_rate' => (float) $exchangeRate,
+            'base_debit_amount' => '0.000000',
+            'base_credit_amount' => $baseGrandTotal,
         ];
 
         DB::transaction(function () use ($event, $period, $invoiceDate, $description, $jeLines): void {

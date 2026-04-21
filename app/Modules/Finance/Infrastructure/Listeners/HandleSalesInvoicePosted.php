@@ -50,14 +50,14 @@ class HandleSalesInvoicePosted
                 return;
             }
 
-            $amount = (float) ($line['line_total'] ?? '0') + (float) ($line['tax_amount'] ?? '0');
-            $creditsByAccount[$accountId] = ($creditsByAccount[$accountId] ?? 0.0) + $amount;
+            $amount = bcadd((string) ($line['line_total'] ?? '0'), (string) ($line['tax_amount'] ?? '0'), 6);
+            $creditsByAccount[$accountId] = bcadd($creditsByAccount[$accountId] ?? '0.000000', $amount, 6);
         }
 
-        $grandTotal = (float) $event->grandTotal;
-        $creditTotal = (float) array_sum($creditsByAccount);
+        $grandTotal = $event->grandTotal;
+        $creditTotal = array_reduce(array_values($creditsByAccount), fn (string $carry, string $a): string => bcadd($carry, $a, 6), '0.000000');
 
-        if (abs($creditTotal - $grandTotal) > 0.01) {
+        if (bccomp($creditTotal, $grandTotal, 2) !== 0) {
             Log::warning('HandleSalesInvoicePosted: credit total does not match grand total; skipping journal entry', [
                 'sales_invoice_id' => $event->salesInvoiceId,
                 'credit_total' => $creditTotal,
@@ -82,34 +82,36 @@ class HandleSalesInvoicePosted
             return;
         }
 
-        $exchangeRate = (float) $event->exchangeRate;
+        $exchangeRate = $event->exchangeRate;
         $description = 'AR entry for Sales Invoice #'.$event->salesInvoiceId;
 
         $jeLines = [];
 
         // DR: AR account = grandTotal
+        $baseGrandTotal = bcmul($grandTotal, $exchangeRate, 6);
         $jeLines[] = [
             'account_id' => $event->arAccountId,
             'debit_amount' => $grandTotal,
-            'credit_amount' => 0.0,
+            'credit_amount' => '0.000000',
             'description' => $description,
             'currency_id' => $event->currencyId,
-            'exchange_rate' => $exchangeRate,
-            'base_debit_amount' => $grandTotal * $exchangeRate,
-            'base_credit_amount' => 0.0,
+            'exchange_rate' => (float) $exchangeRate,
+            'base_debit_amount' => $baseGrandTotal,
+            'base_credit_amount' => '0.000000',
         ];
 
         // CR: revenue account(s) per line
         foreach ($creditsByAccount as $accountId => $amount) {
+            $baseAmount = bcmul($amount, $exchangeRate, 6);
             $jeLines[] = [
                 'account_id' => $accountId,
-                'debit_amount' => 0.0,
+                'debit_amount' => '0.000000',
                 'credit_amount' => $amount,
                 'description' => $description,
                 'currency_id' => $event->currencyId,
-                'exchange_rate' => $exchangeRate,
-                'base_debit_amount' => 0.0,
-                'base_credit_amount' => $amount * $exchangeRate,
+                'exchange_rate' => (float) $exchangeRate,
+                'base_debit_amount' => '0.000000',
+                'base_credit_amount' => $baseAmount,
             ];
         }
 
