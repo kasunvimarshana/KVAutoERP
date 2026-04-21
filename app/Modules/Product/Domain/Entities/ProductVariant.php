@@ -32,7 +32,7 @@ class ProductVariant
      */
     public function __construct(
         int $productId,
-        ?int $tenantId,
+        ?int $tenantId = null,
         string $name,
         ?string $sku = null,
         bool $isDefault = false,
