@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Purchase\Application\Services;
 
+use Illuminate\Support\Facades\Auth;
 use Modules\Core\Application\Services\BaseService;
 use Modules\Purchase\Application\Contracts\ApprovePurchaseInvoiceServiceInterface;
 use Modules\Purchase\Domain\Entities\PurchaseInvoice;
@@ -55,6 +56,7 @@ class ApprovePurchaseInvoiceService extends BaseService implements ApprovePurcha
             exchangeRate: $saved->getExchangeRate(),
             invoiceDate: $saved->getInvoiceDate()->format('Y-m-d'),
             lines: $lines,
+            createdBy: (int) ($data['approved_by'] ?? Auth::id() ?? 0),
         ));
 
         return $saved;

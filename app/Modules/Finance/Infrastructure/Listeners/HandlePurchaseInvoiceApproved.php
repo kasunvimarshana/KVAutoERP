@@ -117,7 +117,7 @@ class HandlePurchaseInvoiceApproved
                 'tenant_id' => $event->tenantId,
                 'fiscal_period_id' => $period->getId(),
                 'entry_date' => $invoiceDate->format('Y-m-d'),
-                'created_by' => 1,
+                'created_by' => $event->createdBy ?: 1,
                 'entry_type' => 'system',
                 'reference_type' => 'purchase_invoice',
                 'reference_id' => $event->purchaseInvoiceId,

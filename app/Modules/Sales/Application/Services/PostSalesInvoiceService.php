@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Sales\Application\Services;
 
+use Illuminate\Support\Facades\Auth;
 use Modules\Core\Application\Services\BaseService;
 use Modules\Sales\Application\Contracts\PostSalesInvoiceServiceInterface;
 use Modules\Sales\Domain\Entities\SalesInvoice;
@@ -46,6 +47,7 @@ class PostSalesInvoiceService extends BaseService implements PostSalesInvoiceSer
             exchangeRate: $saved->getExchangeRate(),
             invoiceDate: $saved->getInvoiceDate()->format('Y-m-d'),
             lines: $lines,
+            createdBy: (int) ($data['posted_by'] ?? Auth::id() ?? 0),
         ));
 
         return $saved;
