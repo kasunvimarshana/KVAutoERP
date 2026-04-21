@@ -8,7 +8,7 @@ class SalesOrderData
 {
     /**
      * @param  array<string, mixed>|null  $metadata
-     * @param  array<int, mixed>|null     $lines
+     * @param  array<int, mixed>|null  $lines
      */
     public function __construct(
         public readonly int $tenantId,
