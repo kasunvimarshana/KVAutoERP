@@ -49,7 +49,8 @@ class HandleSalesReturnReceived
             }
 
             $amount = (string) ($line['line_total'] ?? '0');
-            $debitsByAccount[$accountId] = bcadd($debitsByAccount[$accountId] ?? '0.000000', $amount, 6);
+            $existing = $debitsByAccount[$accountId] ?? '0.000000';
+            $debitsByAccount[$accountId] = bcadd($existing, $amount, 6);
         }
 
         $grandTotal = $event->grandTotal;
@@ -130,10 +131,10 @@ class HandleSalesReturnReceived
             ]);
 
             // Record AR debit note transaction (reduces customer receivable balance)
-            $currentBalance = (float) $this->arTransactionRepository
+            $currentBalance = $this->arTransactionRepository
                 ->getCustomerBalance($event->tenantId, $event->customerId);
 
-            $newBalance = (float) bcsub((string) $currentBalance, $grandTotal, 6);
+            $newBalance = bcsub($currentBalance, $grandTotal, 6);
 
             $this->createArTransactionService->execute([
                 'tenant_id' => $event->tenantId,
@@ -141,7 +142,7 @@ class HandleSalesReturnReceived
                 'account_id' => $event->arAccountId,
                 'transaction_type' => 'credit_note',
                 'amount' => -1 * (float) $grandTotal,
-                'balance_after' => $newBalance,
+                'balance_after' => (float) $newBalance,
                 'transaction_date' => $returnDate->format('Y-m-d'),
                 'currency_id' => $event->currencyId,
                 'reference_type' => 'sales_return',

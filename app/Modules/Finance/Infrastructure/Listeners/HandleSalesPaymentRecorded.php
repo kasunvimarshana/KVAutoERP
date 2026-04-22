@@ -102,10 +102,10 @@ class HandleSalesPaymentRecorded
             ]);
 
             // Record AR payment transaction (reduces customer receivable balance)
-            $currentBalance = (float) $this->arTransactionRepository
+            $currentBalance = $this->arTransactionRepository
                 ->getCustomerBalance($event->tenantId, $event->customerId);
 
-            $newBalance = (float) bcsub((string) $currentBalance, $amount, 6);
+            $newBalance = bcsub($currentBalance, $amount, 6);
 
             $this->createArTransactionService->execute([
                 'tenant_id' => $event->tenantId,
@@ -113,7 +113,7 @@ class HandleSalesPaymentRecorded
                 'account_id' => $event->arAccountId,
                 'transaction_type' => 'payment',
                 'amount' => -1 * (float) $amount,
-                'balance_after' => $newBalance,
+                'balance_after' => (float) $newBalance,
                 'transaction_date' => $paymentDate->format('Y-m-d'),
                 'currency_id' => $event->currencyId,
                 'reference_type' => 'sales_payment',
