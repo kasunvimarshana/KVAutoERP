@@ -21,7 +21,7 @@ class BatchModel extends BaseModel
         'variant_id',
         'batch_number',
         'lot_number',
-        'manufactured_date',
+        'manufacture_date',
         'expiry_date',
         'quantity',
         'status',
@@ -34,7 +34,7 @@ class BatchModel extends BaseModel
         'product_id' => 'integer',
         'variant_id' => 'integer',
         'quantity' => 'string',
-        'manufactured_date' => 'date',
+        'manufacture_date' => 'date',
         'expiry_date' => 'date',
         'metadata' => 'array',
     ];

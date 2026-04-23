@@ -283,7 +283,6 @@ class Product
         return $this->isActive;
     }
 
-
     public function getStatus(): string
     {
         return $this->status;
@@ -380,7 +379,6 @@ class Product
         $this->inventoryAccountId = $inventoryAccountId;
         $this->expenseAccountId = $expenseAccountId;
         $this->isActive = $isActive;
-        $this->status = $status;
         $this->metadata = $metadata;
         $this->updatedAt = new \DateTimeImmutable;
     }

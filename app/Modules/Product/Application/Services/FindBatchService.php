@@ -13,7 +13,7 @@ class FindBatchService implements FindBatchServiceInterface
 {
     private const ALLOWED_FILTERS = ['tenant_id', 'product_id', 'variant_id', 'status', 'batch_number'];
 
-    private const ALLOWED_SORTS = ['id', 'batch_number', 'expiry_date', 'manufactured_date', 'created_at', 'updated_at'];
+    private const ALLOWED_SORTS = ['id', 'batch_number', 'expiry_date', 'manufacture_date', 'created_at', 'updated_at'];
 
     public function __construct(private readonly BatchRepositoryInterface $batchRepository) {}
 
