@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Modules\Product\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
-use Modules\Product\Application\Contracts\CreateAttributeServiceInterface;
 use Modules\Product\Application\Contracts\DeleteAttributeServiceInterface;
 use Modules\Product\Application\Contracts\FindAttributeServiceInterface;
 use Modules\Product\Application\Contracts\UpdateAttributeServiceInterface;
@@ -33,10 +33,20 @@ class AttributeController extends AuthorizedController
         $this->authorize('viewAny', Attribute::class);
         $validated = $request->validated();
 
+        $filters = array_filter([
+            'tenant_id' => $validated['tenant_id'] ?? null,
+            'group_id' => $validated['group_id'] ?? null,
+            'name' => $validated['name'] ?? null,
+            'type' => $validated['type'] ?? null,
+            'is_active' => $validated['is_active'] ?? null,
+            'is_filterable' => $validated['is_filterable'] ?? null,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
         $items = $this->findAttributeService->list(
-            filters: [],
+            filters: $filters,
             perPage: (int) ($validated['per_page'] ?? 15),
             page: (int) ($validated['page'] ?? 1),
+            sort: $validated['sort'] ?? null,
         );
 
         return (new AttributeCollection($items))->response();
@@ -81,7 +91,7 @@ class AttributeController extends AuthorizedController
 
         $this->deleteAttributeService->execute(['id' => $attribute]);
 
-        return response()->json(['message' => 'Attribute deleted successfully']);
+        return Response::json(['message' => 'Attribute deleted successfully']);
     }
 
     private function findOrFail(int $id): Attribute

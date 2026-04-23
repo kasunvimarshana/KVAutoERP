@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Product\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Product\Application\Contracts\CreateProductSupplierPriceServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductSupplierPriceServiceInterface;
@@ -33,10 +34,20 @@ class ProductSupplierPriceController extends AuthorizedController
         $this->authorize('viewAny', ProductSupplierPrice::class);
         $validated = $request->validated();
 
+        $filters = array_filter([
+            'tenant_id' => $validated['tenant_id'] ?? null,
+            'product_id' => $validated['product_id'] ?? null,
+            'variant_id' => $validated['variant_id'] ?? null,
+            'supplier_id' => $validated['supplier_id'] ?? null,
+            'is_preferred' => $validated['is_preferred'] ?? null,
+            'is_active' => $validated['is_active'] ?? null,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
         $items = $this->findProductSupplierPriceService->list(
-            filters: [],
+            filters: $filters,
             perPage: (int) ($validated['per_page'] ?? 15),
             page: (int) ($validated['page'] ?? 1),
+            sort: $validated['sort'] ?? null,
         );
 
         return (new ProductSupplierPriceCollection($items))->response();
@@ -81,7 +92,7 @@ class ProductSupplierPriceController extends AuthorizedController
 
         $this->deleteProductSupplierPriceService->execute(['id' => $productSupplierPrice]);
 
-        return response()->json(['message' => 'ProductSupplierPrice deleted successfully']);
+        return Response::json(['message' => 'Product supplier price deleted successfully']);
     }
 
     private function findOrFail(int $id): ProductSupplierPrice

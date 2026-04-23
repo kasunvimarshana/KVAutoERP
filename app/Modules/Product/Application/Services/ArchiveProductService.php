@@ -26,7 +26,7 @@ class ArchiveProductService extends BaseService implements ArchiveProductService
             throw new ProductNotFoundException($id);
         }
 
-        $product->setStatus('archive');
+        $product->setStatus('archived');
 
         return $this->productRepository->save($product);
     }

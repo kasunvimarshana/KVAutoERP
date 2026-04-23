@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Product\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Product\Application\Contracts\CreateComboItemServiceInterface;
 use Modules\Product\Application\Contracts\DeleteComboItemServiceInterface;
@@ -33,10 +34,18 @@ class ComboItemController extends AuthorizedController
         $this->authorize('viewAny', ComboItem::class);
         $validated = $request->validated();
 
+        $filters = array_filter([
+            'tenant_id' => $validated['tenant_id'] ?? null,
+            'combo_product_id' => $validated['combo_product_id'] ?? null,
+            'component_product_id' => $validated['component_product_id'] ?? null,
+            'is_optional' => $validated['is_optional'] ?? null,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
         $items = $this->findComboItemService->list(
-            filters: [],
+            filters: $filters,
             perPage: (int) ($validated['per_page'] ?? 15),
             page: (int) ($validated['page'] ?? 1),
+            sort: $validated['sort'] ?? null,
         );
 
         return (new ComboItemCollection($items))->response();
@@ -81,7 +90,7 @@ class ComboItemController extends AuthorizedController
 
         $this->deleteComboItemService->execute(['id' => $comboItem]);
 
-        return response()->json(['message' => 'ComboItem deleted successfully']);
+        return Response::json(['message' => 'Combo item deleted successfully']);
     }
 
     private function findOrFail(int $id): ComboItem

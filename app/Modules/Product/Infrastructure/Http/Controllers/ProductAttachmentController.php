@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Product\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Product\Application\Contracts\CreateProductAttachmentServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductAttachmentServiceInterface;
@@ -33,10 +34,19 @@ class ProductAttachmentController extends AuthorizedController
         $this->authorize('viewAny', ProductAttachment::class);
         $validated = $request->validated();
 
+        $filters = array_filter([
+            'tenant_id' => $validated['tenant_id'] ?? null,
+            'product_id' => $validated['product_id'] ?? null,
+            'variant_id' => $validated['variant_id'] ?? null,
+            'type' => $validated['type'] ?? null,
+            'is_primary' => $validated['is_primary'] ?? null,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
         $items = $this->findProductAttachmentService->list(
-            filters: [],
+            filters: $filters,
             perPage: (int) ($validated['per_page'] ?? 15),
             page: (int) ($validated['page'] ?? 1),
+            sort: $validated['sort'] ?? null,
         );
 
         return (new ProductAttachmentCollection($items))->response();
@@ -81,7 +91,7 @@ class ProductAttachmentController extends AuthorizedController
 
         $this->deleteProductAttachmentService->execute(['id' => $productAttachment]);
 
-        return response()->json(['message' => 'ProductAttachment deleted successfully']);
+        return Response::json(['message' => 'Product attachment deleted successfully']);
     }
 
     private function findOrFail(int $id): ProductAttachment

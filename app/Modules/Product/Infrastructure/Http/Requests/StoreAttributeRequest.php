@@ -16,6 +16,7 @@ class StoreAttributeRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'tenant_id' => 'required|integer|exists:tenants,id',
             'group_id' => 'nullable|integer|exists:attribute_groups,id',
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:50',

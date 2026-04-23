@@ -26,7 +26,7 @@ class PublishProductService extends BaseService implements PublishProductService
             throw new ProductNotFoundException($id);
         }
 
-        $product->setStatus('publish');
+        $product->setStatus('published');
 
         return $this->productRepository->save($product);
     }

@@ -16,6 +16,13 @@ class ListProductSupplierPriceRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'tenant_id' => 'nullable|integer|exists:tenants,id',
+            'product_id' => 'nullable|integer|exists:products,id',
+            'variant_id' => 'nullable|integer',
+            'supplier_id' => 'nullable|integer',
+            'is_preferred' => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
+            'sort' => 'nullable|string|max:60',
             'per_page' => 'nullable|integer|min:1|max:200',
             'page' => 'nullable|integer|min:1',
         ];

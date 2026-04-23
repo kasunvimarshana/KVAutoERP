@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Product\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Product\Application\Contracts\CreateSerialServiceInterface;
 use Modules\Product\Application\Contracts\DeleteSerialServiceInterface;
@@ -33,10 +34,20 @@ class SerialController extends AuthorizedController
         $this->authorize('viewAny', Serial::class);
         $validated = $request->validated();
 
+        $filters = array_filter([
+            'tenant_id' => $validated['tenant_id'] ?? null,
+            'product_id' => $validated['product_id'] ?? null,
+            'variant_id' => $validated['variant_id'] ?? null,
+            'batch_id' => $validated['batch_id'] ?? null,
+            'status' => $validated['status'] ?? null,
+            'serial_number' => $validated['serial_number'] ?? null,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
         $items = $this->findSerialService->list(
-            filters: [],
+            filters: $filters,
             perPage: (int) ($validated['per_page'] ?? 15),
             page: (int) ($validated['page'] ?? 1),
+            sort: $validated['sort'] ?? null,
         );
 
         return (new SerialCollection($items))->response();
@@ -81,7 +92,7 @@ class SerialController extends AuthorizedController
 
         $this->deleteSerialService->execute(['id' => $serial]);
 
-        return response()->json(['message' => 'Serial deleted successfully']);
+        return Response::json(['message' => 'Serial deleted successfully']);
     }
 
     private function findOrFail(int $id): Serial

@@ -26,7 +26,7 @@ class DiscontinueProductService extends BaseService implements DiscontinueProduc
             throw new ProductNotFoundException($id);
         }
 
-        $product->setStatus('discontinue');
+        $product->setStatus('discontinued');
 
         return $this->productRepository->save($product);
     }

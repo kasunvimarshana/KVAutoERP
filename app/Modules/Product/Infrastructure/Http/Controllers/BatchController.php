@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Product\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Product\Application\Contracts\CreateBatchServiceInterface;
 use Modules\Product\Application\Contracts\DeleteBatchServiceInterface;
@@ -33,10 +34,19 @@ class BatchController extends AuthorizedController
         $this->authorize('viewAny', Batch::class);
         $validated = $request->validated();
 
+        $filters = array_filter([
+            'tenant_id' => $validated['tenant_id'] ?? null,
+            'product_id' => $validated['product_id'] ?? null,
+            'variant_id' => $validated['variant_id'] ?? null,
+            'status' => $validated['status'] ?? null,
+            'batch_number' => $validated['batch_number'] ?? null,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
         $items = $this->findBatchService->list(
-            filters: [],
+            filters: $filters,
             perPage: (int) ($validated['per_page'] ?? 15),
             page: (int) ($validated['page'] ?? 1),
+            sort: $validated['sort'] ?? null,
         );
 
         return (new BatchCollection($items))->response();
@@ -81,7 +91,7 @@ class BatchController extends AuthorizedController
 
         $this->deleteBatchService->execute(['id' => $batch]);
 
-        return response()->json(['message' => 'Batch deleted successfully']);
+        return Response::json(['message' => 'Batch deleted successfully']);
     }
 
     private function findOrFail(int $id): Batch

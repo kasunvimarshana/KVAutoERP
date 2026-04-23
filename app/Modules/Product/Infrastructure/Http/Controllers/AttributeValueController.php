@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Product\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Response;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
 use Modules\Product\Application\Contracts\CreateAttributeValueServiceInterface;
 use Modules\Product\Application\Contracts\DeleteAttributeValueServiceInterface;
@@ -33,10 +34,17 @@ class AttributeValueController extends AuthorizedController
         $this->authorize('viewAny', AttributeValue::class);
         $validated = $request->validated();
 
+        $filters = array_filter([
+            'tenant_id' => $validated['tenant_id'] ?? null,
+            'attribute_id' => $validated['attribute_id'] ?? null,
+            'is_active' => $validated['is_active'] ?? null,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
         $items = $this->findAttributeValueService->list(
-            filters: [],
+            filters: $filters,
             perPage: (int) ($validated['per_page'] ?? 15),
             page: (int) ($validated['page'] ?? 1),
+            sort: $validated['sort'] ?? null,
         );
 
         return (new AttributeValueCollection($items))->response();
@@ -81,7 +89,7 @@ class AttributeValueController extends AuthorizedController
 
         $this->deleteAttributeValueService->execute(['id' => $attributeValue]);
 
-        return response()->json(['message' => 'AttributeValue deleted successfully']);
+        return Response::json(['message' => 'Attribute value deleted successfully']);
     }
 
     private function findOrFail(int $id): AttributeValue
