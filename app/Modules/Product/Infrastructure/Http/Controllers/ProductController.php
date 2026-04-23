@@ -10,6 +10,10 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Response;
 use Modules\Core\Application\Contracts\FileStorageServiceInterface;
 use Modules\Core\Infrastructure\Http\Controllers\AuthorizedController;
+use Modules\Product\Application\Contracts\ArchiveProductServiceInterface;
+use Modules\Product\Application\Contracts\DiscontinueProductServiceInterface;
+use Modules\Product\Application\Contracts\DraftProductServiceInterface;
+use Modules\Product\Application\Contracts\PublishProductServiceInterface;
 use Modules\Product\Application\Contracts\CreateProductServiceInterface;
 use Modules\Product\Application\Contracts\DeleteProductServiceInterface;
 use Modules\Product\Application\Contracts\FindProductServiceInterface;
@@ -31,6 +35,10 @@ class ProductController extends AuthorizedController
         protected UpdateProductServiceInterface $updateProductService,
         protected DeleteProductServiceInterface $deleteProductService,
         protected FindProductServiceInterface $findProductService,
+        protected PublishProductServiceInterface $publishProductService,
+        protected ArchiveProductServiceInterface $archiveProductService,
+        protected DiscontinueProductServiceInterface $discontinueProductService,
+        protected DraftProductServiceInterface $draftProductService,
     ) {}
 
     public function index(ListProductRequest $request): JsonResponse
@@ -136,6 +144,39 @@ class ProductController extends AuthorizedController
         $this->deleteProductService->execute(['id' => $product]);
 
         return Response::json(['message' => 'Product deleted successfully']);
+    }
+
+
+    public function publish(int $product): ProductResource
+    {
+        $foundProduct = $this->findProductOrFail($product);
+        $this->authorize('update', $foundProduct);
+
+        return new ProductResource($this->publishProductService->execute(['id' => $product]));
+    }
+
+    public function archive(int $product): ProductResource
+    {
+        $foundProduct = $this->findProductOrFail($product);
+        $this->authorize('update', $foundProduct);
+
+        return new ProductResource($this->archiveProductService->execute(['id' => $product]));
+    }
+
+    public function discontinue(int $product): ProductResource
+    {
+        $foundProduct = $this->findProductOrFail($product);
+        $this->authorize('update', $foundProduct);
+
+        return new ProductResource($this->discontinueProductService->execute(['id' => $product]));
+    }
+
+    public function draft(int $product): ProductResource
+    {
+        $foundProduct = $this->findProductOrFail($product);
+        $this->authorize('update', $foundProduct);
+
+        return new ProductResource($this->draftProductService->execute(['id' => $product]));
     }
 
     private function findProductOrFail(int $productId): Product
