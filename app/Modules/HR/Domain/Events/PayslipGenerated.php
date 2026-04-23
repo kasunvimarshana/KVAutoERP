@@ -20,10 +20,10 @@ class PayslipGenerated extends BaseEvent
     public function broadcastWith(): array
     {
         return array_merge(parent::broadcastWith(), [
-            'payslipId'    => $this->payslip->getId(),
-            'employeeId'   => $this->payslip->getEmployeeId(),
+            'payslipId' => $this->payslip->getId(),
+            'employeeId' => $this->payslip->getEmployeeId(),
             'payrollRunId' => $this->payslip->getPayrollRunId(),
-            'netSalary'    => $this->payslip->getNetSalary(),
+            'netSalary' => $this->payslip->getNetSalary(),
         ]);
     }
 }

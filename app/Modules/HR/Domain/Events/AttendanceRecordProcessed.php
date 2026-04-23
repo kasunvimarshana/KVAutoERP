@@ -21,9 +21,9 @@ class AttendanceRecordProcessed extends BaseEvent
     {
         return array_merge(parent::broadcastWith(), [
             'attendanceRecordId' => $this->attendanceRecord->getId(),
-            'employeeId'         => $this->attendanceRecord->getEmployeeId(),
-            'attendanceDate'     => $this->attendanceRecord->getAttendanceDate()->format('Y-m-d'),
-            'status'             => $this->attendanceRecord->getStatus()->value,
+            'employeeId' => $this->attendanceRecord->getEmployeeId(),
+            'attendanceDate' => $this->attendanceRecord->getAttendanceDate()->format('Y-m-d'),
+            'status' => $this->attendanceRecord->getStatus()->value,
         ]);
     }
 }

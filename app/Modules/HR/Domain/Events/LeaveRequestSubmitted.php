@@ -21,10 +21,10 @@ class LeaveRequestSubmitted extends BaseEvent
     {
         return array_merge(parent::broadcastWith(), [
             'leaveRequestId' => $this->leaveRequest->getId(),
-            'employeeId'     => $this->leaveRequest->getEmployeeId(),
-            'leaveTypeId'    => $this->leaveRequest->getLeaveTypeId(),
-            'totalDays'      => $this->leaveRequest->getTotalDays(),
-            'status'         => $this->leaveRequest->getStatus()->value,
+            'employeeId' => $this->leaveRequest->getEmployeeId(),
+            'leaveTypeId' => $this->leaveRequest->getLeaveTypeId(),
+            'totalDays' => $this->leaveRequest->getTotalDays(),
+            'status' => $this->leaveRequest->getStatus()->value,
         ]);
     }
 }

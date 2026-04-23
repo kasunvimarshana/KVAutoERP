@@ -21,9 +21,9 @@ class AttendanceLogCreated extends BaseEvent
     {
         return array_merge(parent::broadcastWith(), [
             'attendanceLogId' => $this->attendanceLog->getId(),
-            'employeeId'      => $this->attendanceLog->getEmployeeId(),
-            'punchTime'       => $this->attendanceLog->getPunchTime()->format(\DateTimeInterface::ATOM),
-            'punchType'       => $this->attendanceLog->getPunchType(),
+            'employeeId' => $this->attendanceLog->getEmployeeId(),
+            'punchTime' => $this->attendanceLog->getPunchTime()->format(\DateTimeInterface::ATOM),
+            'punchType' => $this->attendanceLog->getPunchType(),
         ]);
     }
 }

@@ -20,10 +20,10 @@ class PayrollRunApproved extends BaseEvent
     public function broadcastWith(): array
     {
         return array_merge(parent::broadcastWith(), [
-            'payrollRunId'     => $this->payrollRun->getId(),
-            'approvedBy'       => $this->payrollRun->getApprovedBy(),
-            'totalNet'         => $this->payrollRun->getTotalNet(),
-            'status'           => $this->payrollRun->getStatus()->value,
+            'payrollRunId' => $this->payrollRun->getId(),
+            'approvedBy' => $this->payrollRun->getApprovedBy(),
+            'totalNet' => $this->payrollRun->getTotalNet(),
+            'status' => $this->payrollRun->getStatus()->value,
         ]);
     }
 }

@@ -113,7 +113,7 @@ class Shift
         [$endHour, $endMin] = array_map('intval', explode(':', $this->endTime));
 
         $startTotalMinutes = $startHour * 60 + $startMin;
-        $endTotalMinutes   = $endHour * 60 + $endMin;
+        $endTotalMinutes = $endHour * 60 + $endMin;
 
         if ($this->isNightShift && $endTotalMinutes <= $startTotalMinutes) {
             $endTotalMinutes += 24 * 60;

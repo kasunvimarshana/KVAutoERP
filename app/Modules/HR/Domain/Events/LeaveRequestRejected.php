@@ -21,9 +21,9 @@ class LeaveRequestRejected extends BaseEvent
     {
         return array_merge(parent::broadcastWith(), [
             'leaveRequestId' => $this->leaveRequest->getId(),
-            'employeeId'     => $this->leaveRequest->getEmployeeId(),
-            'approverId'     => $this->leaveRequest->getApproverId(),
-            'status'         => $this->leaveRequest->getStatus()->value,
+            'employeeId' => $this->leaveRequest->getEmployeeId(),
+            'approverId' => $this->leaveRequest->getApproverId(),
+            'status' => $this->leaveRequest->getStatus()->value,
         ]);
     }
 }
