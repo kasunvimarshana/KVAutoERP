@@ -32,7 +32,7 @@ class ProductSearchProjectionAutomaticRefreshIntegrationTest extends TestCase
         parent::setUp();
 
         $this->tenantId = 60;
-        
+
         // Create minimal tenant record
         DB::table('tenants')->insert([
             'id' => $this->tenantId,
