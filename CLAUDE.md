@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-KVAutoERP is a modular SaaS multi-tenant ERP/CRM platform built with **Laravel 13** and **PHP 8.3+**, organized as independent modules under `app/Modules/`. Currently 8 modules are fully implemented, 2 are infrastructure-only, and 9 have only migration schemas.
+KVAutoERP is a modular SaaS multi-tenant ERP/CRM platform built with **Laravel 12** and **PHP 8.2+**, organized as independent modules under `app/Modules/`. Currently 9 modules are fully implemented, 1 is infrastructure-only (Configuration), and 9 have only migration schemas.
 
 ## Build & Test Commands
 
@@ -17,14 +17,14 @@ cp .env.example .env && php artisan key:generate  # First-time setup
 ## Module Status
 
 **Fully implemented** (have Domain/Application/Infrastructure code):
-Core (46 files), Audit (17), Auth (54), Finance (91), OrganizationUnit (39), Product (142), Tenant (113), User (129)
+Core (46 files), Audit (17), Auth (54), Finance (91), HR (230+), OrganizationUnit (39), Product (142), Tenant (113), User (129)
 
 **Configuration-owned reference data**: countries, currencies, languages, and timezones now live in the Configuration module (Domain/Application/Infrastructure + migrations).
 
 **Minimal Shared shell**: Shared is intentionally thin (provider + route surface only) and should not contain domain-owned runtime logic.
 
 **Migration-only stubs** (schema defined, no application code):
-Customer, Employee, Supplier, Pricing, Tax, Warehouse, Inventory, Purchase, Sales
+Customer, Supplier, Pricing, Tax, Warehouse, Inventory, Purchase, Sales
 
 ## Module Architecture
 
@@ -73,7 +73,7 @@ app/Modules/<Module>/
 
 ## Registered Providers (bootstrap/providers.php)
 
-AppServiceProvider, CoreServiceProvider, ConfigurationServiceProvider, SharedServiceProvider, AuditServiceProvider, AuthModuleServiceProvider, TenantServiceProvider, TenantConfigServiceProvider, UserServiceProvider, OrganizationUnitServiceProvider, ProductServiceProvider, FinanceServiceProvider
+AppServiceProvider, CoreServiceProvider, ConfigurationServiceProvider, SharedServiceProvider, AuditServiceProvider, AuthModuleServiceProvider, TenantServiceProvider, TenantConfigServiceProvider, UserServiceProvider, OrganizationUnitServiceProvider, ProductServiceProvider, FinanceServiceProvider, HRServiceProvider
 
 ## File Naming
 

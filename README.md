@@ -1,6 +1,6 @@
 # KVAutoERP
 
-A modular SaaS multi-tenant ERP/CRM platform built with **Laravel 13** and **PHP 8.3+**, following Clean Architecture principles. The system is organized as independent modules under `app/Modules/`.
+A modular SaaS multi-tenant ERP/CRM platform built with **Laravel 12** and **PHP 8.2+**, following Clean Architecture principles. The system is organized as independent modules under `app/Modules/`.
 
 ## Quick Start
 
@@ -16,8 +16,8 @@ npm install --ignore-scripts && npm run build   # Frontend assets (optional)
 
 | Component | Technology |
 |-----------|-----------|
-| Framework | Laravel 13 |
-| PHP | 8.3+ |
+| Framework | Laravel 12 |
+| PHP | 8.2+ |
 | Auth | Laravel Passport (OAuth2) |
 | Real-time | Laravel Reverb (WebSockets) |
 | API Docs | L5 Swagger (OpenAPI) |
