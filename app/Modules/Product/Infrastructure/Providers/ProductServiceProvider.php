@@ -53,6 +53,7 @@ use Modules\Product\Application\Contracts\UpdateProductServiceInterface;
 use Modules\Product\Application\Contracts\UpdateProductVariantServiceInterface;
 use Modules\Product\Application\Contracts\UpdateUnitOfMeasureServiceInterface;
 use Modules\Product\Application\Contracts\UpdateUomConversionServiceInterface;
+use Modules\Product\Application\Contracts\UomConversionResolverServiceInterface;
 use Modules\Product\Application\Contracts\UpdateVariantAttributeServiceInterface;
 use Modules\Product\Application\Services\CreateComboItemService;
 use Modules\Product\Application\Services\CreateProductAttributeGroupService;
@@ -101,6 +102,7 @@ use Modules\Product\Application\Services\UpdateProductService;
 use Modules\Product\Application\Services\UpdateProductVariantService;
 use Modules\Product\Application\Services\UpdateUnitOfMeasureService;
 use Modules\Product\Application\Services\UpdateUomConversionService;
+use Modules\Product\Application\Services\UomConversionResolverService;
 use Modules\Product\Application\Services\UpdateVariantAttributeService;
 use Modules\Product\Domain\RepositoryInterfaces\ComboItemRepositoryInterface;
 use Modules\Product\Domain\RepositoryInterfaces\ProductAttributeGroupRepositoryInterface;
@@ -177,6 +179,7 @@ class ProductServiceProvider extends ServiceProvider
             FindUomConversionServiceInterface::class => FindUomConversionService::class,
             UpdateUomConversionServiceInterface::class => UpdateUomConversionService::class,
             DeleteUomConversionServiceInterface::class => DeleteUomConversionService::class,
+            UomConversionResolverServiceInterface::class => UomConversionResolverService::class,
             CreateProductServiceInterface::class => CreateProductService::class,
             FindProductServiceInterface::class => FindProductService::class,
             UpdateProductServiceInterface::class => UpdateProductService::class,

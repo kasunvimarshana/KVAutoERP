@@ -22,6 +22,7 @@ Route::middleware(['auth:api', 'resolve.tenant'])->group(function (): void {
     Route::apiResource('product-variants', ProductVariantController::class);
     Route::apiResource('product-brands', ProductBrandController::class);
     Route::apiResource('product-categories', ProductCategoryController::class);
+    Route::post('uom-conversions/resolve', [UomConversionController::class, 'resolve']);
     Route::apiResource('uom-conversions', UomConversionController::class);
     Route::apiResource('units-of-measure', UnitOfMeasureController::class);
     Route::apiResource('product-attribute-groups', ProductAttributeGroupController::class);
