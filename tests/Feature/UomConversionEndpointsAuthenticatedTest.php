@@ -57,7 +57,7 @@ class UomConversionEndpointsAuthenticatedTest extends TestCase
         $user->setAttribute('id', 421);
         $user->setAttribute('tenant_id', 15);
 
-        Passport::actingAs($user, [], 'api');
+        $this->actingAs($user, 'api');
     }
 
     public function test_authenticated_index_returns_success_payload(): void
