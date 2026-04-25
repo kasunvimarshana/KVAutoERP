@@ -15,7 +15,7 @@ npm install --ignore-scripts && npm run build   # Frontend assets (optional)
 ## Tech Stack
 
 | Component | Technology |
-|-----------|-----------|
+| --------- | ---------- |
 | Framework | Laravel 12 |
 | PHP | 8.2+ |
 | Auth | Laravel Passport (OAuth2) |
@@ -31,7 +31,7 @@ The platform has 19 modules in various stages of implementation:
 ### Fully Implemented (8 modules — 660 PHP files)
 
 | Module | Files | Description |
-|--------|-------|-------------|
+| ------ | ----- | ----------- |
 | **Product** | 151 | Catalog, variants, categories, brands, UoM, identifiers |
 | **User** | 133 | Users, profiles, roles, permissions, devices, attachments |
 | **Tenant** | 117 | Multi-tenant management, plans, settings, attachments, config |
@@ -44,7 +44,7 @@ The platform has 19 modules in various stages of implementation:
 ### Infrastructure-Only (2 modules)
 
 | Module | Description |
-|--------|-------------|
+| ------ | ----------- |
 | **Configuration** | Owns global reference data (countries, currencies, languages, timezones) with Domain/Application/Infrastructure layers |
 | **Shared** | Minimal module shell (provider + empty route surface; no domain-owned runtime logic) |
 
@@ -54,7 +54,7 @@ Customer, Employee, Supplier, Pricing, Tax, Warehouse, Inventory, Purchase, Sale
 
 ## Project Layout
 
-```
+```text
 app/Modules/           # 19 business modules
 bootstrap/providers.php  # 12 ServiceProviders registered
 composer.json            # PSR-4 autoload config
@@ -67,7 +67,7 @@ tests/                   # 54 test files (52 tests + 2 framework examples)
 
 Fully implemented modules follow this layered structure:
 
-```
+```text
 app/Modules/<Module>/
 ├── Domain/
 │   ├── Entities/            # Pure PHP domain objects
@@ -127,7 +127,7 @@ All module code uses `Modules\<Module>\...` (not `App\Modules\...`).
 All authenticated routes require `auth:api` and `resolve.tenant` middleware (except Auth endpoints).
 
 | Module | Prefix | Key Endpoints |
-|--------|--------|---------------|
+| ------ | ------ | ------------- |
 | Auth | `/auth` | register, login, logout, me, refresh, SSO, forgot/reset password |
 | Tenant | `/tenants` | CRUD, config update, attachments, plans, settings |
 | User | `/users` | CRUD, roles, permissions, profile, devices, attachments |
@@ -138,7 +138,7 @@ All authenticated routes require `auth:api` and `resolve.tenant` middleware (exc
 
 ## Registered Providers
 
-```
+```text
 AppServiceProvider, CoreServiceProvider, ConfigurationServiceProvider,
 SharedServiceProvider, AuditServiceProvider, AuthModuleServiceProvider,
 TenantServiceProvider, TenantConfigServiceProvider, UserServiceProvider,
@@ -150,13 +150,72 @@ OrganizationUnitServiceProvider, ProductServiceProvider, FinanceServiceProvider
 54 test files covering 6 modules:
 
 | Module | Unit Tests | Feature Tests |
-|--------|-----------|--------------|
+| ------ | ---------- | ------------- |
 | Finance | AccountService, FiscalYear/Period/JournalEntry services, exception | Routes, endpoints |
 | Product | 7 service tests | 14 route/repo/endpoint tests, UoM consistency |
 | Audit | Controller, Resource, Service | Routes, endpoints, repository |
 | Architecture | Module boundaries, timestamps, guardrails | — |
 | Shared | — | Thin-module guardrails + migration smoke test |
 | Configuration | — | Reference-data migration and architecture guardrails |
+
+### Search Benchmarking
+
+Product catalog search latency can be measured with both a runtime command and a test harness.
+
+1. Runtime benchmark command (uses existing tenant data):
+
+```bash
+php artisan product:benchmark-search --tenant_id=<TENANT_ID> --warehouse_id=<WAREHOUSE_ID> --iterations=5 --per_page=25 --term="SKU-001" --term="BARCODE-001"
+```
+
+1. Performance-tagged test harness (deterministic seeded dataset):
+
+```bash
+php ./vendor/bin/phpunit --group performance
+```
+
+1. Typical CI check for command behavior:
+
+```bash
+php ./vendor/bin/phpunit tests/Feature/ProductSearchBenchmarkCommandTest.php
+```
+
+Notes:
+
+- The command prints `min/avg/p95/max` latency in milliseconds per search term.
+- Use `--format=json` for machine-readable output in CI/CD dashboards.
+- If the configured database is unavailable, the command exits gracefully with a clear diagnostic message.
+- For consistent trend tracking, run command benchmarks against stable staging data and fixed `--iterations` values.
+- Use the operational playbook in `docs/PRODUCT_SEARCH_PERFORMANCE_RUNBOOK.md` for thresholds, release comparisons, and incident handling.
+- Use `docs/PRODUCT_SEARCH_BENCHMARK_REPORT_TEMPLATE.md` to record benchmark outputs in release notes.
+- A GitHub Actions gate example is available at `.github/workflows/product-search-benchmark-gate.yml`.
+- A lightweight PR contract-check workflow is available at `.github/workflows/product-search-benchmark-pr-check.yml`.
+- The benchmark gate can auto-run on `release/**` branches when benchmark repository variables are configured.
+- A non-blocking main-branch trend report workflow is available at `.github/workflows/product-search-benchmark-main-report.yml`.
+
+Benchmark workflow matrix:
+
+| Workflow | Trigger | Blocking | Purpose |
+| -------- | ------- | -------- | ------- |
+| `.github/workflows/product-search-benchmark-pr-check.yml` | Pull requests | Yes (contract checks) | Verify benchmark tests and JSON output contract |
+| `.github/workflows/product-search-benchmark-main-report.yml` | `main` pushes + manual | No | Continuous benchmark trend visibility with warnings |
+| `.github/workflows/product-search-benchmark-gate.yml` | `release/**` pushes + manual | Yes (threshold gate) | Enforce release-over-release latency regression policy |
+
+Benchmark artifact naming and retrieval:
+
+1. PR checks upload artifacts named `product-search-benchmark-pr-<run_id>`.
+1. Main reports upload artifacts named `product-search-benchmark-main-<run_id>`.
+1. Release gate runs upload artifacts named `product-search-benchmark-gate-<run_id>`.
+1. Open the GitHub Actions run, then download artifacts from the run summary page.
+1. Artifact retention follows workflow defaults or `BENCHMARK_ARTIFACT_RETENTION_DAYS` when configured.
+
+Release benchmark go/no-go checklist:
+
+1. Confirm PR contract checks passed in `.github/workflows/product-search-benchmark-pr-check.yml`.
+1. Run release benchmark gate using `.github/workflows/product-search-benchmark-gate.yml` with the target baseline file.
+1. Review p95 and max deltas term-by-term.
+1. Go if no threshold breach is reported.
+1. No-go if regression threshold is breached; investigate before promoting release.
 
 ## Migrations
 
@@ -169,7 +228,7 @@ Migration naming convention: `{table}_{column(s)}_{type}` with suffixes `_pk`, `
 ## File Naming
 
 | Type | Pattern | Example |
-|------|---------|---------|
+| ---- | ------- | ------- |
 | Entity | `<Name>.php` | `Product.php` |
 | Model | `<Name>Model.php` | `ProductModel.php` |
 | Repository | `Eloquent<Name>Repository.php` | `EloquentProductRepository.php` |

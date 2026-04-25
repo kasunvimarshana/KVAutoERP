@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Inventory\Application\Services;
 
+use Illuminate\Database\QueryException;
 use Modules\Core\Domain\Exceptions\NotFoundException;
 use Modules\Inventory\Application\Contracts\RecordStockMovementServiceInterface;
 use Modules\Inventory\Application\DTOs\RecordStockMovementDTO;
@@ -41,7 +42,15 @@ class RecordStockMovementService implements RecordStockMovementServiceInterface
             performedAt: $data['performed_at'] ?? null,
             notes: $data['notes'] ?? null,
             metadata: is_array($data['metadata'] ?? null) ? $data['metadata'] : null,
+            idempotencyKey: isset($data['idempotency_key']) ? trim((string) $data['idempotency_key']) : null,
         );
+
+        if ($dto->idempotencyKey !== null && $dto->idempotencyKey !== '') {
+            $existing = $this->inventoryStockRepository->findByIdempotencyKey($dto->tenantId, $dto->idempotencyKey);
+            if ($existing !== null) {
+                return $existing;
+            }
+        }
 
         if (! $this->inventoryStockRepository->warehouseExists($dto->tenantId, $dto->warehouseId)) {
             throw new NotFoundException('Warehouse', $dto->warehouseId);
@@ -91,12 +100,37 @@ class RecordStockMovementService implements RecordStockMovementServiceInterface
             performedAt: $dto->performedAt !== null ? new \DateTimeImmutable($dto->performedAt) : null,
             notes: $dto->notes,
             metadata: $metadata,
+            idempotencyKey: $dto->idempotencyKey,
         );
 
-        $saved = $this->inventoryStockRepository->recordMovement($movement);
+        try {
+            $saved = $this->inventoryStockRepository->recordMovement($movement);
+        } catch (QueryException $exception) {
+            if (! $this->isUniqueConstraintViolation($exception) || $dto->idempotencyKey === null || $dto->idempotencyKey === '') {
+                throw $exception;
+            }
+
+            $existing = $this->inventoryStockRepository->findByIdempotencyKey($dto->tenantId, $dto->idempotencyKey);
+            if ($existing !== null) {
+                return $existing;
+            }
+
+            throw $exception;
+        }
+
         $this->inventoryStockRepository->adjustStockLevel($saved);
         $this->traceLogRepository->recordForMovement($saved);
 
         return $saved;
+    }
+
+    private function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $sqlState = (string) $exception->getCode();
+        $message = strtolower($exception->getMessage());
+
+        return in_array($sqlState, ['23000', '23505'], true)
+            || str_contains($message, 'unique constraint')
+            || str_contains($message, 'duplicate entry');
     }
 }
