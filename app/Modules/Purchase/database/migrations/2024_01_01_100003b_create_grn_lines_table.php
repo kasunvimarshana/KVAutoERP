@@ -26,6 +26,15 @@ return new class extends Migration
             $table->decimal('rejected_qty', 20, 6)->default(0);
             $table->decimal('unit_cost', 20, 6);
             $table->decimal('line_cost', 20, 6)->storedAs('received_qty * unit_cost');
+
+            $table->foreign('product_id')->references('id')->on('products')->cascadeOnDelete();
+            $table->foreign('variant_id')->references('id')->on('product_variants')->nullOnDelete();
+            $table->foreign('batch_id')->references('id')->on('batches')->nullOnDelete();
+            $table->foreign('serial_id')->references('id')->on('serials')->nullOnDelete();
+            $table->foreign('location_id')->references('id')->on('warehouse_locations')->cascadeOnDelete();
+            $table->foreign('uom_id')->references('id')->on('units_of_measure');
+            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
+
             $table->timestamps();
         });
     }

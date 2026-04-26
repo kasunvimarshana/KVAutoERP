@@ -31,6 +31,13 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->foreignId('created_by');
             $table->foreignId('approved_by')->nullable();
+
+            $table->foreign('supplier_id')->references('id')->on('suppliers')->cascadeOnDelete();
+            $table->foreign('org_unit_id')->references('id')->on('org_units')->nullOnDelete();
+            $table->foreign('warehouse_id')->references('id')->on('warehouses')->cascadeOnDelete();
+            $table->foreign('created_by')->references('id')->on('users');
+            $table->foreign('approved_by')->references('id')->on('users')->nullOnDelete();
+
             $table->timestamps();
 
             $table->unique(['tenant_id', 'po_number'], 'purchase_orders_tenant_po_number_uk');

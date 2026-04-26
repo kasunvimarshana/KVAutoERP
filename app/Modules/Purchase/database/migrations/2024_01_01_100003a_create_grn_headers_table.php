@@ -24,6 +24,11 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->json('metadata')->nullable();
             $table->foreignId('created_by');
+
+            $table->foreign('supplier_id')->references('id')->on('suppliers')->cascadeOnDelete();
+            $table->foreign('warehouse_id')->references('id')->on('warehouses')->cascadeOnDelete();
+            $table->foreign('created_by')->references('id')->on('users');
+
             $table->timestamps();
 
             $table->unique(['tenant_id', 'grn_number'], 'grn_headers_tenant_grn_uk');

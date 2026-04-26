@@ -28,6 +28,15 @@ return new class extends Migration
             $table->enum('disposition', ['restock', 'scrap', 'quarantine'])->default('restock');
             $table->decimal('restocking_fee', 20, 6)->default(0);
             $table->text('quality_check_notes')->nullable();
+
+            $table->foreign('product_id')->references('id')->on('products')->cascadeOnDelete();
+            $table->foreign('variant_id')->references('id')->on('product_variants')->nullOnDelete();
+            $table->foreign('batch_id')->references('id')->on('batches')->nullOnDelete();
+            $table->foreign('serial_id')->references('id')->on('serials')->nullOnDelete();
+            $table->foreign('to_location_id')->references('id')->on('warehouse_locations')->cascadeOnDelete();
+            $table->foreign('uom_id')->references('id')->on('units_of_measure');
+            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
+
             $table->timestamps();
         });
     }

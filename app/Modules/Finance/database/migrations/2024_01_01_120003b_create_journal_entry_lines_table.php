@@ -22,7 +22,8 @@ return new class extends Migration
             $table->decimal('exchange_rate', 20, 10)->default(1);
             $table->decimal('base_debit_amount', 20, 6)->default(0);
             $table->decimal('base_credit_amount', 20, 6)->default(0);
-            $table->foreignId('cost_center_id')->nullable()->constrained('org_units', 'id', 'journal_entry_lines_cost_center_id_fk')->nullOnDelete();
+            // $table->foreignId('cost_center_id')->nullable()->constrained('org_units', 'id', 'journal_entry_lines_cost_center_id_fk')->nullOnDelete();
+            $table->foreign('cost_center_id', 'journal_entry_lines_cost_center_id_fk')->references('id')->on('cost_centers')->nullOnDelete();
             $table->json('metadata')->nullable();
             $table->timestamps();
             $table->softDeletes();

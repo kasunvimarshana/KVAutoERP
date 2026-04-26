@@ -45,11 +45,17 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             // $table->decimal('purchase_price', 20, 6)->nullable();
             // $table->decimal('sales_price', 20, 6)->nullable();
+
+            $table->foreign('tax_group_id')->references('id')->on('tax_groups')->nullOnDelete();
+
             $table->timestamps();
             $table->softDeletes();
 
             $table->unique(['tenant_id', 'sku'], 'products_tenant_sku_uk');
             $table->index(['tenant_id', 'type'], 'products_tenant_type_idx');
+            $table->unique(['tenant_id', 'slug'], 'products_tenant_slug_uk');
+            $table->index(['tenant_id', 'is_active'], 'products_tenant_active_idx');
+            $table->index(['tenant_id', 'name'], 'products_tenant_name_idx');
         });
     }
 

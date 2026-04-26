@@ -26,6 +26,10 @@ return new class extends Migration
             $table->foreignId('created_by');
             $table->foreignId('posted_by')->nullable();
             $table->timestamp('posted_at')->nullable();
+
+            $table->foreign('created_by')->references('id')->on('users');
+            $table->foreign('posted_by')->references('id')->on('users')->nullOnDelete();
+
             $table->timestamps();
             $table->softDeletes();
 

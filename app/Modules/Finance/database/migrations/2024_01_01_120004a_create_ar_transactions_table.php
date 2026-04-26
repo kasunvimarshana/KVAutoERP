@@ -23,6 +23,10 @@ return new class extends Migration
             $table->date('due_date')->nullable();
             $table->foreignId('currency_id')->constrained('currencies', 'id', 'ar_transactions_currency_id_fk');
             $table->boolean('is_reconciled')->default(false);
+
+            $table->foreign('customer_id')->references('id')->on('customers')->cascadeOnDelete();
+
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['tenant_id', 'customer_id'], 'ar_transactions_tenant_customer_idx');

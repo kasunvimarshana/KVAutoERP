@@ -29,6 +29,16 @@ return new class extends Migration
             $table->foreignId('income_account_id')->nullable();
             $table->foreignId('batch_id')->nullable();
             $table->foreignId('serial_id')->nullable();
+
+            $table->foreign('product_id')->references('id')->on('products')->cascadeOnDelete();
+            $table->foreign('variant_id')->references('id')->on('product_variants')->nullOnDelete();
+            $table->foreign('uom_id')->references('id')->on('units_of_measure');
+            $table->foreign('tax_group_id')->references('id')->on('tax_groups')->nullOnDelete();
+            $table->foreign('income_account_id')->references('id')->on('accounts')->nullOnDelete();
+            $table->foreign('batch_id')->references('id')->on('batches')->nullOnDelete();
+            $table->foreign('serial_id')->references('id')->on('serials')->nullOnDelete();
+            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
+
             $table->timestamps();
         });
     }

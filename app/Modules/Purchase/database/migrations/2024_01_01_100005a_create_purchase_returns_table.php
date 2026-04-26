@@ -29,6 +29,10 @@ return new class extends Migration
             $table->foreignId('journal_entry_id')->nullable();
             $table->text('notes')->nullable();
             $table->json('metadata')->nullable();
+
+            $table->foreign('supplier_id')->references('id')->on('suppliers')->cascadeOnDelete();
+            $table->foreign('journal_entry_id')->references('id')->on('journal_entries')->nullOnDelete();
+
             $table->timestamps();
 
             $table->unique(['tenant_id', 'return_number'], 'purchase_returns_tenant_return_uk');

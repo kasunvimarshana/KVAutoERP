@@ -26,6 +26,14 @@ return new class extends Migration
             $table->decimal('line_total', 20, 6)->storedAs('(ordered_qty * unit_price) * (1 - discount_pct/100)');
             // Purchase order lines account
             $table->foreignId('account_id')->nullable()->constrained('accounts', 'id', 'purchase_order_lines_account_id_fk')->nullOnDelete(); // expense/asset account for posting
+
+            $table->foreign('product_id')->references('id')->on('products')->cascadeOnDelete();
+            $table->foreign('variant_id')->references('id')->on('product_variants')->nullOnDelete();
+            $table->foreign('uom_id')->references('id')->on('units_of_measure');
+            $table->foreign('tax_group_id')->references('id')->on('tax_groups')->nullOnDelete();
+            $table->foreign('account_id')->references('id')->on('accounts')->nullOnDelete();
+            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
+
             $table->timestamps();
         });
     }

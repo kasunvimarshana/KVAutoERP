@@ -26,8 +26,16 @@ return new class extends Migration
             $table->decimal('tax_total', 20, 6)->default(0);
             $table->decimal('discount_total', 20, 6)->default(0);
             $table->decimal('grand_total', 20, 6)->default(0);
+            $table->decimal('paid_amount', 20, 6)->default(0);
             $table->foreignId('ar_account_id')->nullable();
             $table->foreignId('journal_entry_id')->nullable();
+            $table->text('notes')->nullable();
+            $table->json('metadata')->nullable();
+
+            $table->foreign('customer_id')->references('id')->on('customers')->cascadeOnDelete();
+            $table->foreign('ar_account_id')->references('id')->on('accounts')->nullOnDelete();
+            $table->foreign('journal_entry_id')->references('id')->on('journal_entries')->nullOnDelete();
+
             $table->timestamps();
 
             $table->unique(['tenant_id', 'invoice_number'], 'sales_invoices_tenant_invoice_uk');

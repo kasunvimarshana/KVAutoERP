@@ -38,6 +38,13 @@ return new class extends Migration
             $table->foreignId('warehouse_id')->nullable(); // will reference warehouses later
             $table->foreignId('manager_user_id')->nullable(); // will reference users later
 
+            $table->foreign('default_revenue_account_id')->references('id')->on('accounts')->nullOnDelete();
+            $table->foreign('default_expense_account_id')->references('id')->on('accounts')->nullOnDelete();
+            $table->foreign('default_asset_account_id')->references('id')->on('accounts')->nullOnDelete();
+            $table->foreign('default_liability_account_id')->references('id')->on('accounts')->nullOnDelete();
+            $table->foreign('warehouse_id')->references('id')->on('warehouses')->nullOnDelete();
+            $table->foreign('manager_user_id')->references('id')->on('users')->nullOnDelete();
+
             $table->unique(['tenant_id', 'code'], 'org_units_tenant_id_code_uk');
             $table->index(['tenant_id', 'parent_id'], 'org_units_tenant_parent_idx');
             $table->index(['tenant_id', 'path'], 'org_units_tenant_path_idx');

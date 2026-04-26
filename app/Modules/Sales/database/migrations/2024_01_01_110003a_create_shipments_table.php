@@ -24,6 +24,10 @@ return new class extends Migration
             $table->foreignId('currency_id')->constrained('currencies', 'id', 'shipments_currency_id_fk');
             $table->text('notes')->nullable();
             $table->json('metadata')->nullable();
+
+            $table->foreign('customer_id')->references('id')->on('customers')->cascadeOnDelete();
+            $table->foreign('warehouse_id')->references('id')->on('warehouses')->cascadeOnDelete();
+
             $table->timestamps();
 
             $table->unique(['tenant_id', 'shipment_number'], 'shipments_tenant_shipment_uk');
