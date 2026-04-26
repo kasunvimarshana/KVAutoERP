@@ -17,14 +17,12 @@ cp .env.example .env && php artisan key:generate  # First-time setup
 ## Module Status
 
 **Fully implemented** (have Domain/Application/Infrastructure code):
-Core (46 files), Audit (17), Auth (54), Finance (91), HR (230+), OrganizationUnit (39), Product (142), Tenant (113), User (129)
 
 **Configuration-owned reference data**: countries, currencies, languages, and timezones now live in the Configuration module (Domain/Application/Infrastructure + migrations).
 
 **Minimal Shared shell**: Shared is intentionally thin (provider + route surface only) and should not contain domain-owned runtime logic.
 
 **Migration-only stubs** (schema defined, no application code):
-Customer, Supplier, Pricing, Tax, Warehouse, Inventory, Purchase, Sales
 
 ## Module Architecture
 
@@ -59,10 +57,9 @@ app/Modules/<Module>/
 
 - **`declare(strict_types=1);`** in every PHP file. Strong typing on all parameters/returns.
 - **Namespaces**: `Modules\<Module>\...` (not `App\Modules\...`).
-- **Models**: Extend `Illuminate\Database\Eloquent\Model` directly. `BaseModel` exists in Core but is unused.
-- **`HasAudit` trait**: Owned by Audit module and used by 20 models for automatic change tracking.
-- **`SoftDeletes`**: Used by 8 models (Account, OrgUnit, OrgUnitAttachment, Product, Tenant, TenantAttachment, User, UserAttachment).
-- **`HasUuid` trait**: Defined in Core but currently unused. All models use integer auto-increment PKs.
+- **`HasAudit` trait**: Owned by Audit module for automatic change tracking.
+- **`SoftDeletes`**: .
+- **`HasUuid` trait**: .
 - **`HasTenant` trait**: Owned by Tenant module and used by tenant-scoped models. Tenant isolation still uses `resolve.tenant` middleware with `X-Tenant-ID` header.
 - **Multi-tenancy**: `ResolveTenant` middleware reads `X-Tenant-ID` from request headers. Repositories filter `tenant_id` explicitly.
 - **Repositories**: Interface in `Domain/RepositoryInterfaces/`, implementation in `Infrastructure/Persistence/Eloquent/Repositories/`.
@@ -72,8 +69,6 @@ app/Modules/<Module>/
 - **Float comparison**: `abs($value) < PHP_FLOAT_EPSILON` instead of `== 0.0`.
 
 ## Registered Providers (bootstrap/providers.php)
-
-AppServiceProvider, CoreServiceProvider, ConfigurationServiceProvider, SharedServiceProvider, AuditServiceProvider, AuthModuleServiceProvider, TenantServiceProvider, TenantConfigServiceProvider, UserServiceProvider, OrganizationUnitServiceProvider, ProductServiceProvider, FinanceServiceProvider, HRServiceProvider
 
 ## File Naming
 
@@ -86,8 +81,6 @@ AppServiceProvider, CoreServiceProvider, ConfigurationServiceProvider, SharedSer
 | Controller | `<Name>Controller.php` | `ProductController.php` |
 
 ## Migrations
-
-66 module-scoped migrations + 3 framework migrations. Cross-module FKs deferred to `database/migrations/2024_01_01_999999_add_remaining_foreign_keys.php`. Naming convention: `{table}_{column(s)}_{type}` with suffixes `_pk`, `_uk`, `_idx`, `_fk`.
 
 ## What to Avoid
 

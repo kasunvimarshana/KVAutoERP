@@ -26,31 +26,12 @@ npm install --ignore-scripts && npm run build   # Frontend assets (optional)
 
 ## Module Status
 
-The platform has 19 modules in various stages of implementation:
-
-### Fully Implemented (8 modules — 660 PHP files)
-
-| Module | Files | Description |
-|--------|-------|-------------|
-| **Product** | 151 | Catalog, variants, categories, brands, UoM, identifiers |
-| **User** | 133 | Users, profiles, roles, permissions, devices, attachments |
-| **Tenant** | 117 | Multi-tenant management, plans, settings, attachments, config |
-| **Finance** | 98 | Double-entry accounting, chart of accounts, fiscal years/periods, journal entries |
-| **Auth** | 55 | OAuth2 login/register, SSO, composite RBAC+ABAC authorization |
-| **Core** | 44 | Shared kernel: base classes, framework abstractions, repository foundations |
-| **OrganizationUnit** | 42 | Hierarchical org structures (materialized path), attachments |
-| **Audit** | 18 | Immutable audit log with change tracking |
-
 ### Infrastructure-Only (2 modules)
 
 | Module | Description |
 |--------|-------------|
 | **Configuration** | Owns global reference data (countries, currencies, languages, timezones) with Domain/Application/Infrastructure layers |
 | **Shared** | Minimal module shell (provider + empty route surface; no domain-owned runtime logic) |
-
-### Migration-Only Stubs (9 modules — schema defined, no application code)
-
-Customer, Employee, Supplier, Pricing, Tax, Warehouse, Inventory, Purchase, Sales
 
 ## Project Layout
 
@@ -96,15 +77,6 @@ app/Modules/<Module>/
 
 ## Key Conventions
 
-### Models & Traits
-
-All 26 Eloquent models extend `Illuminate\Database\Eloquent\Model` directly (not `BaseModel`). The `BaseModel` abstract class exists in Core but is currently unused.
-
-- **`HasAudit`**: Defined in Audit (`Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit`) and used by 20 models for change tracking.
-- **`SoftDeletes`**: Used by 8 models (AccountModel, OrgUnitModel, OrgUnitAttachmentModel, ProductModel, TenantModel, TenantAttachmentModel, UserModel, UserAttachmentModel).
-- **`HasUuid`**: Defined in Core but currently unused — all models use integer auto-increment primary keys.
-- **`HasTenant`**: Defined in Tenant (`Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant`) and used by tenant-scoped models.
-
 ### Multi-Tenancy
 
 Tenant isolation uses the `resolve.tenant` middleware (`ResolveTenant`) which reads `X-Tenant-ID` from request headers and binds the tenant to the request context. Repositories filter by `tenant_id` explicitly. There is no global scope-based tenant isolation.
@@ -126,43 +98,9 @@ All module code uses `Modules\<Module>\...` (not `App\Modules\...`).
 
 All authenticated routes require `auth:api` and `resolve.tenant` middleware (except Auth endpoints).
 
-| Module | Prefix | Key Endpoints |
-|--------|--------|---------------|
-| Auth | `/auth` | register, login, logout, me, refresh, SSO, forgot/reset password |
-| Tenant | `/tenants` | CRUD, config update, attachments, plans, settings |
-| User | `/users` | CRUD, roles, permissions, profile, devices, attachments |
-| OrganizationUnit | `/organization-units` | CRUD, attachments |
-| Product | `/products` | CRUD + variants, brands, categories, identifiers, UoM, conversions |
-| Finance | `/accounts`, `/fiscal-years`, `/fiscal-periods`, `/journal-entries` | CRUD, journal posting |
-| Audit | `/audit-logs` | Read-only (index, show) |
-
-## Registered Providers
-
-```
-AppServiceProvider, CoreServiceProvider, ConfigurationServiceProvider,
-SharedServiceProvider, AuditServiceProvider, AuthModuleServiceProvider,
-TenantServiceProvider, TenantConfigServiceProvider, UserServiceProvider,
-OrganizationUnitServiceProvider, ProductServiceProvider, FinanceServiceProvider
-```
-
 ## Testing
 
-54 test files covering 6 modules:
-
-| Module | Unit Tests | Feature Tests |
-|--------|-----------|--------------|
-| Finance | AccountService, FiscalYear/Period/JournalEntry services, exception | Routes, endpoints |
-| Product | 7 service tests | 14 route/repo/endpoint tests, UoM consistency |
-| Audit | Controller, Resource, Service | Routes, endpoints, repository |
-| Architecture | Module boundaries, timestamps, guardrails | — |
-| Shared | — | Thin-module guardrails + migration smoke test |
-| Configuration | — | Reference-data migration and architecture guardrails |
-
 ## Migrations
-
-66 module-scoped migrations + 3 framework migrations in `database/migrations/`.
-
-Cross-module foreign keys are deferred to `database/migrations/2024_01_01_999999_add_remaining_foreign_keys.php`.
 
 Migration naming convention: `{table}_{column(s)}_{type}` with suffixes `_pk`, `_uk`, `_idx`, `_fk`.
 

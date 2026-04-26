@@ -1,24 +1,5 @@
 # AGENT SKILL — Enterprise SaaS Multi-Tenant ERP/CRM Platform
 **Role:** Autonomous Full-Stack Engineer & Principal Systems Architect  
-**Version:** 2.0 (Enhanced — Audited, De-duplicated, Corrected)  
-**Last Reviewed:** 2026-04-19
-
----
-
-## AUDIT CORRECTIONS LOG
-
-| # | Issue Found | Fix Applied |
-|---|---|---|
-| 1 | Core requirements paragraph repeated 10+ times verbatim | Consolidated into single canonical Section 1 |
-| 2 | Two conflicting Table of Contents (Sections 7.x vs 8.x) | Merged into single authoritative TOC |
-| 3 | "Party (unified)" pattern conflicts with explicit `Customer/Supplier/Employee` separate tables | Resolved: use separate tables with `user_id` FK — as explicitly declared in source |
-| 4 | DECIMAL(15,4) vs DECIMAL(20,6) inconsistency | Resolved: **DECIMAL(20,6)** everywhere (higher precision, matches DB Standards section) |
-| 5 | Employee module missing — referenced but never defined | Added: Section 8.6 Employee |
-| 6 | `fiscal_years` and `fiscal_periods` tables referenced but never formally declared | Added: Section 8.13 Finance, fiscal tables |
-| 7 | `accounts` table definition truncated/incomplete | Restored in full with complete subtype enum |
-| 8 | Raw prompt fragments / meta-instructions embedded as content | Removed entirely |
-| 9 | Scattered financial rules duplicated across 3 sections | Consolidated into Section 10 |
-| 10 | Section numbering collision (two Section 7s) | Renumbered sequentially |
 
 ---
 
@@ -165,28 +146,6 @@ app/Modules/<Module>/
 
 ### Implementation Status
 
-| Module | Status | Files | Description |
-|--------|--------|-------|-------------|
-| Core | ✅ Implemented | 46 | Shared kernel: HasAudit trait, base classes, repository abstractions |
-| Auth | ✅ Implemented | 55 | OAuth2 login/token/SSO flows via Laravel Passport |
-| Tenant | ✅ Implemented | 117 | Multi-tenancy management, plans, settings, config |
-| User | ✅ Implemented | 133 | User CRUD, profiles, roles, permissions, devices |
-| OrganizationUnit | ✅ Implemented | 42 | Hierarchical org structures (materialized path) |
-| Product | ✅ Implemented | 151 | Product catalog, variants, categories, brands, UoM |
-| Finance | ✅ Implemented | 98 | Double-entry accounting, chart of accounts, journal entries |
-| Audit | ✅ Implemented | 18 | Immutable audit logs, compliance trails |
-| Configuration | ⚙️ Infrastructure | 2 | ServiceProvider only |
-| Shared | ⚙️ Infrastructure | 3 | ServiceProvider + routes file + reference table migration |
-| Customer | 📋 Migration-only | — | Schema defined, no application code |
-| Employee | 📋 Migration-only | — | Schema defined, no application code |
-| Supplier | 📋 Migration-only | — | Schema defined, no application code |
-| Pricing | 📋 Migration-only | — | Schema defined, no application code |
-| Tax | 📋 Migration-only | — | Schema defined, no application code |
-| Warehouse | 📋 Migration-only | — | Schema defined, no application code |
-| Inventory | 📋 Migration-only | — | Schema defined, no application code |
-| Purchase | 📋 Migration-only | — | Schema defined, no application code |
-| Sales | 📋 Migration-only | — | Schema defined, no application code |
-
 > **Design Decision:** Separate tables for `customers`, `employees`, and `suppliers`, each with a nullable `user_id` FK to the `users` table for portal/system access.
 
 ### Module Independence Rules
@@ -203,7 +162,6 @@ app/Modules/<Module>/
 - Single database, tenant-scoped rows using `tenant_id` on all tenant-owned tables
 - `ResolveTenant` middleware reads `X-Tenant-ID` from request headers
 - Repositories filter `tenant_id` explicitly in queries
-- `HasTenant` trait is defined in Core but **not currently used** by any model
 
 ### Tenant Isolation Rules
 - Repositories explicitly filter by `tenant_id` in all queries
@@ -256,6 +214,7 @@ The platform natively supports recursive/nested data using adjacency list + mate
 - One migration per logical schema change
 - Always rollback-safe (`down()` method fully reverses `up()`)
 - Foreign key creation in correct dependency order
+- During the initial development phase, existing migrations may be modified instead of creating multiple incremental migrations
 
 ---
 
@@ -267,38 +226,11 @@ The platform natively supports recursive/nested data using adjacency list + mate
 
 Responsibility: Shared kernel — base classes, traits, interfaces, and system bootstrap.
 
-**Implemented Components (46 files):**
-- `HasAudit` trait — automatic field-change tracking (used by 20 models)
-- `HasUuid` trait — UUID generation (defined but **not currently used** by any model)
-- `HasTenant` trait — tenant scope (defined but **not currently used**; tenant isolation is via `ResolveTenant` middleware)
-- `BaseModel` — abstract base with SoftDeletes (defined but **not extended** by any model; all models extend `Model` directly)
-- Domain entities, repository interfaces, and service contracts
-- `AuditObserver` — records changes to `audit_logs`
-
-**Reference tables** (managed by Shared module migrations):
-```sql
-currencies:      id, code (ISO 4217), name, symbol, decimal_places, is_active
-countries:       id, code (ISO 3166), name, phone_code, currency_code
-timezones:       id, name, offset, is_active
-languages:       id, code (ISO 639-1), name, native_name, is_active
-```
-
 ---
 
 ### 8.2 Tenant
 
 Responsibility: Manage tenant lifecycle, plan/subscription, configuration, and custom domains.
-
-```sql
-tenants:         id, name, slug, plan_id, status (active|suspended|trial|cancelled),
-                 settings(JSON), created_at, updated_at
-
-tenant_plans:    id, name, features(JSON), limits(JSON), price, billing_period
-
-tenant_domains:  id, tenant_id, domain, is_primary, verified_at
-
-tenant_settings: id, tenant_id, key, value, type (string|integer|boolean|json), group
-```
 
 Key Features:
 - Tenant registration, activation, suspension
@@ -312,18 +244,6 @@ Key Features:
 
 Responsibility: Fully dynamic, customizable hierarchical organizational structure with configurable unit types.
 
-```sql
-org_unit_types:  id, tenant_id, name, level (int), is_active
-
-org_units:       id, tenant_id, type_id (FK → org_unit_types),
-                 parent_id (FK → org_units, nullable),   -- recursive self-reference
-                 name, code, path (materialized, e.g. /1/5/12/),
-                 depth (int), manager_user_id (FK → users, nullable),
-                 is_active, metadata(JSON), timestamps
-
-org_unit_users:  id, org_unit_id, user_id, role_in_unit, assigned_at
-```
-
 Key Features:
 - Recursive tree: adjacency list + materialized path for efficient subtree queries
 - Configurable unit types per tenant (Company, Division, Branch, Department, Team, etc.)
@@ -334,29 +254,6 @@ Key Features:
 ### 8.4 User
 
 Responsibility: Authentication, authorization, user profiles, roles, permissions, multi-device support.
-
-```sql
-users:             id, tenant_id, org_unit_id (nullable),
-                   name, email (unique per tenant), password,
-                   phone, avatar, status (active|inactive|suspended),
-                   email_verified_at, timestamps, deleted_at
-
-roles:             id, tenant_id, name, guard_name, description
-
-permissions:       id, name, guard_name, module, description
-
-role_user:         user_id, role_id
-
-permission_role:   permission_id, role_id
-
-permission_user:   permission_id, user_id          -- direct overrides
-
-user_devices:      id, user_id, device_token, platform (ios|android|web),
-                   push_token (nullable), last_active_at
-
--- OAuth2 tables managed by laravel/passport:
-oauth_clients, oauth_access_tokens, oauth_refresh_tokens, oauth_personal_access_clients
-```
 
 Key Features:
 - OAuth2 via Laravel Passport (all actor types: customer portal, supplier portal, staff)
@@ -371,26 +268,6 @@ Key Features:
 
 Responsibility: Customer master data, AR ledger linkage, addresses, contacts, credit management.
 
-```sql
-customers:           id, tenant_id, user_id (nullable, FK → users — for portal access),
-                     code (unique per tenant), name,
-                     type (individual|company),
-                     tax_number, currency_id (FK → currencies),
-                     credit_limit DECIMAL(20,6), payment_terms_id (FK → payment_terms),
-                     ar_account_id (FK → accounts),
-                     status (active|inactive|blocked), notes,
-                     timestamps, deleted_at
-
-customer_addresses:  id, customer_id, type (billing|shipping|other),
-                     label, address_line1, address_line2, city, state,
-                     postal_code, country_id, is_default,
-                     geo_lat DECIMAL(10,8), geo_lng DECIMAL(11,8)
-
-customer_contacts:   id, customer_id, name, role, email, phone, is_primary
-
--- Polymorphic attachments via HasAttachments trait
-```
-
 Key Features:
 - Customer portal access via unified auth (User module)
 - Credit limit enforcement at order confirmation
@@ -404,23 +281,6 @@ Key Features:
 
 Responsibility: Employee master data, payroll readiness, org-unit assignment, HR linkage.
 
-```sql
-employees:           id, tenant_id, user_id (nullable, FK → users),
-                     org_unit_id (FK → org_units, nullable),
-                     code (unique per tenant), first_name, last_name,
-                     date_of_birth, hire_date, termination_date (nullable),
-                     employment_type (full_time|part_time|contract|intern),
-                     job_title, department,
-                     status (active|inactive|terminated),
-                     notes, metadata(JSON), timestamps, deleted_at
-
-employee_addresses:  id, employee_id, type (home|emergency), label,
-                     address_line1, address_line2, city, state,
-                     postal_code, country_id, is_default
-
-employee_contacts:   id, employee_id, name, relationship, phone, email, is_emergency
-```
-
 Key Features:
 - Linked to `users` for system access (optional — contract workers may not have logins)
 - Org-unit assignment for cost center reporting
@@ -432,30 +292,6 @@ Key Features:
 ### 8.7 Supplier
 
 Responsibility: Supplier master data, AP ledger linkage, addresses, contacts, product catalogue linkage.
-
-```sql
-suppliers:           id, tenant_id, user_id (nullable, FK → users — for portal access),
-                     code (unique per tenant), name,
-                     type (individual|company),
-                     tax_number, currency_id (FK → currencies),
-                     payment_terms_id (FK → payment_terms),
-                     ap_account_id (FK → accounts),
-                     status (active|inactive|blocked), notes,
-                     timestamps, deleted_at
-
-supplier_addresses:  id, supplier_id, type (billing|shipping|remittance|other),
-                     label, address_line1, address_line2, city, state,
-                     postal_code, country_id, is_default
-
-supplier_contacts:   id, supplier_id, name, role, email, phone, is_primary
-
-supplier_products:   id, supplier_id, product_id, variant_id (nullable),
-                     supplier_sku, supplier_product_name,
-                     lead_time_days, min_order_qty DECIMAL(20,6),
-                     is_preferred
-
--- Polymorphic attachments via HasAttachments trait
-```
 
 Key Features:
 - Supplier portal access via unified auth
@@ -477,59 +313,6 @@ Responsibility: Product catalog, types, variants, categories, units of measure, 
 | `digital` | Downloads/licenses; no physical inventory |
 | `combo` | Bundle of other products; explodes on transaction |
 | `variable` | Has configurable attributes generating variants |
-
-#### Key Tables
-```sql
-product_categories:  id, tenant_id, parent_id (self-ref, nullable),
-                     name, code, path (materialized), depth,
-                     is_active, timestamps
-
-attribute_groups:    id, tenant_id, name
-
-attributes:          id, tenant_id, group_id, name,
-                     type (text|select|number|boolean), is_required
-
-attribute_values:    id, attribute_id, value, sort_order
-
-products:            id, tenant_id, category_id, type (physical|service|digital|combo|variable),
-                     name, code (SKU, unique per tenant), description,
-                     base_uom_id, purchase_uom_id (nullable), sales_uom_id (nullable),
-                     uom_conversion_factor DECIMAL(20,6),
-                     tax_group_id (FK → tax_groups),
-                     is_active,
-                     is_batch_tracked (bool), is_lot_tracked (bool), is_serial_tracked (bool),
-                     valuation_method (fifo|lifo|fefo|weighted_avg|specific|tenant_default),
-                     income_account_id (FK → accounts),
-                     cogs_account_id (FK → accounts),
-                     inventory_account_id (FK → accounts),
-                     expense_account_id (FK → accounts),
-                     metadata(JSON), timestamps, deleted_at
-
-product_variants:    id, product_id, sku (unique per tenant), name,
-                     is_default, is_active, metadata(JSON), timestamps, deleted_at
-
-variant_attributes:  id, variant_id, attribute_id, attribute_value_id
-
-combo_items:         id, combo_product_id, component_product_id,
-                     component_variant_id (nullable),
-                     quantity DECIMAL(20,6), uom_id
-
-units_of_measure:    id, tenant_id, name, symbol,
-                     type (mass|volume|length|unit|time|area|digital)
-
-uom_conversions:     id, from_uom_id, to_uom_id, factor DECIMAL(20,10)
-
-product_identifiers: id, tenant_id, product_id, variant_id (nullable),
-                     batch_id (nullable), serial_id (nullable),
-                     identifier_type (barcode_1d|barcode_2d|qr|rfid_hf|rfid_uhf|nfc|gs1_epc|gtin|gln|sscc|custom),
-                     identifier_value, format (ean13|ean8|upc_a|code128|code39|qr|datamatrix|gs1_128|...),
-                     is_primary, is_active,
-                     gs1_company_prefix (nullable),
-                     gs1_application_identifiers(JSON, nullable),
-                     format_config(JSON), metadata(JSON), created_at
-
--- Polymorphic attachments via HasAttachments trait
-```
 
 Key Features:
 - Recursive category trees with materialized path
@@ -559,25 +342,6 @@ Responsibility: Purchase and sales price lists, tiered pricing, customer/supplie
 | `supplier_specific` | Agreed cost from a specific supplier |
 | `promotional` | Time-limited discount pricing |
 
-#### Key Tables
-```sql
-price_lists:          id, tenant_id, name,
-                      type (purchase|sales),
-                      currency_id, is_default,
-                      valid_from (date, nullable), valid_to (date, nullable),
-                      is_active, timestamps
-
-price_list_items:     id, price_list_id, product_id, variant_id (nullable),
-                      uom_id,
-                      min_quantity DECIMAL(20,6), max_quantity DECIMAL(20,6) (nullable),
-                      price DECIMAL(20,6), discount_pct DECIMAL(10,6),
-                      valid_from (date, nullable), valid_to (date, nullable)
-
-customer_price_lists: id, customer_id, price_list_id, priority (int)
-
-supplier_price_lists: id, supplier_id, price_list_id, priority (int)
-```
-
 #### Price Resolution Order (highest priority first)
 1. Customer/Supplier-specific price list item (quantity-range match)
 2. Promotional price list item (within validity window)
@@ -597,22 +361,6 @@ Key Features:
 ### 8.10 Warehouse
 
 Responsibility: Physical warehouses, location hierarchies, zone configuration.
-
-```sql
-warehouses:           id, tenant_id, org_unit_id (nullable),
-                      name, code (unique per tenant),
-                      type (standard|virtual|transit|quarantine|consignment),
-                      address_line1, address_line2, city, country_id,
-                      is_active, is_default, timestamps, deleted_at
-
-warehouse_locations:  id, tenant_id, warehouse_id,
-                      parent_id (self-ref, nullable),
-                      name, code, path (materialized), depth,
-                      type (zone|aisle|rack|shelf|bin|staging|dispatch|quarantine),
-                      is_active, is_pickable (bool), is_receivable (bool),
-                      capacity DECIMAL(20,6) (nullable),
-                      metadata(JSON), timestamps
-```
 
 Location Hierarchy:
 ```
@@ -636,80 +384,6 @@ Key Features:
 
 Responsibility: Real-time stock levels, stock movements, cost layers, batch/lot/serial management, traceability, AIDC, allocation, cycle counting.
 
-#### Key Tables
-
-```sql
--- Real-time aggregate stock levels
-stock_levels:          id, tenant_id, product_id, variant_id (nullable),
-                       location_id, batch_id (nullable), serial_id (nullable),
-                       uom_id, quantity_on_hand DECIMAL(20,6),
-                       quantity_reserved DECIMAL(20,6),
-                       -- quantity_available computed: on_hand - reserved (service layer)
-                       unit_cost DECIMAL(20,6), last_movement_at,
-                       UNIQUE (tenant_id, product_id, variant_id, location_id, batch_id, serial_id)
-
--- Batch & Lot tracking
-batches:               id, tenant_id, product_id, variant_id (nullable),
-                       batch_number, lot_number (nullable),
-                       manufacture_date, expiry_date, received_date,
-                       supplier_id (nullable),
-                       status (active|expired|quarantined|recalled|disposed),
-                       notes, metadata(JSON), timestamps
-
--- Serial number tracking
-serials:               id, tenant_id, product_id, variant_id (nullable),
-                       serial_number, batch_id (nullable),
-                       status (available|reserved|sold|returned|scrapped|lost),
-                       current_location_id,
-                       current_owner_type (nullable), current_owner_id (nullable),
-                       manufacture_date, warranty_expiry,
-                       notes, timestamps
-
--- Immutable stock movement ledger
-stock_movements:       id, tenant_id, product_id, variant_id (nullable),
-                       batch_id (nullable), serial_id (nullable),
-                       from_location_id (nullable), to_location_id (nullable),
-                       movement_type (receipt|shipment|transfer|adjustment_in|adjustment_out|
-                                      return_in|return_out|reservation|reservation_release|
-                                      write_off|cycle_count),
-                       reference_type, reference_id,          -- polymorphic
-                       uom_id, quantity DECIMAL(20,6),
-                       unit_cost DECIMAL(20,6), total_cost DECIMAL(20,6),
-                       performed_by_user_id, performed_at,
-                       notes, metadata(JSON)
-                       -- NOTE: immutable after creation; no soft-deletes
-
--- Cost layer valuation
-inventory_cost_layers: id, tenant_id, product_id, variant_id (nullable),
-                       batch_id (nullable), location_id,
-                       valuation_method (fifo|lifo|fefo|weighted_avg|specific),
-                       layer_date, quantity_in DECIMAL(20,6),
-                       quantity_remaining DECIMAL(20,6),
-                       unit_cost DECIMAL(20,6), total_cost DECIMAL(20,6),
-                       reference_type, reference_id,
-                       is_closed (bool)
-
--- Cycle counting
-cycle_count_headers:   id, tenant_id, warehouse_id, location_id (nullable),
-                       status (draft|in_progress|completed|cancelled),
-                       counted_by_user_id, counted_at,
-                       approved_by_user_id, approved_at
-
-cycle_count_lines:     id, count_header_id, product_id, variant_id,
-                       batch_id (nullable), serial_id (nullable),
-                       system_qty DECIMAL(20,6), counted_qty DECIMAL(20,6),
-                       variance_qty DECIMAL(20,6), unit_cost DECIMAL(20,6),
-                       variance_value DECIMAL(20,6),
-                       adjustment_movement_id (FK → stock_movements, nullable)
-
--- Reservations
-stock_reservations:    id, tenant_id, product_id, variant_id (nullable),
-                       location_id, batch_id (nullable), serial_id (nullable),
-                       uom_id, quantity DECIMAL(20,6),
-                       reference_type, reference_id,          -- linked to SO line, etc.
-                       reserved_at, expires_at (nullable), status (active|released|consumed)
-```
-
 Key Features:
 - `quantity_available = quantity_on_hand − quantity_reserved` (enforced at service layer, never stored)
 - Configurable valuation methods: FIFO, LIFO, FEFO, Weighted Average, Specific Identification
@@ -729,79 +403,6 @@ Purchase Order (PO) ──► Goods Receipt (GRN) ──► Purchase Invoice ─
 ```
 > **SMB Flexibility:** GRN without PO (direct buy) is supported — `po_id` is nullable on GRNs.
 
-```sql
-purchase_orders:       id, tenant_id, supplier_id, org_unit_id, warehouse_id,
-                       po_number (unique per tenant), fiscal_period_id,
-                       status (draft|sent|partial|received|closed|cancelled),
-                       currency_id, exchange_rate DECIMAL(20,10),
-                       order_date, expected_date,
-                       subtotal DECIMAL(20,6), tax_total DECIMAL(20,6),
-                       discount_total DECIMAL(20,6), grand_total DECIMAL(20,6),
-                       notes, metadata(JSON), timestamps, deleted_at
-
-purchase_order_lines:  id, po_id, line_number (int),
-                       product_id, variant_id (nullable), description,
-                       uom_id, ordered_qty DECIMAL(20,6), received_qty DECIMAL(20,6),
-                       unit_price DECIMAL(20,6), discount_pct DECIMAL(10,6),
-                       tax_group_id, tax_amount DECIMAL(20,6), line_total DECIMAL(20,6),
-                       account_id (expense or asset account)
-
-grn_headers:           id, tenant_id, supplier_id, warehouse_id,
-                       po_id (nullable),                       -- nullable = direct buy
-                       grn_number (unique per tenant), fiscal_period_id,
-                       status (draft|partial|complete|posted),
-                       received_date, currency_id, exchange_rate DECIMAL(20,10),
-                       notes, metadata(JSON), timestamps
-
-grn_lines:             id, grn_id, po_line_id (nullable),
-                       product_id, variant_id (nullable),
-                       batch_id (nullable), serial_id (nullable), location_id,
-                       uom_id, expected_qty DECIMAL(20,6),
-                       received_qty DECIMAL(20,6), rejected_qty DECIMAL(20,6),
-                       unit_cost DECIMAL(20,6), line_cost DECIMAL(20,6)
-
-purchase_invoices:     id, tenant_id, supplier_id,
-                       grn_id (nullable), po_id (nullable),
-                       invoice_number (unique per tenant), supplier_invoice_number,
-                       fiscal_period_id,
-                       status (draft|approved|partial_paid|paid|disputed|cancelled),
-                       invoice_date, due_date,
-                       currency_id, exchange_rate DECIMAL(20,10),
-                       subtotal DECIMAL(20,6), tax_total DECIMAL(20,6),
-                       discount_total DECIMAL(20,6), grand_total DECIMAL(20,6),
-                       ap_account_id, journal_entry_id (nullable), timestamps
-
-purchase_invoice_lines: id, invoice_id, grn_line_id (nullable),
-                        product_id, variant_id (nullable), description,
-                        uom_id, quantity DECIMAL(20,6),
-                        unit_price DECIMAL(20,6), discount_pct DECIMAL(10,6),
-                        tax_amount DECIMAL(20,6), line_total DECIMAL(20,6),
-                        account_id
-
-purchase_returns:      id, tenant_id, supplier_id,
-                       original_grn_id (nullable),
-                       original_invoice_id (nullable),
-                       return_number (unique per tenant), fiscal_period_id,
-                       status (draft|approved|shipped|closed|cancelled),
-                       return_date, return_reason,
-                       currency_id, exchange_rate DECIMAL(20,10),
-                       subtotal DECIMAL(20,6), tax_total DECIMAL(20,6),
-                       grand_total DECIMAL(20,6),
-                       debit_note_number (nullable),
-                       journal_entry_id (nullable), notes, metadata(JSON), timestamps
-
-purchase_return_lines: id, return_id, original_grn_line_id (nullable),
-                       product_id, variant_id (nullable),
-                       batch_id (nullable), serial_id (nullable),
-                       source_location_id, uom_id,
-                       return_qty DECIMAL(20,6), unit_cost DECIMAL(20,6),
-                       line_cost DECIMAL(20,6),
-                       condition (good|damaged|expired|defective),
-                       disposition (restock|scrap|vendor_return),
-                       quality_check_status (pending|passed|failed),
-                       restocking_fee DECIMAL(20,6), quality_check_notes
-```
-
 ---
 
 ### 8.13 Sales
@@ -814,196 +415,11 @@ Sales Order (SO) ──► Picking ──► Shipment ──► Sales Invoice �
 ```
 > **SMB Flexibility:** Direct sell without SO is supported — shipments may be created without a linked SO.
 
-```sql
-sales_orders:          id, tenant_id, customer_id, org_unit_id, warehouse_id,
-                       so_number (unique per tenant), fiscal_period_id,
-                       status (draft|confirmed|picking|packed|shipped|invoiced|closed|cancelled),
-                       currency_id, exchange_rate DECIMAL(20,10),
-                       order_date, requested_delivery_date,
-                       subtotal DECIMAL(20,6), tax_total DECIMAL(20,6),
-                       discount_total DECIMAL(20,6), grand_total DECIMAL(20,6),
-                       notes, metadata(JSON), timestamps, deleted_at
-
-sales_order_lines:     id, so_id, line_number (int),
-                       product_id, variant_id (nullable), description,
-                       uom_id, ordered_qty DECIMAL(20,6),
-                       shipped_qty DECIMAL(20,6), invoiced_qty DECIMAL(20,6),
-                       unit_price DECIMAL(20,6), discount_pct DECIMAL(10,6),
-                       tax_group_id, tax_amount DECIMAL(20,6), line_total DECIMAL(20,6),
-                       account_id (income account)
-
-shipments:             id, tenant_id, customer_id,
-                       so_id (nullable),                      -- nullable = direct sale
-                       shipment_number (unique per tenant), fiscal_period_id,
-                       status (draft|picking|packed|shipped|delivered|cancelled),
-                       ship_date, delivery_date (actual, nullable),
-                       warehouse_id, carrier, tracking_number,
-                       currency_id, notes, metadata(JSON), timestamps
-
-shipment_lines:        id, shipment_id, so_line_id (nullable),
-                       product_id, variant_id (nullable),
-                       batch_id (nullable), serial_id (nullable),
-                       from_location_id, uom_id,
-                       shipped_qty DECIMAL(20,6),
-                       unit_cost DECIMAL(20,6), line_cost DECIMAL(20,6)
-
-sales_invoices:        id, tenant_id, customer_id,
-                       so_id (nullable), shipment_id (nullable),
-                       invoice_number (unique per tenant), fiscal_period_id,
-                       status (draft|sent|partial_paid|paid|overdue|disputed|cancelled),
-                       invoice_date, due_date,
-                       currency_id, exchange_rate DECIMAL(20,10),
-                       subtotal DECIMAL(20,6), tax_total DECIMAL(20,6),
-                       discount_total DECIMAL(20,6), grand_total DECIMAL(20,6),
-                       ar_account_id, journal_entry_id (nullable), timestamps
-
-sales_invoice_lines:   id, invoice_id, shipment_line_id (nullable),
-                       product_id, variant_id (nullable), description,
-                       uom_id, quantity DECIMAL(20,6),
-                       unit_price DECIMAL(20,6), discount_pct DECIMAL(10,6),
-                       tax_amount DECIMAL(20,6), line_total DECIMAL(20,6),
-                       account_id
-
-sales_returns:         id, tenant_id, customer_id,
-                       original_so_id (nullable), original_invoice_id (nullable),
-                       return_number (unique per tenant), fiscal_period_id,
-                       status (draft|approved|received|closed|cancelled),
-                       return_date, return_reason,
-                       currency_id, exchange_rate DECIMAL(20,10),
-                       subtotal DECIMAL(20,6), tax_total DECIMAL(20,6),
-                       restocking_fee_total DECIMAL(20,6), grand_total DECIMAL(20,6),
-                       credit_memo_id (nullable),
-                       journal_entry_id (nullable), notes, metadata(JSON), timestamps
-
-sales_return_lines:    id, return_id, original_so_line_id (nullable),
-                       product_id, variant_id (nullable),
-                       batch_id (nullable), serial_id (nullable),
-                       destination_location_id (nullable),
-                       uom_id, return_qty DECIMAL(20,6),
-                       unit_price DECIMAL(20,6), line_total DECIMAL(20,6),
-                       condition (good|damaged|expired|defective),
-                       disposition (restock|scrap|quarantine),
-                       quality_check_status (pending|passed|failed),
-                       restocking_fee DECIMAL(20,6), quality_check_notes
-
-credit_memos:          id, tenant_id, return_order_type (purchase_return|sales_return),
-                       return_order_id, reference_number (unique per tenant),
-                       party_id (customer or supplier polymorphic),
-                       amount DECIMAL(20,6),
-                       status (draft|issued|partially_applied|applied|voided|refunded),
-                       issued_date, notes, timestamps
-```
-
 ---
 
 ### 8.14 Finance
 
 Responsibility: Double-entry accounting, chart of accounts, journal entries, fiscal periods, bank feeds, tax, payments, and financial reporting.
-
-```sql
--- ── Fiscal Calendar ─────────────────────────────────────────────
-fiscal_years:          id, tenant_id, name (e.g. "FY 2025"),
-                       start_date, end_date,
-                       status (open|closed|locked)
-
-fiscal_periods:        id, tenant_id, fiscal_year_id,
-                       name (e.g. "Jan 2025"), period_number (int),
-                       start_date, end_date,
-                       status (open|closed|locked)
-
--- ── Chart of Accounts ───────────────────────────────────────────
-accounts:              id, tenant_id, parent_id (FK → accounts, nullable),
-                       code (unique per tenant), name,
-                       type (asset|liability|equity|revenue|expense),
-                       subtype (current_asset|fixed_asset|accounts_receivable|
-                                accounts_payable|bank|credit_card|inventory|
-                                prepaid|accumulated_depreciation|
-                                current_liability|long_term_liability|
-                                retained_earnings|common_stock|
-                                sales_revenue|service_revenue|other_income|
-                                cogs|operating_expense|payroll_expense|
-                                depreciation|interest_expense|tax_expense|
-                                other_expense),
-                       description,
-                       normal_balance (debit|credit),
-                       is_bank_account (bool), is_control_account (bool),
-                       currency_id (nullable),
-                       is_active, is_system (bool),  -- system = cannot be deleted
-                       metadata(JSON), timestamps, deleted_at
-
--- ── Journal Entries (Double-Entry Ledger) ───────────────────────
-journal_entries:       id, tenant_id, fiscal_period_id,
-                       entry_number (unique per tenant),
-                       entry_date, post_date,
-                       source_type (purchase|sales|payment|adjustment|
-                                    return|bank_import|manual|year_end),
-                       source_id (nullable),
-                       status (draft|posted|reversed),
-                       description, reference,
-                       reversed_by_entry_id (FK → journal_entries, nullable),
-                       created_by_user_id, posted_by_user_id (nullable),
-                       timestamps
-
-journal_entry_lines:   id, journal_entry_id, line_number (int),
-                       account_id, party_type (nullable), party_id (nullable),
-                       debit DECIMAL(20,6), credit DECIMAL(20,6),  -- exactly one > 0
-                       currency_id, exchange_rate DECIMAL(20,10),
-                       description, metadata(JSON)
-                       -- CONSTRAINT: debit >= 0 AND credit >= 0
-                       -- CONSTRAINT: debit > 0 XOR credit > 0
-
--- ── Tax ─────────────────────────────────────────────────────────
-tax_groups:            id, tenant_id, name, description
-
-tax_rates:             id, tenant_id, tax_group_id, name,
-                       rate DECIMAL(10,6), type (percentage|fixed),
-                       applies_to (purchase|sales|both),
-                       valid_from, valid_to, is_active
-
-tax_rules:             id, tenant_id, product_category_id (nullable),
-                       party_type (nullable), region (nullable),
-                       tax_group_id, priority (int)
-
--- ── Payments ────────────────────────────────────────────────────
-payments:              id, tenant_id,
-                       type (customer_payment|supplier_payment|refund),
-                       party_type, party_id,
-                       payment_number (unique per tenant), fiscal_period_id,
-                       payment_date, amount DECIMAL(20,6), currency_id,
-                       exchange_rate DECIMAL(20,10),
-                       method (bank|cash|cheque|card|crypto|other),
-                       bank_account_id (nullable),
-                       reference, journal_entry_id (nullable),
-                       status (draft|posted|voided), notes, timestamps
-
-payment_allocations:   id, payment_id, invoice_type (purchase_invoice|sales_invoice),
-                       invoice_id, allocated_amount DECIMAL(20,6), allocated_at
-
--- ── Bank Feeds ──────────────────────────────────────────────────
-bank_accounts:         id, tenant_id, account_id (FK → accounts),
-                       name, bank_name, account_number, routing_number,
-                       currency_id, current_balance DECIMAL(20,6),
-                       last_sync_at, feed_provider,
-                       feed_credentials_enc TEXT   -- encrypted at application level
-
-bank_transactions:     id, bank_account_id, external_id (unique per account),
-                       transaction_date, description,
-                       amount DECIMAL(20,6), running_balance DECIMAL(20,6),
-                       type (debit|credit),
-                       status (imported|categorized|reconciled|excluded),
-                       matched_journal_entry_id (nullable),
-                       category_rule_id (nullable)
-
-bank_category_rules:   id, tenant_id, bank_account_id (nullable), name, priority (int),
-                       conditions(JSON), account_id,
-                       description_template, is_active
-
-bank_reconciliations:  id, tenant_id, bank_account_id,
-                       fiscal_period_id, period_start, period_end,
-                       opening_balance DECIMAL(20,6), closing_balance DECIMAL(20,6),
-                       status (draft|completed),
-                       completed_by_user_id, completed_at
-```
 
 #### Automatic Journal Entry Generation
 Every transactional event generates a balanced journal entry automatically via event listeners.
@@ -1038,15 +454,6 @@ Every transactional event generates a balanced journal entry automatically via e
 
 Responsibility: Global reference tables and infrastructure bootstrap.
 
-**Current implementation** (3 files): `SharedServiceProvider` that loads migrations for global reference tables (currencies, countries, timezones, languages), plus a routes file (no endpoints) and the migration file itself.
-
-**Planned expansion** (not yet implemented):
-- Cross-module contracts, base DTOs, domain events
-- Shared enumerations, exception hierarchy, value objects
-- AIDC adapter interfaces
-
-Polymorphic attachments are currently handled per-module (Tenant, User, OrganizationUnit modules each have their own attachment models and tables).
-
 ---
 
 ## 9. CROSS-CUTTING CONCERNS
@@ -1071,16 +478,6 @@ Objective: Unified, technology-agnostic interface for all Automatic Identificati
 Identifier storage in `product_identifiers` table (Section 8.8).
 
 #### Traceability Ledger (Immutable)
-```sql
-trace_logs:    id, tenant_id, entity_type, entity_id,
-               identifier_id (FK → product_identifiers, nullable),
-               action_type (scan|receive|ship|transfer|return|adjust|dispose|count),
-               reference_type, reference_id,
-               source_location_id (nullable), destination_location_id (nullable),
-               quantity DECIMAL(20,6), scanned_at, user_id,
-               device_id (nullable), metadata(JSON)
-               -- NOTE: immutable; no updates or deletes
-```
 
 #### Scan-Based Operations
 - Goods receiving (scan → GRN line)
@@ -1101,16 +498,6 @@ Cross-module credit memo table defined in Sales (8.13).
 ---
 
 ### 9.3 Audit & Compliance
-
-```sql
-audit_logs:    id, tenant_id, user_id,
-               action (create|update|delete|approve|reject|post|void|login|logout),
-               auditable_type, auditable_id,
-               old_values(JSON), new_values(JSON),
-               ip_address, user_agent, session_id,
-               performed_at
-               -- NOTE: immutable; no updates or deletes permitted
-```
 
 Requirements:
 - All entity mutations write to `audit_logs` (Laravel Observer pattern on all models)
@@ -1462,5 +849,3 @@ This platform is designed to serve (but is not limited to):
 | Supermarkets / Grocery | FEFO, perishables, batch expiry, POS integration |
 
 ---
-
-*End of SKILL.md — Version 2.0 (Enhanced, Audited, Corrected)*
