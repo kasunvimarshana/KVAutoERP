@@ -23,6 +23,8 @@ return new class extends Migration
             $table->decimal('quantity_reserved', 20, 6)->default(0);
             $table->decimal('quantity_available', 20, 6)->storedAs('quantity_on_hand - quantity_reserved');
             $table->decimal('unit_cost', 20, 6)->nullable();
+            // $table->decimal('purchase_price', 20, 6)->nullable();
+            // $table->decimal('sales_price', 20, 6)->nullable();
             $table->timestamp('last_movement_at')->nullable();
             $table->timestamps();
 
