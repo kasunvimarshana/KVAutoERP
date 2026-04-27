@@ -28,10 +28,13 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->foreign('employee_id', 'hr_leave_requests_employee_id_fk')
                 ->references('id')->on('employees')->cascadeOnDelete();
+            $table->foreign('approver_id', 'hr_leave_requests_approver_id_fk')
+                ->references('id')->on('users')->nullOnDelete();
             $table->timestamps();
 
             $table->index(['tenant_id'], 'hr_leave_requests_tenant_id_idx');
             $table->index(['employee_id'], 'hr_leave_requests_employee_id_idx');
+            $table->index(['tenant_id', 'status', 'start_date'], 'hr_leave_requests_tenant_status_start_date_idx');
         });
     }
 

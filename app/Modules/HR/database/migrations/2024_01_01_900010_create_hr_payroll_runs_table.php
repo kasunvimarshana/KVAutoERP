@@ -25,10 +25,13 @@ return new class extends Migration
             $table->decimal('total_deductions', 20, 6)->default(0);
             $table->decimal('total_net', 20, 6)->default(0);
             $table->json('metadata')->nullable();
+            $table->foreign('approved_by', 'hr_payroll_runs_approved_by_fk')
+                ->references('id')->on('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
 
             $table->index(['tenant_id'], 'hr_payroll_runs_tenant_id_idx');
+            $table->index(['tenant_id', 'status', 'period_end'], 'hr_payroll_runs_tenant_status_period_end_idx');
         });
     }
 

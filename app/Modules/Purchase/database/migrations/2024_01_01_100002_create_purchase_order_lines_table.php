@@ -33,8 +33,6 @@ return new class extends Migration
             $table->foreign('variant_id')->references('id')->on('product_variants')->nullOnDelete();
             $table->foreign('uom_id')->references('id')->on('units_of_measure');
             $table->foreign('tax_group_id')->references('id')->on('tax_groups')->nullOnDelete();
-            $table->foreign('account_id')->references('id')->on('accounts')->nullOnDelete();
-            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
 
             $table->timestamps();
             $table->softDeletes();

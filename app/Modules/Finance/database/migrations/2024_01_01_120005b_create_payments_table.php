@@ -29,12 +29,15 @@ return new class extends Migration
             $table->enum('status', ['draft', 'posted', 'reconciled', 'voided'])->default('draft');
             $table->string('reference')->nullable();
             $table->text('notes')->nullable();
+            $table->string('idempotency_key')->nullable()->comment('Caller-supplied key to prevent duplicate payment on replay');
             $table->foreignId('journal_entry_id')->nullable();
             $table->foreign('journal_entry_id', 'payments_journal_entry_id_fk')->references('id')->on('journal_entries')->nullOnDelete();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'payment_number'], 'payments_tenant_number_uk');
+            $table->unique(['tenant_id', 'idempotency_key'], 'payments_tenant_idempotency_key_uk');
             $table->index(['tenant_id', 'party_type', 'party_id'], 'payments_tenant_party_idx');
+            $table->index(['tenant_id', 'status', 'payment_date'], 'payments_tenant_status_date_idx');
         });
     }
 

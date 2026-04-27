@@ -29,11 +29,14 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->foreign('employee_id', 'hr_performance_reviews_employee_id_fk')
                 ->references('id')->on('employees')->cascadeOnDelete();
+            $table->foreign('reviewer_id', 'hr_performance_reviews_reviewer_id_fk')
+                ->references('id')->on('users')->cascadeOnDelete();
             $table->timestamps();
             $table->softDeletes();
 
             $table->index(['tenant_id'], 'hr_performance_reviews_tenant_id_idx');
             $table->index(['employee_id'], 'hr_performance_reviews_employee_id_idx');
+            $table->index(['tenant_id', 'status', 'cycle_id'], 'hr_performance_reviews_tenant_status_cycle_idx');
         });
     }
 
