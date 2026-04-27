@@ -21,6 +21,7 @@ return new class extends Migration
             $table->decimal('accrual_amount', 8, 4)->default(0);
             $table->boolean('is_active')->default(true);
             $table->json('metadata')->nullable();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['tenant_id'], 'hr_leave_policies_tenant_id_idx');

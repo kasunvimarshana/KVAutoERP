@@ -22,6 +22,7 @@ return new class extends Migration
             $table->unsignedBigInteger('next_number')->default(1);
             $table->unsignedInteger('padding')->default(5);
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'module', 'document_type'], 'numbering_sequences_tenant_module_doc_uk');

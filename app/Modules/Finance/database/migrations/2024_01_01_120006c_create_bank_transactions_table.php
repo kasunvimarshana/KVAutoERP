@@ -27,6 +27,7 @@ return new class extends Migration
             $table->foreignId('category_rule_id')->nullable();
             $table->foreign('matched_journal_entry_id', 'bank_transactions_matched_journal_entry_id_fk')->references('id')->on('journal_entries')->nullOnDelete();
             $table->foreign('category_rule_id', 'bank_transactions_category_rule_id_fk')->references('id')->on('bank_category_rules')->nullOnDelete();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->unique(['bank_account_id', 'external_id'], 'bank_transactions_account_external_uk');

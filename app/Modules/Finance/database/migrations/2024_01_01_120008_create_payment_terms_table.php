@@ -22,6 +22,7 @@ return new class extends Migration
             $table->decimal('discount_rate', 8, 4)->nullable();
             $table->boolean('is_default')->default(false);
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'name'], 'payment_terms_tenant_name_uk');

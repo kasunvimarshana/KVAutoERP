@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('name');
             $table->unsignedInteger('level')->default(0);
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'name'], 'org_unit_types_tenant_name_uk');

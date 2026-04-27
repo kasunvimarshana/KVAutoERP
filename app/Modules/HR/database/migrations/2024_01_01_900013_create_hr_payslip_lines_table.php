@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('type', 20)->default('earning');
             $table->decimal('amount', 20, 6)->default(0);
             $table->json('metadata')->nullable();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['payslip_id'], 'hr_payslip_lines_payslip_id_idx');

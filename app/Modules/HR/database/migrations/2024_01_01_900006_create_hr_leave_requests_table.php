@@ -30,6 +30,7 @@ return new class extends Migration
                 ->references('id')->on('employees')->cascadeOnDelete();
             $table->foreign('approver_id', 'hr_leave_requests_approver_id_fk')
                 ->references('id')->on('users')->nullOnDelete();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['tenant_id'], 'hr_leave_requests_tenant_id_idx');

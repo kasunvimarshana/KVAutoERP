@@ -18,6 +18,7 @@ $table->unsignedBigInteger('row_version')->default(1)->comment('Used for optimis
             $table->string('name');
             $table->string('guard_name')->default('api');
             $table->string('description')->nullable();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'name', 'guard_name'], 'roles_tenant_name_guard_uk');

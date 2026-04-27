@@ -29,6 +29,7 @@ return new class extends Migration
             // Credit memos JE
             $table->foreignId('journal_entry_id')->nullable();
             $table->foreign('journal_entry_id', 'credit_memos_journal_entry_id_fk')->references('id')->on('journal_entries')->nullOnDelete();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'credit_memo_number'], 'credit_memos_tenant_number_uk');

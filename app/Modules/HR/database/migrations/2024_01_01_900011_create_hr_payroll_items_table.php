@@ -24,6 +24,7 @@ return new class extends Migration
             $table->boolean('is_taxable')->default(false);
             $table->unsignedBigInteger('account_id')->nullable();
             $table->json('metadata')->nullable();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['tenant_id'], 'hr_payroll_items_tenant_id_idx');

@@ -18,6 +18,7 @@ return new class extends Migration
             $table->foreignId('payment_id')->constrained(null, 'id', 'payment_allocations_payment_id_fk')->cascadeOnDelete();
             $table->morphs('invoice');
             $table->decimal('allocated_amount', 20, 6);
+            $table->softDeletes();
             $table->timestamps();
         });
     }

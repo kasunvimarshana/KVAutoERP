@@ -22,6 +22,7 @@ return new class extends Migration
             $table->foreignId('account_id')->constrained(null, 'id', 'bank_category_rules_account_id_fk');
             $table->string('description_template')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
     }

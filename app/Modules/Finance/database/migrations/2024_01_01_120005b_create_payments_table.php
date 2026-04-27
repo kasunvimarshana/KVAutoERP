@@ -32,6 +32,7 @@ return new class extends Migration
             $table->string('idempotency_key')->nullable()->comment('Caller-supplied key to prevent duplicate payment on replay');
             $table->foreignId('journal_entry_id')->nullable();
             $table->foreign('journal_entry_id', 'payments_journal_entry_id_fk')->references('id')->on('journal_entries')->nullOnDelete();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'payment_number'], 'payments_tenant_number_uk');

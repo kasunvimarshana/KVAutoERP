@@ -23,6 +23,7 @@ return new class extends Migration
             $table->enum('status', ['draft', 'completed'])->default('draft');
             $table->foreignId('completed_by')->nullable()->constrained('users', 'id', 'bank_reconciliations_completed_by_fk')->nullOnDelete();
             $table->timestamp('completed_at')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
     }

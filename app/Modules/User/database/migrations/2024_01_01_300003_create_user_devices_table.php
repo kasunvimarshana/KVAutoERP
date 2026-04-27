@@ -20,6 +20,7 @@ $table->unsignedBigInteger('row_version')->default(1)->comment('Used for optimis
             $table->string('platform')->nullable(); // ios, android, web
             $table->string('device_name')->nullable();
             $table->timestamp('last_active_at')->nullable();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'user_id', 'device_token'], 'user_devices_tenant_user_token_uk');

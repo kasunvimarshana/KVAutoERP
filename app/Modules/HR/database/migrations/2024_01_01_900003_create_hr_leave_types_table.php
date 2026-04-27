@@ -26,6 +26,7 @@ return new class extends Migration
             $table->integer('min_service_days')->default(0);
             $table->boolean('is_active')->default(true);
             $table->json('metadata')->nullable();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['tenant_id'], 'hr_leave_types_tenant_id_idx');

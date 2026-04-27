@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('currency_code', 3)->default('USD');
             $table->enum('billing_interval', ['month', 'year'])->default('month');
             $table->boolean('is_active')->default(true)->index('tenant_plans_active_idx');
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['is_active', 'billing_interval'], 'tenant_plans_active_interval_idx');

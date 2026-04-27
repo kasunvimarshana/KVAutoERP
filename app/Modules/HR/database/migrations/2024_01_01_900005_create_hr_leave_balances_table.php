@@ -24,6 +24,7 @@ return new class extends Migration
             $table->decimal('carried', 8, 2)->default(0);
             $table->foreign('employee_id', 'hr_leave_balances_employee_id_fk')
                 ->references('id')->on('employees')->cascadeOnDelete();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['tenant_id'], 'hr_leave_balances_tenant_id_idx');

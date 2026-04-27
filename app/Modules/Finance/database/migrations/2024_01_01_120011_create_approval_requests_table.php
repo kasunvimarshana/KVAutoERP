@@ -25,6 +25,7 @@ return new class extends Migration
             $table->timestamp('requested_at')->useCurrent();
             $table->timestamp('resolved_at')->nullable();
             $table->text('comments')->nullable();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['tenant_id', 'entity_type', 'entity_id'], 'approval_requests_entity_idx');

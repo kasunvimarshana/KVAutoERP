@@ -18,6 +18,7 @@ return new class extends Migration
             $table->json('value')->nullable();
             $table->string('group')->default('general')->index('tenant_settings_group_idx');
             $table->boolean('is_public')->default(false)->index('tenant_settings_public_idx');
+            $table->softDeletes();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'key'], 'tenant_settings_tenant_id_key_uk');

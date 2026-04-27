@@ -20,6 +20,7 @@ return new class extends Migration
             $table->date('period_end');
             $table->boolean('is_active')->default(true);
             $table->json('metadata')->nullable();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['tenant_id'], 'hr_performance_cycles_tenant_id_idx');

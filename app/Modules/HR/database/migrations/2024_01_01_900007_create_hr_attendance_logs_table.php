@@ -24,6 +24,7 @@ return new class extends Migration
             $table->timestamp('processed_at')->nullable();
             $table->foreign('employee_id', 'hr_attendance_logs_employee_id_fk')
                 ->references('id')->on('employees')->cascadeOnDelete();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['tenant_id'], 'hr_attendance_logs_tenant_id_idx');

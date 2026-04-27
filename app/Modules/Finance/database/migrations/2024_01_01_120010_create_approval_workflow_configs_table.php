@@ -22,6 +22,7 @@ return new class extends Migration
             $table->decimal('max_amount', 20, 6)->nullable();
             $table->json('steps');
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['tenant_id', 'module', 'entity_type'], 'approval_workflow_configs_scope_idx');

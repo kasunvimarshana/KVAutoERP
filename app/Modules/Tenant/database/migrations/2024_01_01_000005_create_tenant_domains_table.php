@@ -18,6 +18,7 @@ return new class extends Migration
             $table->boolean('is_primary')->default(false);
             $table->boolean('is_verified')->default(false);
             $table->timestamp('verified_at')->nullable();
+            $table->softDeletes();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'domain'], 'tenant_domains_tenant_domain_uk');

@@ -19,6 +19,7 @@ return new class extends Migration
             $table->enum('type', ['cash', 'bank_transfer', 'card', 'cheque', 'other'])->default('bank_transfer');
             $table->foreignId('account_id')->nullable()->constrained(null, 'id', 'payment_methods_account_id_fk')->nullOnDelete();
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
     }

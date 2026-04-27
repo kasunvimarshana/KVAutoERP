@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('feed_provider')->nullable();
             $table->text('feed_credentials_enc')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
     }
