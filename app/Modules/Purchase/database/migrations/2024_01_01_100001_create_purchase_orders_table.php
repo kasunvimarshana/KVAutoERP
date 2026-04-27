@@ -40,6 +40,7 @@ return new class extends Migration
             $table->foreign('approved_by')->references('id')->on('users')->nullOnDelete();
 
             $table->timestamps();
+            $table->softDeletes();
 
             $table->unique(['tenant_id', 'po_number'], 'purchase_orders_tenant_po_number_uk');
             $table->index(['tenant_id', 'supplier_id', 'status'], 'purchase_orders_tenant_supplier_status_idx');

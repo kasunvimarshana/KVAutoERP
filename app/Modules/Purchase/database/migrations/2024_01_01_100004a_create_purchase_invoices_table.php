@@ -38,6 +38,7 @@ return new class extends Migration
             $table->foreign('journal_entry_id')->references('id')->on('journal_entries')->nullOnDelete();
 
             $table->timestamps();
+            $table->softDeletes();
 
             $table->unique(['tenant_id', 'invoice_number'], 'purchase_invoices_tenant_invoice_uk');
         });

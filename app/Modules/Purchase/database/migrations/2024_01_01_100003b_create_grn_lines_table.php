@@ -37,6 +37,7 @@ return new class extends Migration
             $table->foreign('uom_id')->references('id')->on('units_of_measure');
 
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

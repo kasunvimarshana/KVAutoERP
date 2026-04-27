@@ -31,6 +31,7 @@ return new class extends Migration
             $table->foreign('warehouse_id')->references('id')->on('warehouses')->cascadeOnDelete();
 
             $table->timestamps();
+            $table->softDeletes();
 
             $table->unique(['tenant_id', 'shipment_number'], 'shipments_tenant_shipment_uk');
         });

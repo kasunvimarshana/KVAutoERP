@@ -36,6 +36,7 @@ return new class extends Migration
             $table->foreign('income_account_id')->references('id')->on('accounts')->nullOnDelete();
 
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

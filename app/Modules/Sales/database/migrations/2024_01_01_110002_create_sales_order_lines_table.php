@@ -41,6 +41,7 @@ return new class extends Migration
             $table->foreign('serial_id')->references('id')->on('serials')->nullOnDelete();
 
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

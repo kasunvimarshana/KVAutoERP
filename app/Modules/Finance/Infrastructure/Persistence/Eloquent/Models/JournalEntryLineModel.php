@@ -11,6 +11,7 @@ class JournalEntryLineModel extends BaseModel
     protected $table = 'journal_entry_lines';
 
     protected $fillable = [
+        'tenant_id',
         'journal_entry_id',
         'account_id',
         'description',

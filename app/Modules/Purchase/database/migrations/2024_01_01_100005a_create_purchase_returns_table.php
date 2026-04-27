@@ -36,6 +36,7 @@ return new class extends Migration
             $table->foreign('journal_entry_id')->references('id')->on('journal_entries')->nullOnDelete();
 
             $table->timestamps();
+            $table->softDeletes();
 
             $table->unique(['tenant_id', 'return_number'], 'purchase_returns_tenant_return_uk');
         });
