@@ -31,6 +31,7 @@ class PaymentModel extends BaseModel
         'status',
         'reference',
         'notes',
+        'idempotency_key',
         'journal_entry_id',
     ];
 

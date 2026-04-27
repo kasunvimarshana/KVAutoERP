@@ -362,6 +362,180 @@ class CrossModuleFlowInvariantsTest extends TestCase
         );
     }
 
+    /**
+     * Inventory transfer and valuation flows are currently internal inventory concerns:
+     * they must update stock/cost layers without implicit Finance listener coupling.
+     *
+     * This guardrail prevents accidental cross-module posting from inventory transfer/costing
+     * paths until a deliberate finance integration contract is introduced.
+     */
+    public function test_inventory_transfer_and_costing_paths_are_internal_and_not_finance_wired(): void
+    {
+        $receiveTransferOrderService = $this->readSource(
+            'app/Modules/Inventory/Application/Services/ReceiveTransferOrderService.php'
+        );
+
+        $this->assertStringContainsString(
+            "'movement_type' => 'shipment'",
+            $receiveTransferOrderService,
+            'ReceiveTransferOrderService must record transfer shipment stock movement'
+        );
+        $this->assertStringContainsString(
+            "'movement_type' => 'receipt'",
+            $receiveTransferOrderService,
+            'ReceiveTransferOrderService must record transfer receipt stock movement'
+        );
+        $this->assertStringContainsString(
+            'RecordStockMovementServiceInterface',
+            $receiveTransferOrderService,
+            'ReceiveTransferOrderService must use RecordStockMovementService for inventory state changes'
+        );
+
+        $recordStockMovementService = $this->readSource(
+            'app/Modules/Inventory/Application/Services/RecordStockMovementService.php'
+        );
+
+        $this->assertStringContainsString(
+            'adjustStockLevel',
+            $recordStockMovementService,
+            'RecordStockMovementService must update stock levels'
+        );
+        $this->assertStringContainsString(
+            'recordForMovement',
+            $recordStockMovementService,
+            'RecordStockMovementService must persist trace logs for movement auditability'
+        );
+
+        $valuationEngineService = $this->readSource(
+            'app/Modules/Inventory/Application/Services/ValuationEngineService.php'
+        );
+
+        $this->assertStringContainsString(
+            'CostLayerRepositoryInterface',
+            $valuationEngineService,
+            'ValuationEngineService must operate through cost layer repositories'
+        );
+        $this->assertStringNotContainsString(
+            'CreateJournalEntryServiceInterface',
+            $valuationEngineService,
+            'ValuationEngineService must not post finance journal entries directly'
+        );
+        $this->assertStringNotContainsString(
+            'Modules\\Finance\\',
+            $valuationEngineService,
+            'ValuationEngineService must remain decoupled from Finance module internals'
+        );
+
+        $financeProvider = $this->readSource(
+            'app/Modules/Finance/Infrastructure/Providers/FinanceServiceProvider.php'
+        );
+
+        $this->assertStringNotContainsString(
+            'TransferOrder',
+            $financeProvider,
+            'FinanceServiceProvider must not register transfer-order listeners until integration is explicitly designed'
+        );
+        $this->assertStringNotContainsString(
+            'CostLayer',
+            $financeProvider,
+            'FinanceServiceProvider must not register valuation-layer listeners implicitly'
+        );
+    }
+
+    /**
+     * Inventory cycle-count adjustments now expose an explicit cross-module contract
+     * to Finance via CycleCountCompleted and a dedicated finance listener.
+     */
+    public function test_inventory_cycle_count_to_finance_event_chain_artifacts_exist(): void
+    {
+        $completeCycleCountService = $this->readSource(
+            'app/Modules/Inventory/Application/Services/CompleteCycleCountService.php'
+        );
+
+        $this->assertStringContainsString(
+            'CycleCountCompleted',
+            $completeCycleCountService,
+            'CompleteCycleCountService must reference CycleCountCompleted event'
+        );
+        $this->assertStringContainsString(
+            'Event::dispatch',
+            $completeCycleCountService,
+            'CompleteCycleCountService must dispatch CycleCountCompleted event'
+        );
+
+        $this->assertSourceExists(
+            'app/Modules/Inventory/Domain/Events/CycleCountCompleted.php',
+            'CycleCountCompleted event class must exist'
+        );
+
+        $financeProvider = $this->readSource(
+            'app/Modules/Finance/Infrastructure/Providers/FinanceServiceProvider.php'
+        );
+
+        $this->assertStringContainsString(
+            'CycleCountCompleted',
+            $financeProvider,
+            'FinanceServiceProvider must register CycleCountCompleted listener binding'
+        );
+        $this->assertStringContainsString(
+            'HandleCycleCountCompleted',
+            $financeProvider,
+            'FinanceServiceProvider must bind HandleCycleCountCompleted listener'
+        );
+
+        $this->assertSourceExists(
+            'app/Modules/Finance/Infrastructure/Listeners/HandleCycleCountCompleted.php',
+            'HandleCycleCountCompleted listener must exist in Finance module'
+        );
+    }
+
+    /**
+     * Manual inventory adjustment movements now expose an explicit cross-module
+     * contract to Finance via StockAdjustmentRecorded and a dedicated listener.
+     */
+    public function test_inventory_manual_stock_adjustment_to_finance_event_chain_artifacts_exist(): void
+    {
+        $recordStockMovementService = $this->readSource(
+            'app/Modules/Inventory/Application/Services/RecordStockMovementService.php'
+        );
+
+        $this->assertStringContainsString(
+            'StockAdjustmentRecorded',
+            $recordStockMovementService,
+            'RecordStockMovementService must reference StockAdjustmentRecorded event'
+        );
+        $this->assertStringContainsString(
+            'Event::dispatch',
+            $recordStockMovementService,
+            'RecordStockMovementService must dispatch StockAdjustmentRecorded event for manual adjustments'
+        );
+
+        $this->assertSourceExists(
+            'app/Modules/Inventory/Domain/Events/StockAdjustmentRecorded.php',
+            'StockAdjustmentRecorded event class must exist'
+        );
+
+        $financeProvider = $this->readSource(
+            'app/Modules/Finance/Infrastructure/Providers/FinanceServiceProvider.php'
+        );
+
+        $this->assertStringContainsString(
+            'StockAdjustmentRecorded',
+            $financeProvider,
+            'FinanceServiceProvider must register StockAdjustmentRecorded listener binding'
+        );
+        $this->assertStringContainsString(
+            'HandleStockAdjustmentRecorded',
+            $financeProvider,
+            'FinanceServiceProvider must bind HandleStockAdjustmentRecorded listener'
+        );
+
+        $this->assertSourceExists(
+            'app/Modules/Finance/Infrastructure/Listeners/HandleStockAdjustmentRecorded.php',
+            'HandleStockAdjustmentRecorded listener must exist in Finance module'
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

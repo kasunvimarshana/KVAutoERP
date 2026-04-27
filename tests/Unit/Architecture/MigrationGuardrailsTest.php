@@ -71,6 +71,56 @@ class MigrationGuardrailsTest extends TestCase
         }
     }
 
+    public function test_payment_idempotency_contract_is_wired_across_layers(): void
+    {
+        $checks = [
+            'app/Modules/Finance/database/migrations/2024_01_01_120005b_create_payments_table.php' => [
+                'idempotency_key',
+                'payments_tenant_idempotency_key_uk',
+            ],
+            'app/Modules/Finance/Infrastructure/Persistence/Eloquent/Models/PaymentModel.php' => [
+                "'idempotency_key'",
+            ],
+            'app/Modules/Finance/Application/DTOs/PaymentData.php' => [
+                'idempotency_key',
+            ],
+            'app/Modules/Finance/Domain/Entities/Payment.php' => [
+                'idempotencyKey',
+                'getIdempotencyKey',
+            ],
+            'app/Modules/Finance/Domain/RepositoryInterfaces/PaymentRepositoryInterface.php' => [
+                'findByTenantAndIdempotencyKey',
+            ],
+            'app/Modules/Finance/Infrastructure/Persistence/Eloquent/Repositories/EloquentPaymentRepository.php' => [
+                'findByTenantAndIdempotencyKey',
+                "'idempotency_key'",
+            ],
+            'app/Modules/Finance/Application/Services/CreatePaymentService.php' => [
+                'findByTenantAndIdempotencyKey',
+                'idempotency_key',
+            ],
+            'app/Modules/Finance/Infrastructure/Http/Requests/StorePaymentRequest.php' => [
+                'idempotency_key',
+            ],
+            'app/Modules/Finance/Infrastructure/Http/Resources/PaymentResource.php' => [
+                'idempotency_key',
+                'getIdempotencyKey',
+            ],
+        ];
+
+        foreach ($checks as $relativePath => $needles) {
+            $contents = $this->readSource($relativePath);
+
+            foreach ($needles as $needle) {
+                $this->assertStringContainsString(
+                    $needle,
+                    $contents,
+                    'Missing payment idempotency contract fragment in: '.$relativePath.' -> '.$needle
+                );
+            }
+        }
+    }
+
     /**
      * @return list<string>
      */
