@@ -6,21 +6,21 @@ namespace Modules\Inventory\Infrastructure\Persistence\Eloquent\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\BatchModel;
-use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\SerialModel;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
+use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\SerialModel;
+use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\StockLevelModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductVariantModel;
+use Modules\Supplier\Infrastructure\Persistence\Eloquent\Models\SupplierModel;
 use Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
-use Modules\Warehouse\Infrastructure\Persistence\Eloquent\Models\WarehouseLocationModel;
 
-class StockReservationModel extends Model
+class BatchModel extends Model
 {
     use HasAudit;
     use HasTenant;
 
-    protected $table = 'stock_reservations';
+    protected $table = 'batches';
 
     protected $fillable = [
         'tenant_id',
@@ -28,13 +28,16 @@ class StockReservationModel extends Model
         'row_version',
         'product_id',
         'variant_id',
-        'batch_id',
-        'serial_id',
-        'location_id',
-        'quantity',
-        'reserved_for_type',
-        'reserved_for_id',
-        'expires_at',
+        'batch_number',
+        'lot_number',
+        'manufacture_date',
+        'expiry_date',
+        'received_date',
+        'supplier_id',
+        'status',
+        'notes',
+        'metadata',
+        'sales_price',
     ];
 
     protected $casts = [
@@ -43,12 +46,13 @@ class StockReservationModel extends Model
         'row_version' => 'integer',
         'product_id' => 'integer',
         'variant_id' => 'integer',
-        'batch_id' => 'integer',
-        'serial_id' => 'integer',
-        'location_id' => 'integer',
-        'reserved_for_id' => 'integer',
-        'expires_at' => 'datetime',
-        'quantity' => 'decimal:6',
+        'supplier_id' => 'integer',
+        'status' => 'string',
+        'manufacture_date' => 'date',
+        'expiry_date' => 'date',
+        'received_date' => 'date',
+        'metadata' => 'array',
+        'sales_price' => 'decimal:6',
     ];
 
     public function product(): BelongsTo
@@ -61,23 +65,18 @@ class StockReservationModel extends Model
         return $this->belongsTo(ProductVariantModel::class, 'variant_id');
     }
 
-    public function batch(): BelongsTo
+    public function supplier(): BelongsTo
     {
-        return $this->belongsTo(BatchModel::class, 'batch_id');
+        return $this->belongsTo(SupplierModel::class, 'supplier_id');
     }
 
-    public function serial(): BelongsTo
+    public function serials(): HasMany
     {
-        return $this->belongsTo(SerialModel::class, 'serial_id');
+        return $this->hasMany(SerialModel::class, 'batch_id');
     }
 
-    public function location(): BelongsTo
+    public function stockLevels(): HasMany
     {
-        return $this->belongsTo(WarehouseLocationModel::class, 'location_id');
-    }
-
-    public function reservedFor(): MorphTo
-    {
-        return $this->morphTo();
+        return $this->hasMany(StockLevelModel::class, 'batch_id');
     }
 }

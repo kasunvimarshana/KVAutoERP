@@ -7,36 +7,19 @@ namespace Modules\Inventory\Infrastructure\Persistence\Eloquent\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\BatchModel;
 use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
+use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\BatchModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductVariantModel;
 use Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
 use Modules\Warehouse\Infrastructure\Persistence\Eloquent\Models\WarehouseLocationModel;
 
-/**
- * @property int $id
- * @property int $tenant_id
- * @property int $product_id
- * @property int|null $variant_id
- * @property int|null $batch_id
- * @property int $location_id
- * @property string $valuation_method
- * @property string $layer_date
- * @property string $quantity_in
- * @property string $quantity_remaining
- * @property string $unit_cost
- * @property string $total_cost
- * @property string|null $reference_type
- * @property int|null $reference_id
- * @property bool $is_closed
- */
-class InventoryCostLayerModel extends Model
+class SerialModel extends Model
 {
     use HasAudit;
     use HasTenant;
 
-    protected $table = 'inventory_cost_layers';
+    protected $table = 'serials';
 
     protected $fillable = [
         'tenant_id',
@@ -44,16 +27,15 @@ class InventoryCostLayerModel extends Model
         'row_version',
         'product_id',
         'variant_id',
+        'serial_number',
         'batch_id',
-        'location_id',
-        'valuation_method',
-        'layer_date',
-        'quantity_in',
-        'quantity_remaining',
-        'unit_cost',
-        'reference_type',
-        'reference_id',
-        'is_closed',
+        'status',
+        'current_location_id',
+        'current_owner_type',
+        'current_owner_id',
+        'warranty_expiry',
+        'notes',
+        'manufacture_date',
     ];
 
     protected $casts = [
@@ -63,14 +45,11 @@ class InventoryCostLayerModel extends Model
         'product_id' => 'integer',
         'variant_id' => 'integer',
         'batch_id' => 'integer',
-        'location_id' => 'integer',
-        'reference_id' => 'integer',
-        'valuation_method' => 'string',
-        'layer_date' => 'date',
-        'is_closed' => 'boolean',
-        'quantity_in' => 'decimal:6',
-        'quantity_remaining' => 'decimal:6',
-        'unit_cost' => 'decimal:6',
+        'current_location_id' => 'integer',
+        'current_owner_id' => 'integer',
+        'status' => 'string',
+        'warranty_expiry' => 'date',
+        'manufacture_date' => 'date',
     ];
 
     public function product(): BelongsTo
@@ -88,12 +67,12 @@ class InventoryCostLayerModel extends Model
         return $this->belongsTo(BatchModel::class, 'batch_id');
     }
 
-    public function location(): BelongsTo
+    public function currentLocation(): BelongsTo
     {
-        return $this->belongsTo(WarehouseLocationModel::class, 'location_id');
+        return $this->belongsTo(WarehouseLocationModel::class, 'current_location_id');
     }
 
-    public function reference(): MorphTo
+    public function currentOwner(): MorphTo
     {
         return $this->morphTo();
     }

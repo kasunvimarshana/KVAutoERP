@@ -6,37 +6,21 @@ namespace Modules\Inventory\Infrastructure\Persistence\Eloquent\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\BatchModel;
 use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
+use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\BatchModel;
+use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\SerialModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductVariantModel;
+use Modules\Product\Infrastructure\Persistence\Eloquent\Models\UnitOfMeasureModel;
 use Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
 use Modules\Warehouse\Infrastructure\Persistence\Eloquent\Models\WarehouseLocationModel;
 
-/**
- * @property int $id
- * @property int $tenant_id
- * @property int $product_id
- * @property int|null $variant_id
- * @property int|null $batch_id
- * @property int $location_id
- * @property string $valuation_method
- * @property string $layer_date
- * @property string $quantity_in
- * @property string $quantity_remaining
- * @property string $unit_cost
- * @property string $total_cost
- * @property string|null $reference_type
- * @property int|null $reference_id
- * @property bool $is_closed
- */
-class InventoryCostLayerModel extends Model
+class StockLevelModel extends Model
 {
     use HasAudit;
     use HasTenant;
 
-    protected $table = 'inventory_cost_layers';
+    protected $table = 'stock_levels';
 
     protected $fillable = [
         'tenant_id',
@@ -44,16 +28,14 @@ class InventoryCostLayerModel extends Model
         'row_version',
         'product_id',
         'variant_id',
-        'batch_id',
         'location_id',
-        'valuation_method',
-        'layer_date',
-        'quantity_in',
-        'quantity_remaining',
+        'batch_id',
+        'serial_id',
+        'uom_id',
+        'quantity_on_hand',
+        'quantity_reserved',
         'unit_cost',
-        'reference_type',
-        'reference_id',
-        'is_closed',
+        'last_movement_at',
     ];
 
     protected $casts = [
@@ -62,15 +44,14 @@ class InventoryCostLayerModel extends Model
         'row_version' => 'integer',
         'product_id' => 'integer',
         'variant_id' => 'integer',
-        'batch_id' => 'integer',
         'location_id' => 'integer',
-        'reference_id' => 'integer',
-        'valuation_method' => 'string',
-        'layer_date' => 'date',
-        'is_closed' => 'boolean',
-        'quantity_in' => 'decimal:6',
-        'quantity_remaining' => 'decimal:6',
+        'batch_id' => 'integer',
+        'serial_id' => 'integer',
+        'uom_id' => 'integer',
+        'quantity_on_hand' => 'decimal:6',
+        'quantity_reserved' => 'decimal:6',
         'unit_cost' => 'decimal:6',
+        'last_movement_at' => 'datetime',
     ];
 
     public function product(): BelongsTo
@@ -83,18 +64,23 @@ class InventoryCostLayerModel extends Model
         return $this->belongsTo(ProductVariantModel::class, 'variant_id');
     }
 
-    public function batch(): BelongsTo
-    {
-        return $this->belongsTo(BatchModel::class, 'batch_id');
-    }
-
     public function location(): BelongsTo
     {
         return $this->belongsTo(WarehouseLocationModel::class, 'location_id');
     }
 
-    public function reference(): MorphTo
+    public function batch(): BelongsTo
     {
-        return $this->morphTo();
+        return $this->belongsTo(BatchModel::class, 'batch_id');
+    }
+
+    public function serial(): BelongsTo
+    {
+        return $this->belongsTo(SerialModel::class, 'serial_id');
+    }
+
+    public function uom(): BelongsTo
+    {
+        return $this->belongsTo(UnitOfMeasureModel::class, 'uom_id');
     }
 }
