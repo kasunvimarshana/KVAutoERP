@@ -5,8 +5,10 @@ This directory contains the enterprise architecture audit outputs and operationa
 ## Documents
 
 - [Enterprise Architecture Audit (2026-04-27)](enterprise-architecture-audit-2026-04-27.md)
+- [Module Gap Matrix (2026-04-28)](module-gap-matrix-2026-04-28.md)
 - [Runtime Sequence Matrix](runtime-sequence-matrix.md)
 - [Module Contracts Index](modules/README.md)
+- [Migration and Model Governance Checklist](migration-model-governance-checklist.md)
 
 ## Purpose
 
