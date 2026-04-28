@@ -8,6 +8,7 @@ This checklist standardizes migration and model quality across all modules.
 - Cross-module references use explicit table names in `constrained('<table>', 'id', '<index_name>')`.
 - Foreign key delete behavior is intentional (`cascadeOnDelete`, `nullOnDelete`, or `restrictOnDelete`) and documented in the migration.
 - Every business identifier that must be unique per tenant has a composite unique index with `tenant_id`.
+- For org-unit-aware tables, uniqueness is scoped with `tenant_id + org_unit_id + <business_key>` to support optional organizational isolation.
 - High-frequency filtering paths include composite indexes (for example: `tenant_id + status + date`).
 - Money fields use `decimal(20, 6)`.
 - No duplicate foreign key declarations exist for the same column.
