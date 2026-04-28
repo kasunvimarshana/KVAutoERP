@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\ResolvesMorphTypeClass;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductIdentifierModel;
 use Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
@@ -17,6 +18,7 @@ class TraceLogModel extends Model
 {
     use HasAudit;
     use HasTenant;
+    use ResolvesMorphTypeClass;
 
     public $timestamps = false;
 
@@ -65,6 +67,16 @@ class TraceLogModel extends Model
     public function reference(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function getEntityTypeClassAttribute(): ?string
+    {
+        return $this->resolveMorphTypeClass($this->entity_type);
+    }
+
+    public function getReferenceTypeClassAttribute(): ?string
+    {
+        return $this->resolveMorphTypeClass($this->reference_type);
     }
 
     public function identifier(): BelongsTo

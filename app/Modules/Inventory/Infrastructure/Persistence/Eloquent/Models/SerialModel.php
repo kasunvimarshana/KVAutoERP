@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
-use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\BatchModel;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\ResolvesMorphTypeClass;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductVariantModel;
 use Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
@@ -18,6 +18,7 @@ class SerialModel extends Model
 {
     use HasAudit;
     use HasTenant;
+    use ResolvesMorphTypeClass;
 
     protected $table = 'serials';
 
@@ -75,5 +76,10 @@ class SerialModel extends Model
     public function currentOwner(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function getCurrentOwnerTypeClassAttribute(): ?string
+    {
+        return $this->resolveMorphTypeClass($this->current_owner_type);
     }
 }

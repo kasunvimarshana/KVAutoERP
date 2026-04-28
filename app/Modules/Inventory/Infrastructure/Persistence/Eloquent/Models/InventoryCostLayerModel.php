@@ -7,8 +7,8 @@ namespace Modules\Inventory\Infrastructure\Persistence\Eloquent\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\BatchModel;
 use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\ResolvesMorphTypeClass;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductVariantModel;
 use Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
@@ -35,6 +35,7 @@ class InventoryCostLayerModel extends Model
 {
     use HasAudit;
     use HasTenant;
+    use ResolvesMorphTypeClass;
 
     protected $table = 'inventory_cost_layers';
 
@@ -96,5 +97,10 @@ class InventoryCostLayerModel extends Model
     public function reference(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function getReferenceTypeClassAttribute(): ?string
+    {
+        return $this->resolveMorphTypeClass($this->reference_type);
     }
 }

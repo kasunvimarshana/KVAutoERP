@@ -7,9 +7,8 @@ namespace Modules\Inventory\Infrastructure\Persistence\Eloquent\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\BatchModel;
-use Modules\Inventory\Infrastructure\Persistence\Eloquent\Models\SerialModel;
 use Modules\Audit\Infrastructure\Persistence\Eloquent\Traits\HasAudit;
+use Modules\Core\Infrastructure\Persistence\Eloquent\Traits\ResolvesMorphTypeClass;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductModel;
 use Modules\Product\Infrastructure\Persistence\Eloquent\Models\ProductVariantModel;
 use Modules\Tenant\Infrastructure\Persistence\Eloquent\Traits\HasTenant;
@@ -19,6 +18,7 @@ class StockReservationModel extends Model
 {
     use HasAudit;
     use HasTenant;
+    use ResolvesMorphTypeClass;
 
     protected $table = 'stock_reservations';
 
@@ -79,5 +79,10 @@ class StockReservationModel extends Model
     public function reservedFor(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function getReservedForTypeClassAttribute(): ?string
+    {
+        return $this->resolveMorphTypeClass($this->reserved_for_type);
     }
 }

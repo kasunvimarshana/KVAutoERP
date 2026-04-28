@@ -22,6 +22,8 @@ This checklist standardizes migration and model quality across all modules.
 - `row_version` fields are cast to `integer`.
 - Tenant-scoped models use `HasTenant`.
 - Audited models use `HasAudit`.
+- Polymorphic models expose explicit type class accessors (for example: `*_type_class`) for readable debugging and serialization.
+- Polymorphic relations use enforced morph aliases mapped in `AppServiceProvider`.
 
 ## 3. Module Boundary Rules
 
@@ -48,6 +50,7 @@ composer install
 ./vendor/bin/phpunit --filter=Inventory
 ./vendor/bin/phpunit --filter=Purchase
 ./vendor/bin/phpunit --filter=Sales
+./vendor/bin/phpunit --filter=PolymorphicGuardrailsTest
 ./vendor/bin/pint
 ```
 
