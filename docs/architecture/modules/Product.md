@@ -29,11 +29,14 @@
 - Consumed events: Listener-driven integration where module listeners are registered.
 - External module dependencies (contracts only): Cross-module references should remain contract/event based.
 - Failure and retry behavior: Queue/listener behavior and transactional safeguards per use-case.
+- Read-side integration points:
+  - Pricing read model join via price_lists and price_list_items for contextual purchase/sales pricing.
+  - Inventory read model join via stock_levels and warehouse_locations for on-hand/reserved/available quantities.
 
 ## 6. API Surface
 - Route prefix: n/a
 - Resource endpoints: combo-items, product-attribute-groups, product-attributes, product-attribute-values, product-brands, product-categories, product-identifiers, products, product-variants, units-of-measure, uom-conversions, variant-attributes
-- Action endpoints: uom-conversions/resolve
+- Action endpoints: products/search, uom-conversions/resolve
 - Auth and middleware requirements: auth:api, resolve.tenant
 
 ## 7. Operational Profile
@@ -102,6 +105,10 @@
 - Entry path: HTTP routes dispatch to thin controllers in module infrastructure.
 - Orchestration path: Controllers delegate mutations/queries to application services and contracts.
 - Persistence path: Services persist through module repositories implementing domain interfaces.
+- Cross-module query orchestration for Buy/Sell/POS search:
+  - Endpoint: [app/Modules/Product/routes/api.php](app/Modules/Product/routes/api.php)
+  - Controller: [app/Modules/Product/Infrastructure/Http/Controllers/ProductSearchController.php](app/Modules/Product/Infrastructure/Http/Controllers/ProductSearchController.php)
+  - Service: [app/Modules/Product/Application/Services/SearchProductCatalogService.php](app/Modules/Product/Application/Services/SearchProductCatalogService.php)
 
 
 

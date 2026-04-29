@@ -149,3 +149,28 @@ This document captures canonical runtime execution paths for critical ERP flows 
 1. Add idempotency regression tests around payment and inventory adjustment replay.
 1. Add HR-to-Finance contract tests validating single journal linkage per approved payroll outcome.
 1. Add cross-module tenant-consistency assertion helpers for listener-driven persistence.
+
+## 7. Catalog Search (Buy/Sell/POS)
+
+### Sequence (Catalog Search)
+
+- Client invokes unified product search endpoint with tenant and optional context filters.
+  Route: [app/Modules/Product/routes/api.php](app/Modules/Product/routes/api.php)
+  Request validation: [app/Modules/Product/Infrastructure/Http/Requests/SearchProductCatalogRequest.php](app/Modules/Product/Infrastructure/Http/Requests/SearchProductCatalogRequest.php)
+- Product application service composes identifier + variant + UOM + relationship shape.
+  Service: [app/Modules/Product/Application/Services/SearchProductCatalogService.php](app/Modules/Product/Application/Services/SearchProductCatalogService.php)
+- Inventory availability is resolved from stock_levels with optional warehouse constraint.
+  Tables/index roots: [app/Modules/Inventory/database/migrations/2024_01_01_900003_create_stock_levels_table.php](app/Modules/Inventory/database/migrations/2024_01_01_900003_create_stock_levels_table.php)
+- Pricing context is resolved from active and date-valid price lists and items.
+  Tables/index roots: [app/Modules/Pricing/database/migrations/2024_01_01_700001_create_price_lists_table.php](app/Modules/Pricing/database/migrations/2024_01_01_700001_create_price_lists_table.php), [app/Modules/Pricing/database/migrations/2024_01_01_700002_create_price_list_items_table.php](app/Modules/Pricing/database/migrations/2024_01_01_700002_create_price_list_items_table.php)
+
+### High-Risk Failure Points (Catalog Search)
+
+- Full wildcard matching can become expensive on very large product catalogs without specialized indexing.
+- Price-context ambiguity can occur when multiple active lists overlap by date/type for the same SKU.
+- Highly concurrent stock updates can transiently affect near-real-time availability read consistency.
+
+### Existing Guardrails and Tests (Catalog Search)
+
+- [tests/Feature/ProductRoutesTest.php](tests/Feature/ProductRoutesTest.php)
+- [tests/Feature/ProductSearchEndpointsAuthenticatedTest.php](tests/Feature/ProductSearchEndpointsAuthenticatedTest.php)

@@ -29,6 +29,8 @@
 - Consumed events: Listener-driven integration where module listeners are registered.
 - External module dependencies (contracts only): Cross-module references should remain contract/event based.
 - Failure and retry behavior: Queue/listener behavior and transactional safeguards per use-case.
+- Read-side integration points:
+  - Contextual pricing consumed by Product catalog search via joins on price_lists and price_list_items.
 
 ## 6. API Surface
 - Route prefix: n/a
