@@ -6,6 +6,7 @@ This directory contains the enterprise architecture audit outputs and operationa
 
 - [Enterprise Architecture Audit (2026-04-27)](enterprise-architecture-audit-2026-04-27.md)
 - [Repository and Runtime Architecture Audit (2026-04-29)](repository-and-runtime-audit-2026-04-29.md)
+- [Repository Module Matrix (2026-04-29)](repository-module-matrix-2026-04-29.md)
 - [Module Gap Matrix (2026-04-28)](module-gap-matrix-2026-04-28.md)
 - [Runtime Sequence Matrix](runtime-sequence-matrix.md)
 - [Module Contracts Index](modules/README.md)

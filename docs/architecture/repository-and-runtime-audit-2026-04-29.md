@@ -162,13 +162,48 @@ Additional focused validation after replay-contract architecture parity expansio
 
 Result: 2 passed, 0 failed.
 
-Combined focused validation in this audit cycle: 212 passed, 0 failed.
+Additional focused validation after repository infrastructure tenant-scope hardening:
+
+- `tests/Unit/Architecture/RepositoryInfrastructureGuardrailsTest.php`
+
+Result: 3 passed, 0 failed.
+
+Supplemental focused validation after aggregate repository write guardrail expansion:
+
+- `tests/Unit/Architecture/AggregateRepositoryWriteGuardrailsTest.php`
+- `tests/Unit/Architecture/RepositoryInfrastructureGuardrailsTest.php`
+
+Result: 6 passed, 0 failed.
+
+Supplemental focused validation after cross-tenant mutation behavior coverage expansion:
+
+- `tests/Feature/SalesOrderRepositoryIntegrationTest.php`
+- `tests/Feature/PurchaseOrderRepositoryIntegrationTest.php`
+- `tests/Feature/InventoryTransferOrderIntegrationTest.php`
+- `tests/Feature/HRAttendanceRecordIntegrationTest.php`
+
+Result: 19 passed, 0 failed.
+
+Supplemental focused validation after cross-tenant cancel/delete behavior coverage expansion:
+
+- `tests/Feature/SalesOrderRepositoryIntegrationTest.php`
+- `tests/Feature/PurchaseOrderRepositoryIntegrationTest.php`
+
+Result: 19 passed, 0 failed.
+
+Combined focused validation in this audit cycle: 250 passed, 0 failed.
 
 Finance listener integration suite sanity run:
 
 - `tests/Feature/FinanceListenerIntegrationTest.php`
 
 Result: 48 passed, 0 failed.
+
+Full suite regression run after tenant-isolation behavior expansion:
+
+- `./vendor/bin/phpunit`
+
+Result: 614 passed, 0 failed.
 
 ## 8. Enterprise Alignment Notes (SAP/Oracle/D365 style)
 
@@ -258,6 +293,47 @@ Why this matters:
 - Reduces per-request line update complexity from repeated linear scans to indexed lookups.
 - Improves runtime efficiency for larger transfer and cycle-count batches.
 - Preserves existing domain behavior while hardening high-volume inventory paths.
+
+### 10.4 Shared repository infrastructure tenant-scope hardening
+
+Files:
+
+- `app/Modules/Core/Infrastructure/Persistence/Repositories/EloquentRepository.php`
+- `app/Modules/User/Infrastructure/Persistence/Eloquent/Repositories/EloquentUserDeviceRepository.php`
+
+Applied changes:
+
+- Added centralized `newScopedQuery()` construction in the shared Eloquent repository base.
+- Applied automatic tenant scoping for models that expose a `tenant_id` column when current tenant context is bound.
+- Reused scoped query construction in provider reset and raw model lookup paths.
+- Added cached tenant-column detection to avoid repeated schema inspection per table.
+- Removed direct `Auth`/`Request` facade usage from `EloquentUserDeviceRepository` and switched it to the shared tenant-context resolver.
+- Standardized domain mapping in `EloquentUserDeviceRepository::find()` through the base repository mapper.
+
+Why this matters:
+
+- Moves tenant-context resolution out of individual repositories and into shared infrastructure.
+- Reduces duplication and repository-layer transport coupling.
+- Hardens default `find`/`update`/`delete` paths against accidental cross-tenant access for tenant-owned models.
+- Establishes a reusable base pattern that future repositories inherit automatically.
+
+### 10.5 New architecture guardrails added
+
+Files:
+
+- `tests/Unit/Architecture/RepositoryInfrastructureGuardrailsTest.php`
+
+Applied changes:
+
+- Added a guardrail that locks the presence of centralized tenant-scoped query construction in the shared Eloquent base repository.
+- Added a repository-layer boundary check to prevent `Auth` and `Request` facade usage inside Eloquent repository implementations.
+- Added a targeted guardrail confirming `EloquentUserDeviceRepository` uses the shared tenant-context resolver instead of local transport-coupled resolution.
+
+Why this matters:
+
+- Converts the repository cleanup from a one-time refactor into an enforced architectural invariant.
+- Protects separation of concerns in future repository changes.
+- Keeps tenancy behavior consistent without broad, brittle assertions across unrelated layers.
 
 ### 10.4 Finance invoice-listener replay hardening
 
@@ -464,12 +540,81 @@ Applied changes:
   The most common listing query is all locations under a warehouse — added
   `(tenant_id, warehouse_id)`.
 - `stock_transfers` had only the reference unique key, no operational status filter index.
+
+### 10.12 Cross-tenant mutation behavior coverage expansion
+
+Files changed:
+
+- `tests/Feature/SalesOrderRepositoryIntegrationTest.php`
+- `tests/Feature/PurchaseOrderRepositoryIntegrationTest.php`
+- `tests/Feature/InventoryTransferOrderIntegrationTest.php`
+- `tests/Feature/HRAttendanceRecordIntegrationTest.php`
+
+Applied changes:
+
+- Added service-level cross-tenant mutation tests for Sales order updates and Purchase order updates by binding a different current tenant context and asserting the update path fails as not found.
+- Added service-level cross-tenant cancel/delete tests for Sales order cancellation and Purchase order deletion using the same tenant-scoped lookup boundary.
+- Added transfer-order receipt coverage to prove Inventory workflow mutations reject the wrong tenant and do not materialize foreign-tenant stock movements.
+- Added HR attendance update coverage to prove tenant-scoped repository lookup blocks cross-tenant record mutation and leaves persisted state unchanged.
+- Kept all assertions state-based: each test verifies the original tenant-owned row remains unchanged after the rejected mutation attempt.
+
+Why this matters:
+
+- Complements source-level repository and architecture guardrails with executable behavioral evidence.
+- Validates the shared `EloquentRepository` tenant-scoped lookup hardening through real application-service flows instead of only source inspection.
+- Reduces regression risk on the highest-value aggregate and workflow mutation paths across Sales, Purchase, Inventory, and HR.
   Transfer pipeline queries (pending, in_transit) scatter across all tenants without a
   status index — added `(tenant_id, status)`.
 - `inventory_cost_layers` had a date-ordered index for layer history queries but no
   open-layer filter index. FIFO/FEFO valuation queries exclusively read layers where
   `is_closed = false`; without a dedicated index this becomes a full tenant+product scan
   — added `(tenant_id, product_id, is_closed)`.
+
+---
+
+### 10.12 Aggregate repository write-guardrail coverage
+
+Files:
+
+- `tests/Unit/Architecture/AggregateRepositoryWriteGuardrailsTest.php`
+
+Applied changes:
+
+- Added guardrails for Sales aggregate repositories to lock transactional save behavior,
+  shared scoped update delegation, tenant-scoped child writes, explicit child pruning,
+  and post-save eager reload of line collections.
+- Added a dedicated payslip repository guardrail to preserve transactional line upsert
+  behavior and tenant-scoped cleanup in HR payroll persistence.
+- Added Purchase header repository guardrails to ensure header-only repositories continue
+  routing ID-based writes through the shared scoped base repository.
+
+Why this matters:
+
+- Protects the highest-risk aggregate write paths from drifting back to non-transactional
+  or cross-tenant-unsafe persistence behavior.
+- Keeps write-side repository conventions executable rather than relying on audit notes alone.
+- Reinforces the distinction between aggregate-sync repositories and header-only repositories.
+
+### 10.13 Repository knowledge-base expansion
+
+Files:
+
+- `docs/architecture/repository-module-matrix-2026-04-29.md`
+- `docs/architecture/README.md`
+
+Applied changes:
+
+- Added a repository-focused architecture matrix describing module repository counts,
+  dominant persistence styles, high-risk write paths, and runtime integration roles.
+- Categorized repositories into transactional aggregate-sync, header-only, and
+  explicit-scope-bypass patterns.
+- Indexed the matrix from the architecture knowledge base README.
+
+Why this matters:
+
+- Gives future repository work a single reference point for module ownership and risk.
+- Makes the persistence landscape easier to navigate when extending or auditing ERP flows.
+- Complements executable guardrails with a human-readable architecture map.
 
 Why this matters:
 
