@@ -32,6 +32,7 @@ This matrix summarizes architecture and implementation risk by module, based on 
 | Tenant | A | Central tenancy model and partitioning strategy are explicit | Ongoing operational governance and lifecycle hardening | Low |
 | User | B | RBAC-oriented structures and user support tables are implemented | Permission drift controls and role evolution checks can be expanded | Medium |
 | Warehouse | B | Location hierarchy and operations support are implemented | Add more high-volume path performance guardrails | Medium |
+| Vehicle | B | Unified rental/service asset lifecycle with dual-status governance is now implemented | Expand deep integration with Finance/Inventory posting and SLA monitoring | High |
 
 ## Cross-Module Gap Themes
 
