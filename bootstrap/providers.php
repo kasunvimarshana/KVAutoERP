@@ -23,7 +23,6 @@ use Modules\Tax\Infrastructure\Providers\TaxServiceProvider;
 use Modules\Tenant\Infrastructure\Providers\TenantConfigServiceProvider;
 use Modules\Tenant\Infrastructure\Providers\TenantServiceProvider;
 use Modules\User\Infrastructure\Providers\UserServiceProvider;
-use Modules\Vehicle\Infrastructure\Providers\VehicleServiceProvider;
 use Modules\Warehouse\Infrastructure\Providers\WarehouseServiceProvider;
 
 return [
@@ -49,5 +48,4 @@ return [
     PurchaseServiceProvider::class,
     SalesServiceProvider::class,
     HRServiceProvider::class,
-    VehicleServiceProvider::class,
 ];
