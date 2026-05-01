@@ -41,7 +41,7 @@ class FinanceListenerReplayGuardrailsTest extends TestCase
             );
 
             $this->assertStringContainsString(
-                'HandlesReplayConflicts',
+                'use HandlesReplayConflicts;',
                 $source,
                 'Listener should use shared replay guard trait: '.$relativePath
             );

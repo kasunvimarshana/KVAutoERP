@@ -74,7 +74,6 @@ use Modules\Finance\Application\Contracts\IssueCreditMemoServiceInterface;
 use Modules\Finance\Application\Contracts\NextNumberingSequenceServiceInterface;
 use Modules\Finance\Application\Contracts\PostJournalEntryServiceInterface;
 use Modules\Finance\Application\Contracts\PostPaymentServiceInterface;
-use Modules\Finance\Application\Contracts\PostPaymentWithJournalEntryServiceInterface;
 use Modules\Finance\Application\Contracts\ReconcileApTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\ReconcileArTransactionServiceInterface;
 use Modules\Finance\Application\Contracts\RejectApprovalRequestServiceInterface;
@@ -165,7 +164,6 @@ use Modules\Finance\Application\Services\IssueCreditMemoService;
 use Modules\Finance\Application\Services\NextNumberingSequenceService;
 use Modules\Finance\Application\Services\PostJournalEntryService;
 use Modules\Finance\Application\Services\PostPaymentService;
-use Modules\Finance\Application\Services\PostPaymentWithJournalEntryService;
 use Modules\Finance\Application\Services\ReconcileApTransactionService;
 use Modules\Finance\Application\Services\ReconcileArTransactionService;
 use Modules\Finance\Application\Services\RejectApprovalRequestService;
@@ -337,7 +335,6 @@ class FinanceServiceProvider extends ServiceProvider
             DeleteJournalEntryServiceInterface::class => DeleteJournalEntryService::class,
             PostJournalEntryServiceInterface::class => PostJournalEntryService::class,
             PostPaymentServiceInterface::class => PostPaymentService::class,
-            PostPaymentWithJournalEntryServiceInterface::class => PostPaymentWithJournalEntryService::class,
             VoidPaymentServiceInterface::class => VoidPaymentService::class,
             IssueCreditMemoServiceInterface::class => IssueCreditMemoService::class,
             ApplyCreditMemoServiceInterface::class => ApplyCreditMemoService::class,

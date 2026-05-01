@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Collection;
-use Modules\Core\Domain\Exceptions\StaleEntityException;
 
 class EloquentRepository extends BaseRepository
 {
@@ -164,50 +163,17 @@ class EloquentRepository extends BaseRepository
 
     /**
      * {@inheritdoc}
-     *
-     * When $data contains a 'row_version' key the update is executed as an
-     * optimistic-lock write: the row is updated only if its current
-     * row_version matches the supplied value, and row_version is atomically
-     * incremented.  A StaleEntityException is thrown on mismatch.
-     *
-     * When 'row_version' is absent the existing behaviour (plain update) is preserved.
      */
     public function update(int|string $id, array $data): mixed
     {
         $record = $this->findModel($id);
-        if (! $record) {
-            return null;
+        if ($record) {
+            $record->update($data);
+
+            return $record->fresh();
         }
 
-        if (array_key_exists('row_version', $data)) {
-            $expectedVersion = (int) $data['row_version'];
-
-            // Remove row_version from explicit set-data — we will increment via raw SQL.
-            unset($data['row_version']);
-
-            // Perform conditional update: WHERE id = ? AND row_version = expectedVersion
-            // and auto-increment row_version in the same statement.
-            $affected = $this->model->newQueryWithoutScopes()
-                ->where($record->getKeyName(), $id)
-                ->where('row_version', $expectedVersion)
-                ->update(array_merge($data, ['row_version' => $expectedVersion + 1]));
-
-            if ($affected === 0) {
-                // Reload to distinguish "record gone" from "version mismatch".
-                $current = $this->findModel($id);
-                if ($current !== null) {
-                    throw new StaleEntityException($id, $expectedVersion, (int) $current->row_version);
-                }
-
-                return null;
-            }
-
-            return $this->findModel($id);
-        }
-
-        $record->update($data);
-
-        return $record->fresh();
+        return null;
     }
 
     /**
