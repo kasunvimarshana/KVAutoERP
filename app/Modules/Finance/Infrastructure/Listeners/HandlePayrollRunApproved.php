@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Finance\Infrastructure\Listeners;
 
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\QueryException;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Modules\Finance\Application\Contracts\CreateJournalEntryServiceInterface;
@@ -28,9 +30,17 @@ use Modules\HR\Domain\Events\PayrollRunApproved;
  * A future enhancement should write the created JournalEntry ID back to the payslip
  * (see hr.md Section 10 known debt).
  */
-class HandlePayrollRunApproved
+class HandlePayrollRunApproved implements ShouldQueue
 {
-    use HandlesReplayConflicts;
+    use HandlesReplayConflicts, InteractsWithQueue;
+
+    public string $queue = 'finance';
+
+    public int $tries = 3;
+
+    public int $backoff = 30;
+
+    public bool $afterCommit = true;
 
     public function __construct(
         private readonly FiscalPeriodRepositoryInterface $fiscalPeriodRepository,
