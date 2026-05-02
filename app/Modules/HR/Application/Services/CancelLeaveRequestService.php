@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\HR\Application\Services;
 
+use Illuminate\Support\Facades\DB;
 use Modules\Core\Application\Services\BaseService;
 use Modules\Core\Domain\Exceptions\DomainException;
 use Modules\HR\Application\Contracts\CancelLeaveRequestServiceInterface;
@@ -46,24 +47,27 @@ class CancelLeaveRequestService extends BaseService implements CancelLeaveReques
         }
 
         $request->cancel();
-        $saved = $this->requestRepository->save($request);
 
-        $year = (int) $request->getStartDate()->format('Y');
-        $balance = $this->balanceRepository->findByEmployeeAndType(
-            $tenantId,
-            $request->getEmployeeId(),
-            $request->getLeaveTypeId(),
-            $year,
-        );
+        return DB::transaction(function () use ($request, $tenantId, $previousStatus): LeaveRequest {
+            $saved = $this->requestRepository->save($request);
 
-        if ($balance !== null) {
-            $updatedBalance = $previousStatus === LeaveRequestStatus::APPROVED
-                ? $this->withUsed($balance, $balance->getUsed() - $request->getTotalDays())
-                : $this->withPending($balance, $balance->getPending() - $request->getTotalDays());
-            $this->balanceRepository->save($updatedBalance);
-        }
+            $year = (int) $request->getStartDate()->format('Y');
+            $balance = $this->balanceRepository->findByEmployeeAndType(
+                $tenantId,
+                $request->getEmployeeId(),
+                $request->getLeaveTypeId(),
+                $year,
+            );
 
-        return $saved;
+            if ($balance !== null) {
+                $updatedBalance = $previousStatus === LeaveRequestStatus::APPROVED
+                    ? $this->withUsed($balance, $balance->getUsed() - $request->getTotalDays())
+                    : $this->withPending($balance, $balance->getPending() - $request->getTotalDays());
+                $this->balanceRepository->save($updatedBalance);
+            }
+
+            return $saved;
+        });
     }
 
     private function withUsed(LeaveBalance $balance, float $used): LeaveBalance
