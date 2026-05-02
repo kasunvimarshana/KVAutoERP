@@ -23,6 +23,7 @@ class UserDeviceModel extends BaseModel
     protected $table = 'user_devices';
 
     protected $fillable = [
+        'tenant_id',
         'user_id',
         'device_token',
         'platform',
