@@ -16,12 +16,13 @@ cp .env.example .env && php artisan key:generate  # First-time setup
 
 ## Module Status
 
-**All 20 modules are fully implemented** (Domain/Application/Infrastructure code + migrations):
-Audit, Auth, Configuration, Core, Customer, Employee, Finance, HR, Inventory, OrganizationUnit, Pricing, Product, Purchase, Sales, Shared, Supplier, Tax, Tenant, User, Warehouse.
+**Fully implemented** (have Domain/Application/Infrastructure code):
 
 **Configuration-owned reference data**: countries, currencies, languages, and timezones now live in the Configuration module (Domain/Application/Infrastructure + migrations).
 
 **Minimal Shared shell**: Shared is intentionally thin (provider + route surface only) and should not contain domain-owned runtime logic.
+
+**Migration-only stubs** (schema defined, no application code):
 
 ## Module Architecture
 
