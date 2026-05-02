@@ -77,6 +77,7 @@ use Modules\HR\Domain\ValueObjects\PayrollRunStatus;
 use Modules\HR\Domain\ValueObjects\ShiftType;
 use Modules\Tenant\Application\Contracts\TenantConfigClientInterface;
 use Modules\Tenant\Application\Contracts\TenantConfigManagerInterface;
+use Modules\Auth\Application\Contracts\AuthorizationServiceInterface;
 use Modules\User\Infrastructure\Persistence\Eloquent\Models\UserModel;
 use PHPUnit\Framework\MockObject\MockObject;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -368,6 +369,11 @@ class HREndpointsAuthenticatedTest extends TestCase
         $presenceVerifier->method('getMultiCount')->willReturn(1);
         $this->app->instance(PresenceVerifierInterface::class, $presenceVerifier);
         $this->app['validator']->setPresenceVerifier($presenceVerifier);
+
+        // — Authorization service mock —
+        $authorizationService = $this->createMock(AuthorizationServiceInterface::class);
+        $authorizationService->method('can')->willReturn(true);
+        $this->app->instance(AuthorizationServiceInterface::class, $authorizationService);
 
         config()->set('auth.guards.api.driver', 'session');
 
