@@ -25,13 +25,19 @@ class CancelLeaveRequestService extends BaseService implements CancelLeaveReques
 
     protected function handle(array $data): LeaveRequest
     {
-        $id = (int) ($data['leave_request_id'] ?? 0);
-        $tenantId = (int) ($data['tenant_id'] ?? 0);
+        $id = (int) ($data['leave_request_id'] ?? $data['id'] ?? 0);
+        $tenantId = isset($data['tenant_id']) ? (int) $data['tenant_id'] : null;
         $request = $this->requestRepository->find($id);
 
-        if ($request === null || $request->getTenantId() !== $tenantId) {
+        if ($request === null) {
             throw new LeaveRequestNotFoundException($id);
         }
+
+        if ($tenantId !== null && $tenantId > 0 && $request->getTenantId() !== $tenantId) {
+            throw new LeaveRequestNotFoundException($id);
+        }
+
+        $tenantId = $request->getTenantId();
 
         $previousStatus = $request->getStatus();
 
